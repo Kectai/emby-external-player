@@ -196,6 +196,7 @@ const source = fs.readFileSync(
     "utf8");
 const document = new FakeDocument();
 const eventSubscriptions = new Set();
+let ajaxResponse = { LaunchUrl: "iina://weblink?url=https%3A%2F%2Fexample.test" };
 const events = {
     on(_source, name, handler) { eventSubscriptions.add(`${name}:${String(handler)}`); },
     off(_source, name, handler) { eventSubscriptions.delete(`${name}:${String(handler)}`); }
@@ -203,7 +204,10 @@ const events = {
 const apiClient = {
     getUrl(path) { return `http://127.0.0.1:18095/${path}`; },
     getJSON() { return Promise.resolve(manifest); },
-    ajax() { return Promise.resolve({ LaunchUrl: "iina://weblink?url=https%3A%2F%2Fexample.test" }); }
+    ajax(options) {
+        assert.equal(options.dataType, "json", "Emby ajax must parse the Resolve response as JSON");
+        return Promise.resolve(ajaxResponse);
+    }
 };
 const connectionManager = { currentApiClient() { return apiClient; } };
 const windowListeners = new Map();
@@ -246,8 +250,27 @@ assert.equal(eventSubscriptions.size, 1, "reloading must unsubscribe the prior c
 
 const button = document.getElementById("embyExternalPlayerButton");
 button.dispatch("click");
-assert.ok(document.querySelector(".emby-external-player-overlay"));
+const launchOverlay = document.querySelector(".emby-external-player-overlay");
+assert.ok(launchOverlay);
+const launchButton = launchOverlay.walk().find((item) => item.tagName === "BUTTON" && item.textContent === "IINA");
+assert.ok(launchButton);
+launchButton.dispatch("click");
+await new Promise((resolve) => setTimeout(resolve, 0));
+assert.equal(window.location.href, "iina://weblink?url=https%3A%2F%2Fexample.test");
 document.dispatch("keydown", { key: "Escape", preventDefault() {} });
 assert.equal(document.querySelector(".emby-external-player-overlay"), null);
+
+window.location.href = "";
+ajaxResponse = {};
+button.dispatch("click");
+const invalidOverlay = document.querySelector(".emby-external-player-overlay");
+const invalidLaunchButton = invalidOverlay.walk().find((item) => item.tagName === "BUTTON" && item.textContent === "IINA");
+invalidLaunchButton.dispatch("click");
+await new Promise((resolve) => setTimeout(resolve, 0));
+assert.equal(window.location.href, "", "an invalid Resolve response must never navigate to /undefined");
+assert.match(
+    invalidOverlay.walk().find((item) => item.className === "emby-external-player-error").textContent,
+    /无法生成播放地址/);
+document.dispatch("keydown", { key: "Escape", preventDefault() {} });
 
 console.log("Web module tests passed.");

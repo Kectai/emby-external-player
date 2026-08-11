@@ -19,6 +19,8 @@
 
 插件 1.0.0 曾使用 `MediaBrowser.Server.Core` 4.9.1.90 编译，在 4.9.1.80 宿主上会因强版本程序集引用触发 `ReflectionTypeLoadException`，导致 DLL 被扫描但插件类型无法发现。1.0.1 将 SDK 基线降至 4.9.1.80，并通过发布门禁防止意外升级；同一 DLL 已验证可向上加载到 4.9.3.0 与 4.9.5.0。
 
+插件 1.0.1 的 Web `Resolve` 调用未显式设置 `dataType: "json"`；Emby Web 4.9.1.80 因而完成 POST 却把未解析的结果交给回调，最终导航到 `/web/undefined`。1.0.2 显式请求 JSON、兼容 PascalCase/camelCase，并对无效 `LaunchUrl` 安全失败。Web 回归测试覆盖成功跳转和缺失地址不得跳转两条路径。
+
 Web 模块测试使用无依赖的假 DOM 覆盖：重复加载只保留一个按钮、事件退订、PascalCase/camelCase API 兼容、Escape 关闭、焦点恢复与 focus trap。实际 Chrome、Firefox、Safari 的人工视觉回归尚需在部署环境完成，因此不能把 DOM 自动化等同于三款浏览器实测。
 
 播放器 URL 适配器均有编码与能力测试。本机检测到 IINA 1.4.4 注册了 `iina` 协议，但遵循环境隔离要求未实际拉起；PotPlayer、VLC、Infuse 未安装，需按 [客户端说明](CLIENT_HANDLERS.md) 完成人工矩阵。

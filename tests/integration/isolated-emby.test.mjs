@@ -42,6 +42,8 @@ assert.equal(publicInfo.Version, expectedVersion);
 
 const webModule = await (await fetchChecked("dashboard-ui/modules/embyexternalplayer/plugin.js")).text();
 assert.match(webModule, /__embyExternalPlayerModule/);
+assert.match(webModule, /dataType:\s*"json"/);
+assert.match(webModule, /Resolve response did not contain a valid launch URL/);
 const webStylesheet = await (await fetchChecked("ExternalPlayer/Web/style.css")).text();
 assert.match(webStylesheet, /emby-external-player-dialog/);
 if (dashboardAppPath) {

@@ -64,7 +64,8 @@ define(["events", "connectionManager"], function (events, connectionManager) {
             type: "POST",
             url: apiClient.getUrl(path),
             data: JSON.stringify(body),
-            contentType: "application/json"
+            contentType: "application/json",
+            dataType: "json"
         });
     }
 
@@ -349,6 +350,10 @@ define(["events", "connectionManager"], function (events, connectionManager) {
                 }).then(function (resolution) {
                     launch.disabled = false;
                     var launchUrl = read(resolution, "LaunchUrl");
+                    if (typeof launchUrl !== "string" ||
+                        !/^(potplayer|iina|vlc|vlc-x-callback|infuse|mpv|nplayer-http|nplayer-https):\/\//i.test(launchUrl)) {
+                        throw new Error("Resolve response did not contain a valid launch URL.");
+                    }
                     var warnings = read(resolution, "Warnings") || [];
                     error.textContent = warnings.join(" ");
                     manual.href = launchUrl;

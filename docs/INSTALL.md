@@ -49,6 +49,7 @@ Emby 自身升级会替换 `app.js`。插件下次启动会针对已知锚点重
 ## 故障排查
 
 - 插件列表中不存在：先在服务器启动日志搜索 `Emby.ExternalPlayer`。若随后出现 `Could not load file or assembly ... Version=...`，说明 DLL 的 Emby SDK 编译版本高于服务器版本；1.0.1 已把最低编译基线固定为 4.9.1.80。
+- 点击播放器后访问 `/web/undefined`：这是 1.0.1 未要求 Emby Web AJAX 将 Resolve 响应解析为 JSON 所致；升级到 1.0.2。新版也会拒绝缺少有效 `LaunchUrl` 的响应，不再导航到 `undefined`。
 - 没有按钮：检查插件设置、服务器日志中的锚点警告、浏览器是否强制刷新，以及当前条目是否有可播放媒体源。
 - 点击无反应：确认播放器协议已注册；浏览器第一次打开自定义协议通常需要用户确认。
 - Secure 返回“不支持本地文件”：媒体源是 STRM/HLS/远程 URL。优先保持安全模式；确有需要时才使用 Legacy。
