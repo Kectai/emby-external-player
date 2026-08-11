@@ -45,7 +45,7 @@ EMBY_INTEGRATION_DASHBOARD_APP="$PWD/.local/emby-hosts/4.9.5.0/osx-arm64/EmbySer
 ./scripts/package.sh
 ```
 
-`verify.sh` 要求所有自动化测试通过、DLL 小于 1 MiB、内嵌 JS+CSS 小于 80 KiB，并扫描源代码中不应出现的硬编码测试凭据。`package.sh` 生成 ZIP 与 SHA-256。
+`verify.sh` 要求所有自动化测试通过、DLL 小于 1 MiB、内嵌 JS+CSS 小于 80 KiB、SDK 最低编译基线保持 4.9.1.80，并扫描源代码中不应出现的硬编码测试凭据。`package.sh` 生成 ZIP 与 SHA-256。
 
 ## 人工检查
 

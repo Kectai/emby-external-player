@@ -15,14 +15,14 @@
 
 ## 支持范围
 
-- 已在隔离的 Emby Server 4.9.3.0 和 4.9.5.0（.NET 6 宿主）完成 DLL 加载、配置 UI、认证、两媒体版本、SRT/ASS、续播、HEAD、非连续 Range 和泄漏扫描。
-- 插件程序集目标框架为 `netstandard2.1`；与上述两个宿主实测无冲突。
+- 已在隔离的 Emby Server 4.9.1.80、4.9.3.0 和 4.9.5.0（.NET 6 宿主）完成 DLL 加载、配置 UI、认证、两媒体版本、SRT/ASS、续播、HEAD、非连续 Range 和泄漏扫描。
+- 插件程序集目标框架为 `netstandard2.1`，SDK 编译基线固定为最低支持版本 4.9.1.80；与上述三个宿主实测无冲突。
 - 只支持由服务器提供的 Emby Web。原生电视/移动客户端若不加载服务器 Web UI，不会显示按钮。
 - Secure 模式当前只处理本地 `File` 媒体源。STRM、HLS 和远程 URL 需要显式启用 `LegacyTokenUrl`，并承担 token 暴露风险。
 
 ## 安装
 
-1. 从 `artifacts/Emby.ExternalPlayer-1.0.0.zip` 取出 `Emby.ExternalPlayer.dll`。
+1. 从 `artifacts/Emby.ExternalPlayer-1.0.1.zip` 取出 `Emby.ExternalPlayer.dll`。
 2. 停止 Emby Server，把 DLL 放入 Emby 程序数据目录的 `plugins` 文件夹。
 3. 启动 Emby，在插件设置中确认 `External Player` 已启用；默认安全模式无需额外配置。
 4. 强制刷新一次 Emby Web，然后进入有媒体源的视频详情页。

@@ -24,6 +24,7 @@ public sealed class DashboardPatchEngineTests
     }
 
     [TestMethod]
+    [DataRow("4.9.1.80")]
     [DataRow("4.9.3.0")]
     [DataRow("4.9.5.0")]
     public void Apply_IsCompatibleWithVerifiedOfficialEmbyAppJs(string version)

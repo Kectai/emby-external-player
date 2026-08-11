@@ -33,5 +33,11 @@ if ! rg -q '<TargetFramework>netstandard2\.1</TargetFramework>' \
     exit 1
 fi
 
+if ! rg -q '<PackageVersion Include="MediaBrowser\.Server\.Core" Version="4\.9\.1\.80" />' \
+    "${project_root}/Directory.Packages.props"; then
+    echo "The Emby SDK baseline must remain at the lowest supported server version, 4.9.1.80." >&2
+    exit 1
+fi
+
 git -C "${project_root}" diff --check
 echo "Verification passed: DLL=${dll_bytes} bytes, Web=${web_bytes} bytes."

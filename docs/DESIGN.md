@@ -2,7 +2,7 @@
 
 > 文档状态：Draft 1  
 > 设计日期：2026-08-12  
-> 初始兼容目标：Emby Server 4.9.x，优先验证 4.9.5.0  
+> 初始兼容目标：Emby Server 4.9.x，最低版本 4.9.1.80
 > 目标框架：`netstandard2.1`  
 > 部署形态：单个服务端 DLL，无浏览器扩展、无用户脚本管理器、无独立反向代理  
 > 核心范围：Emby Web 媒体详情页外部播放器选择，不回传播放进度
@@ -193,7 +193,7 @@ docs/
 
 初始工程基于 Emby SDK 的 Minimal Plugin 或 Simple UI Plugin 模板，但目标框架统一调整为 `netstandard2.1`。官方模板当前仍使用 `netstandard2.0`，本项目选择 2.1 是为了与本机现有 Emby 插件和现代 Emby 4.9.x 宿主保持一致。该选择不以旧 .NET Framework、UWP 或不支持 .NET Standard 2.1 的宿主为兼容目标。
 
-`MediaBrowser.Server.Core` 包版本必须与实际目标服务器兼容并固定，不应简单假设 SDK 仓库发布号等于 NuGet 包版本。Emby 依赖包即使只提供 `netstandard2.0` 程序集，也可以由本项目的 `netstandard2.1` 目标正常引用。
+`MediaBrowser.Server.Core` 包版本必须与实际目标服务器兼容并固定，不应简单假设 SDK 仓库发布号等于 NuGet 包版本。Emby 4.9.1.80 不会把插件对 4.9.1.90 程序集的强版本引用向下绑定，因此项目固定以最低支持版本 4.9.1.80 编译，并在更高服务器版本做向上兼容回归。Emby 依赖包即使只提供 `netstandard2.0` 程序集，也可以由本项目的 `netstandard2.1` 目标正常引用。
 
 ## 6. 插件配置设计
 
@@ -750,6 +750,7 @@ SelectorProfile
 
 | Emby 版本 | app.js 锚点 | 详情页 selector | Chrome | Firefox | Safari | 结果 |
 |---|---|---|---|---|---|---|
+| 4.9.1.80 | `Promise.all(list.map(loadPlugin))` | 自动化 DOM 夹具通过 | DOM 夹具 | DOM 夹具 | DOM 夹具 | 插件、配置 UI、HEAD/Range、字幕通过 |
 | 4.9.3.0 | `Promise.all(list.map(loadPlugin))` | 自动化 DOM 夹具通过 | DOM 夹具 | DOM 夹具 | DOM 夹具 | 插件、配置 UI、HEAD/Range、字幕通过 |
 | 4.9.5.0 | `Promise.all(list.map(loadPlugin))` | 自动化 DOM 夹具通过 | DOM 夹具 | DOM 夹具 | DOM 夹具 | 插件、配置 UI、HEAD/Range、字幕通过 |
 
