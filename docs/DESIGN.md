@@ -435,7 +435,7 @@ Content-Type: application/json
 
 ```json
 {
-  "launchUrl": "potplayer://https%3A%2F%2Femby.example.com%2FExternalPlayer%2FStream%2F...",
+  "launchUrl": "potplayer://https://emby.example.com/ExternalPlayer/Stream/... /current /seek=120 /sub=https://emby.example.com/ExternalPlayer/Subtitle/...",
   "ticketExpiresAt": "2026-08-11T18:00:00Z",
   "warnings": []
 }

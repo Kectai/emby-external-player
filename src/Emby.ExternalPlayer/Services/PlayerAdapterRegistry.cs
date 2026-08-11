@@ -56,14 +56,24 @@ public sealed class PlayerAdapterRegistry
             throw new ArgumentException("Stream URL must be absolute.", nameof(context));
         }
 
+        Uri? subtitleUri = null;
         if (!string.IsNullOrWhiteSpace(context.SubtitleUrl) &&
-            (!Uri.TryCreate(context.SubtitleUrl, UriKind.Absolute, out var subtitleUri) ||
+            (!Uri.TryCreate(context.SubtitleUrl, UriKind.Absolute, out subtitleUri) ||
              (subtitleUri.Scheme != Uri.UriSchemeHttp && subtitleUri.Scheme != Uri.UriSchemeHttps)))
         {
             throw new ArgumentException("Subtitle URL must be absolute.", nameof(context));
         }
 
-        return adapter.BuildLaunchUrl(context);
+        // Pass canonical HTTP(S) URLs to adapters so a caller cannot smuggle literal
+        // whitespace into command-like custom protocol arguments (notably PotPlayer).
+        return adapter.BuildLaunchUrl(new PlayerLaunchContext
+        {
+            StreamUrl = streamUri.AbsoluteUri,
+            SubtitleUrl = subtitleUri?.AbsoluteUri,
+            Title = context.Title,
+            StartPositionTicks = context.StartPositionTicks,
+            Platform = context.Platform,
+        });
     }
 
     private interface IPlayerAdapter
@@ -108,19 +118,22 @@ public sealed class PlayerAdapterRegistry
 
         public override string BuildLaunchUrl(PlayerLaunchContext context)
         {
-            var url = "potplayer://" + Encode(context.StreamUrl);
-            var parameters = new List<string>();
+            var arguments = new List<string> { "/current" };
             if (context.StartPositionTicks > 0)
             {
-                parameters.Add("current=" + Seconds(context));
+                arguments.Add("/seek=" + Seconds(context));
             }
 
             if (!string.IsNullOrWhiteSpace(context.SubtitleUrl))
             {
-                parameters.Add("sub=" + Encode(context.SubtitleUrl!));
+                arguments.Add("/sub=" + context.SubtitleUrl);
             }
 
-            return parameters.Count == 0 ? url : url + "?" + string.Join("&", parameters);
+            // PotPlayer maps the scheme payload to its command-line grammar. The
+            // media URL is intentionally not percent-encoded as a whole; URI
+            // components were canonicalized above and each option is separated by
+            // one literal space, matching PotPlayer's /seek and /sub switches.
+            return "potplayer://" + context.StreamUrl + " " + string.Join(" ", arguments);
         }
     }
 

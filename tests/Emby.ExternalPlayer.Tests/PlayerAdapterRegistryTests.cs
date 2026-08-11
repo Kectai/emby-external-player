@@ -10,13 +10,29 @@ public sealed class PlayerAdapterRegistryTests
     private const string SubtitleUrl = "https://emby.example/ExternalPlayer/Subtitle/a_b-c/2.srt";
 
     [TestMethod]
-    public void PotPlayer_EncodesStreamSubtitleAndResumePosition()
+    public void PotPlayer_UsesCommandArgumentsForResumeAndSubtitle()
     {
         var url = CreateRegistry().BuildLaunchUrl(PlayerId.PotPlayer, CreateContext());
 
         Assert.AreEqual(
-            "potplayer://https%3A%2F%2Femby.example%2FExternalPlayer%2FStream%2Fa_b-c" +
-            "?current=90&sub=https%3A%2F%2Femby.example%2FExternalPlayer%2FSubtitle%2Fa_b-c%2F2.srt",
+            "potplayer://https://emby.example/ExternalPlayer/Stream/a_b-c" +
+            " /current /seek=90" +
+            " /sub=https://emby.example/ExternalPlayer/Subtitle/a_b-c/2.srt",
+            url);
+    }
+
+    [TestMethod]
+    public void BuildLaunchUrl_CanonicalizesLiteralWhitespaceBeforePotPlayerArguments()
+    {
+        var context = CreateContext();
+        context.StreamUrl = "https://emby.example/media/a file.mkv";
+        context.SubtitleUrl = "https://emby.example/sub/a file.srt";
+
+        var url = CreateRegistry().BuildLaunchUrl(PlayerId.PotPlayer, context);
+
+        Assert.AreEqual(
+            "potplayer://https://emby.example/media/a%20file.mkv" +
+            " /current /seek=90 /sub=https://emby.example/sub/a%20file.srt",
             url);
     }
 
