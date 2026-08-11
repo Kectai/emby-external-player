@@ -107,6 +107,17 @@ public sealed class PlayerAdapterRegistry
             throw new ArgumentException("Subtitle URL must be absolute.", nameof(context));
         }
 
+        var httpRequestHeaders = (context.HttpRequestHeaders ?? Array.Empty<string>()).ToArray();
+        if (httpRequestHeaders.Any(header =>
+                string.IsNullOrWhiteSpace(header) ||
+                header.Length > 1024 ||
+                header.IndexOf(':') <= 0 ||
+                header.Contains("\r", StringComparison.Ordinal) ||
+                header.Contains("\n", StringComparison.Ordinal)))
+        {
+            throw new ArgumentException("HTTP request headers contain an invalid field.", nameof(context));
+        }
+
         // Pass canonical HTTP(S) URLs to adapters so a caller cannot smuggle literal
         // whitespace into command-like custom protocol arguments (notably PotPlayer).
         return new PlayerLaunchContext
@@ -114,6 +125,7 @@ public sealed class PlayerAdapterRegistry
             StreamUrl = streamUri.AbsoluteUri,
             SubtitleUrl = subtitleUri?.AbsoluteUri,
             Title = context.Title,
+            HttpRequestHeaders = httpRequestHeaders,
             StartPositionTicks = context.StartPositionTicks,
             Platform = context.Platform,
         };
@@ -244,7 +256,7 @@ public sealed class PlayerAdapterRegistry
                 PlayerId.Iina,
                 "IINA",
                 new[] { ClientPlatform.MacOS },
-                PlayerCapabilities.StartPosition,
+                PlayerCapabilities.StartPosition | PlayerCapabilities.HttpRequestHeaders,
                 new[] { "iina" }))
         {
         }
@@ -252,10 +264,17 @@ public sealed class PlayerAdapterRegistry
         public override string BuildLaunchUrl(PlayerLaunchContext context)
         {
             var parameters = new List<string> { "url=" + Encode(context.StreamUrl) };
-            if (context.StartPositionTicks > 0)
+            if (context.StartPositionTicks > 0 || context.HttpRequestHeaders.Count > 0)
             {
                 parameters.Add("new_window=1");
+            }
+            if (context.StartPositionTicks > 0)
+            {
                 parameters.Add("mpv_start=" + Seconds(context));
+            }
+            if (context.HttpRequestHeaders.Count > 0)
+            {
+                parameters.Add("mpv_http-header-fields=" + Encode(string.Join(",", context.HttpRequestHeaders)));
             }
 
             return "iina://weblink?" + string.Join("&", parameters);

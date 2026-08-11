@@ -53,6 +53,7 @@ Emby 自身升级会替换 `app.js`。插件下次启动会针对已知锚点重
 - 插件列表中不存在：先在服务器启动日志搜索 `Emby.ExternalPlayer`。若随后出现 `Could not load file or assembly ... Version=...`，说明 DLL 的 Emby SDK 编译版本高于服务器版本；1.0.1 已把最低编译基线固定为 4.9.1.80。
 - 点击播放器后访问 `/web/undefined`：这是 1.0.1 未要求 Emby Web AJAX 将 Resolve 响应解析为 JSON 所致；升级到 1.0.2。新版也会拒绝缺少有效 `LaunchUrl` 的响应，不再导航到 `undefined`。
 - 播放器显示 `stream.js`：说明仍在使用 1.1.0 或更早的 DLL。IINA 会拒绝 1.1.0 使用的 `mpv_force-media-title` 参数；1.1.1 改为由安全中转 URL 的最后一个路径段承载 Emby 媒体标题，对所有按 URL 文件名显示标题的播放器生效。停止服务器、替换 DLL、重启并强制刷新 Emby Web。
+- IINA 标题带有 `?api_key=...`：升级到 1.2.1。安全中转模式会改用无查询串的媒体 URL，并通过 IINA 允许的 `mpv_http-header-fields` 传递插件短期票据；Legacy 模式仍按其风险模型使用 Emby token 查询参数。
 - 详情页出现 `open_in_new`：说明浏览器仍加载了 1.1.x 的旧 Web 资源，且 Material Icons 字体没有提供对应 ligature。1.2.0 改为内嵌 SVG，并为 CSS 地址附加资源版本；替换 DLL、重启后强制刷新 Emby Web。
 - 自定义播放器未显示：确认该条目已启用、平台与当前浏览器匹配，并查看选择器中的“自定义播放器”标识。浏览器无法枚举本机已安装应用，只有内置适配器和服务端已配置的自定义 URL Scheme 会出现在列表中。
 - 没有按钮：检查插件设置、服务器日志中的锚点警告、浏览器是否强制刷新，以及当前条目是否有可播放媒体源。

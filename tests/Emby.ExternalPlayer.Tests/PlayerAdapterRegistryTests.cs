@@ -48,6 +48,38 @@ public sealed class PlayerAdapterRegistryTests
     }
 
     [TestMethod]
+    public void Iina_PassesShortLivedTicketInAnHttpHeaderInsteadOfTheMediaUrl()
+    {
+        var context = CreateContext();
+        context.HttpRequestHeaders = new[]
+        {
+            ServerUrlBuilder.PlaybackTicketHeaderName + ": short_lived-ticket",
+        };
+
+        var url = CreateRegistry().BuildLaunchUrl(PlayerId.Iina, context);
+
+        Assert.AreEqual(
+            "iina://weblink?url=https%3A%2F%2Femby.example%2FExternalPlayer%2FStream%2Fa_b-c" +
+            "&new_window=1&mpv_start=90" +
+            "&mpv_http-header-fields=X-Emby-Playback-Ticket%3A%20short_lived-ticket",
+            url);
+        Assert.IsFalse(new Uri(url).Query.Split('&')[0].Contains("api_key", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [TestMethod]
+    public void Iina_IsolatesHeaderAuthenticatedPlaybackInANewWindow()
+    {
+        var context = CreateContext();
+        context.StartPositionTicks = 0;
+        context.HttpRequestHeaders = new[] { "X-Emby-Playback-Ticket: short_lived-ticket" };
+
+        var url = CreateRegistry().BuildLaunchUrl(PlayerId.Iina, context);
+
+        StringAssert.Contains(url, "&new_window=1&mpv_http-header-fields=");
+        Assert.IsFalse(url.Contains("mpv_start=", StringComparison.Ordinal));
+    }
+
+    [TestMethod]
     public void Infuse_UsesOfficialCallbackShape()
     {
         var url = CreateRegistry().BuildLaunchUrl(PlayerId.Infuse, CreateContext());
@@ -169,6 +201,16 @@ public sealed class PlayerAdapterRegistryTests
 
         Assert.ThrowsExactly<ArgumentException>(() =>
             CreateRegistry().BuildLaunchUrl(PlayerId.PotPlayer, context));
+    }
+
+    [TestMethod]
+    public void BuildLaunchUrl_RejectsHeaderInjection()
+    {
+        var context = CreateContext();
+        context.HttpRequestHeaders = new[] { "X-Test: safe\r\nX-Injected: unsafe" };
+
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            CreateRegistry().BuildLaunchUrl(PlayerId.Iina, context));
     }
 
     private static PlayerAdapterRegistry CreateRegistry() => new();

@@ -276,7 +276,7 @@ await new Promise((resolve) => setTimeout(resolve, 0));
 assert.equal(document.body.walk().filter((item) => item.id === "embyExternalPlayerButton").length, 1);
 assert.equal(eventSubscriptions.size, 1);
 assert.equal(manifestQuery.language, "zh-CN");
-assert.equal(document.getElementById("embyExternalPlayerStyles").attributes.get("data-resource-version"), "1.2.0");
+assert.equal(document.getElementById("embyExternalPlayerStyles").attributes.get("data-resource-version"), "1.2.1");
 
 evaluateAndStart();
 await new Promise((resolve) => setTimeout(resolve, 0));

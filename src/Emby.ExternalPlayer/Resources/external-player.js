@@ -3,7 +3,7 @@ define(["events", "connectionManager"], function (events, connectionManager) {
 
     var moduleKey = "__embyExternalPlayerModule";
     var buttonId = "embyExternalPlayerButton";
-    var resourceVersion = "1.2.0";
+    var resourceVersion = "1.2.1";
     var selectorProfile = {
         actionRow: ".mainDetailButtons, .detailPagePrimaryContainer .detailButtons",
         playButton: "button.btnPlay, button.btnResume, .btnPlay, .btnResume",

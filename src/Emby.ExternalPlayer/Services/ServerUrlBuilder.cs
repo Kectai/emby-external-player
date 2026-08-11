@@ -5,6 +5,8 @@ namespace Emby.ExternalPlayer.Services;
 
 public static class ServerUrlBuilder
 {
+    public const string PlaybackTicketHeaderName = "X-Emby-Playback-Ticket";
+
     private static readonly Regex SafeExtension = new("^[a-z0-9]{1,12}$", RegexOptions.Compiled);
 
     public static string GetApiBase(string absoluteRequestUrl, string routeMarker)
@@ -64,6 +66,13 @@ public static class ServerUrlBuilder
             apiBase,
             "ExternalPlayer/Stream/" + Uri.EscapeDataString(urlFileName) +
             "?api_key=" + Uri.EscapeDataString(ticket));
+    }
+
+    public static string BuildHeaderTicketStreamUrl(string apiBase, string urlFileName)
+    {
+        return Combine(
+            apiBase,
+            "ExternalPlayer/Stream/" + Uri.EscapeDataString(urlFileName));
     }
 
     public static string BuildTicketSubtitleUrl(string apiBase, string ticket, int index, string? format)

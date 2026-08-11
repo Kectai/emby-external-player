@@ -118,7 +118,7 @@ flowchart LR
     F --> G["播放票据服务"]
     G --> H["播放器协议 URL"]
     H --> I["本地外部播放器"]
-    I --> J["GET/HEAD /ExternalPlayer/Stream/{title}?api_key={ticket}"]
+    I --> J["GET/HEAD /ExternalPlayer/Stream/{title} + header/query ticket"]
     J --> K["安全流转发器"]
     K --> L["Emby 原生流接口"]
 ```
@@ -460,11 +460,11 @@ Content-Type: application/json
 ### 8.4 流媒体票据入口
 
 ```http
-GET  /ExternalPlayer/Stream/{mediaTitle}?api_key={ticket}
-HEAD /ExternalPlayer/Stream/{mediaTitle}?api_key={ticket}
+GET  /ExternalPlayer/Stream/{mediaTitle}
+HEAD /ExternalPlayer/Stream/{mediaTitle}
 ```
 
-该接口不要求额外 Emby header，因为随机票据本身就是短期 Bearer 凭证。
+随机票据本身就是短期 Bearer 凭证。支持请求头的播放器使用 `X-Emby-Playback-Ticket`；其他播放器使用 `api_key` 查询参数。
 
 必须支持：
 
@@ -476,9 +476,9 @@ HEAD /ExternalPlayer/Stream/{mediaTitle}?api_key={ticket}
 - 客户端断开时由请求取消令牌和 Emby 响应管线终止读取。
 - 不向任何 URL 发起回源请求，票据中不保存 Emby token。
 
-媒体标题经过清理和百分号编码后成为 URL 最后一个路径段，播放器可用标准 URL 文件名作为标题。
-短期票据放入名为 `api_key` 的查询参数，因为 Emby 4.9.x 核心在记录请求前会自动隐藏该参数值；
-这里的值是插件随机票据，不是长期 Emby access token。反向代理也必须配置相同的查询参数脱敏。
+媒体标题经过清理和百分号编码后成为 URL 最后一个路径段，播放器可用标准 URL 文件名作为标题。支持 HTTP 请求头的播放器把短期票据放入 `X-Emby-Playback-Ticket`，媒体 URL 不含查询串；其他播放器仍使用名为 `api_key` 的查询参数，因为 Emby 4.9.x 核心在记录请求前会自动隐藏该参数值。这里的值是插件随机票据，不是长期 Emby access token。反向代理必须转发票据请求头，并继续配置查询参数脱敏。
+
+IINA 的 `http-header-fields` 属于官方 URL Scheme 安全白名单，适配器同时要求 `new_window=1` 隔离请求头播放会话。
 旧的 `{ticket}/stream.js` 路由只保留兼容，不再由 Resolve 生成。
 
 ### 8.5 字幕票据入口

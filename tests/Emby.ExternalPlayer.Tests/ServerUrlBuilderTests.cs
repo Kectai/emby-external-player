@@ -54,6 +54,21 @@ public sealed class ServerUrlBuilderTests
     }
 
     [TestMethod]
+    public void HeaderTicketUrl_ContainsOnlyTheMediaTitle()
+    {
+        var result = ServerUrlBuilder.BuildHeaderTicketStreamUrl(
+            "https://media.example/emby/",
+            "中文 Movie & One");
+
+        Assert.AreEqual(
+            "https://media.example/emby/ExternalPlayer/Stream/" +
+            "%E4%B8%AD%E6%96%87%20Movie%20%26%20One",
+            result);
+        Assert.IsFalse(result.Contains("?", StringComparison.Ordinal));
+        Assert.IsFalse(result.Contains("api_key", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [TestMethod]
     public void TicketRoutes_UseEmbyLogRedactionOrQuietExtensions()
     {
         StringAssert.Contains(

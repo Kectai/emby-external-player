@@ -36,7 +36,9 @@ public sealed class StreamRelayService : IService, IRequiresRequest
     {
         var rawTicket = !string.IsNullOrWhiteSpace(request.Ticket)
             ? request.Ticket
-            : Request.QueryString["api_key"] ?? string.Empty;
+            : Request.Headers[ServerUrlBuilder.PlaybackTicketHeaderName] ??
+              Request.QueryString["api_key"] ??
+              string.Empty;
         var payload = GetTicket(rawTicket);
         if (!string.IsNullOrWhiteSpace(request.FileName) &&
             !string.Equals(request.FileName, payload.UrlFileName, StringComparison.Ordinal))

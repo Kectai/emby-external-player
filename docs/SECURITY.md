@@ -25,9 +25,9 @@ SecureTicketRelay 在 Resolve 时只接受 Emby 返回的本地 `File` 媒体源
 
 文件由 Emby 已授权的 MediaSource/MediaStream 路径确定，使用 64 KB 异步 FileStream，并由 Emby `IHttpResultFactory` 限定输出长度和处理单 Range。文件大小在出票后变化会使票据失败，避免内容被静默替换。
 
-视频路由使用 `/ExternalPlayer/Stream/{媒体标题}?api_key={短期票据}`。路径标题经过长度、控制字符和路径分隔符清理，票据仍是插件自己的短期随机值，不是 Emby access token。之所以使用查询名 `api_key`，是因为 Emby 4.9.x 核心会在写请求日志前自动隐藏该参数值；播放器则从最后一个路径段取得真实媒体标题。字幕继续使用固定的 `subtitle.css` 尾缀，使 Emby 核心跳过该请求的详细日志。实际响应的 `Content-Type`、`Content-Length` 和 `Content-Disposition` 均按媒体文件返回。
+视频路径标题经过长度、控制字符和路径分隔符清理。对声明支持 HTTP 请求头的适配器（当前为 IINA），媒体地址使用无查询串的 `/ExternalPlayer/Stream/{媒体标题}`，短期票据放在 `X-Emby-Playback-Ticket` 请求头中；IINA 启动参数使用其官方白名单允许的 `http-header-fields`，并强制新窗口以降低请求头影响其他播放会话的风险。其他适配器继续使用 `/ExternalPlayer/Stream/{媒体标题}?api_key={短期票据}`，Emby 4.9.x 会在写请求日志前隐藏该查询值。两种票据都是插件自己的短期随机值，不是 Emby access token。
 
-反向代理可能在请求到达 Emby 前记录完整查询字符串，部署时仍应在代理访问日志中隐藏 `api_key`。旧的 `/ExternalPlayer/Stream/{ticket}/stream.js` 路由只为已签发地址的短期兼容保留，新 Resolve 不再生成它。
+反向代理可能在请求到达 Emby 前记录完整查询字符串，部署时仍应在代理访问日志中隐藏 `api_key`，并必须转发 `X-Emby-Playback-Ticket`。旧的 `/ExternalPlayer/Stream/{ticket}/stream.js` 路由只为已签发地址的短期兼容保留，新 Resolve 不再生成它。
 
 ## 日志和响应
 

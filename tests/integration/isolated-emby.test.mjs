@@ -208,6 +208,7 @@ const iinaResolution = await (await resolve({
 })).json();
 assert.match(iinaResolution.LaunchUrl, /^iina:\/\/weblink\?/);
 assert.match(iinaResolution.LaunchUrl, /mpv_start=120/);
+assert.match(iinaResolution.LaunchUrl, /mpv_http-header-fields=/);
 assert.doesNotMatch(iinaResolution.LaunchUrl, /mpv_force-media-title=/);
 assert.ok(iinaResolution.TicketExpiresAt);
 assert.ok(!iinaResolution.LaunchUrl.includes(token));
@@ -218,9 +219,14 @@ assert.ok(streamUrl);
 const parsedStreamUrl = new URL(streamUrl);
 assert.ok(parsedStreamUrl.pathname.includes("/ExternalPlayer/Stream/"));
 assert.match(decodeURIComponent(parsedStreamUrl.pathname), /集成测试|Integration/);
-assert.match(parsedStreamUrl.searchParams.get("api_key") || "", /^[A-Za-z0-9_-]{43}$/);
+assert.equal(parsedStreamUrl.search, "", "IINA media URL must not expose a ticket in its title.");
+const iinaTicketField = iinaUrl.searchParams.get("mpv_http-header-fields") || "";
+const iinaTicketMatch = iinaTicketField.match(/^X-Emby-Playback-Ticket: ([A-Za-z0-9_-]{43})$/);
+assert.ok(iinaTicketMatch);
+const iinaTicket = iinaTicketMatch[1];
+const iinaHeaders = { "X-Emby-Playback-Ticket": iinaTicket };
 
-const head = await fetch(streamUrl, { method: "HEAD" });
+const head = await fetch(streamUrl, { method: "HEAD", headers: iinaHeaders });
 assert.equal(head.status, 200);
 assert.equal(head.headers.get("accept-ranges"), "bytes");
 assert.equal(Number(head.headers.get("content-length")), 2063107);
@@ -232,7 +238,7 @@ assert.match(head.headers.get("cache-control") || "", /no-store/);
 assert.equal((await head.arrayBuffer()).byteLength, 0);
 
 for (const range of ["bytes=0-99", "bytes=1000-1099", "bytes=2000000-2000099"]) {
-    const response = await fetch(streamUrl, { headers: { Range: range } });
+    const response = await fetch(streamUrl, { headers: { ...iinaHeaders, Range: range } });
     assert.equal(response.status, 206, `Range ${range} must return 206.`);
     assert.equal((await response.arrayBuffer()).byteLength, 100);
     assert.match(response.headers.get("content-range") || "", /^bytes \d+-\d+\/2063107$/);
@@ -246,7 +252,14 @@ const secondResolution = await (await resolve({
 })).json();
 const secondStreamUrl = new URL(secondResolution.LaunchUrl).searchParams.get("url");
 assert.ok(secondStreamUrl && secondStreamUrl !== streamUrl);
-const secondRange = await fetch(secondStreamUrl, { headers: { Range: "bytes=32-47" } });
+const secondIinaUrl = new URL(secondResolution.LaunchUrl);
+const secondTicketField = secondIinaUrl.searchParams.get("mpv_http-header-fields") || "";
+const secondTicketMatch = secondTicketField.match(/^X-Emby-Playback-Ticket: ([A-Za-z0-9_-]{43})$/);
+assert.ok(secondTicketMatch);
+const secondTicket = secondTicketMatch[1];
+const secondRange = await fetch(secondStreamUrl, {
+    headers: { "X-Emby-Playback-Ticket": secondTicket, Range: "bytes=32-47" }
+});
 assert.equal(secondRange.status, 206);
 assert.equal((await secondRange.arrayBuffer()).byteLength, 16);
 
@@ -285,11 +298,11 @@ if (programData) {
     assert.ok(logBuffer.length >= serverLogStart, "The Emby log unexpectedly rotated during the test.");
     const logText = logBuffer.subarray(serverLogStart).toString("utf8");
     const protectedUrls = [streamUrl, secondStreamUrl, subtitleUrl, assSubtitleUrl];
-    const tickets = protectedUrls.map((url) => {
+    const tickets = [iinaTicket, secondTicket, ...[subtitleUrl, assSubtitleUrl].map((url) => {
         const parsed = new URL(url);
         const segments = parsed.pathname.split("/");
-        return segments.includes("Stream") ? parsed.searchParams.get("api_key") : segments.at(-3);
-    });
+        return segments.at(-3);
+    })];
     assert.ok(!logText.includes(token), "The Emby access token must not appear in server logs.");
     for (const ticket of tickets) {
         assert.match(ticket, /^[A-Za-z0-9_-]{43}$/);

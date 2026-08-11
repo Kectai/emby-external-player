@@ -97,6 +97,7 @@ public sealed class ExternalPlayerApiService : IService, IRequiresRequest
 
         string streamUrl;
         string? subtitleUrl;
+        IReadOnlyCollection<string> streamRequestHeaders = Array.Empty<string>();
         DateTimeOffset? expiresAt = null;
         if (options.StreamMode == StreamMode.LegacyTokenUrl)
         {
@@ -162,10 +163,21 @@ public sealed class ExternalPlayerApiService : IService, IRequiresRequest
                 TimeSpan.FromMinutes(options.TicketLifetimeMinutes));
 
             expiresAt = ticket.ExpiresAt;
-            streamUrl = ServerUrlBuilder.BuildTicketStreamUrl(
-                publicApiBase,
-                ticket.Value,
-                urlFileName);
+            if ((selection.Player.Capabilities & PlayerCapabilities.HttpRequestHeaders) != 0)
+            {
+                streamUrl = ServerUrlBuilder.BuildHeaderTicketStreamUrl(publicApiBase, urlFileName);
+                streamRequestHeaders = new[]
+                {
+                    ServerUrlBuilder.PlaybackTicketHeaderName + ": " + ticket.Value,
+                };
+            }
+            else
+            {
+                streamUrl = ServerUrlBuilder.BuildTicketStreamUrl(
+                    publicApiBase,
+                    ticket.Value,
+                    urlFileName);
+            }
             subtitleUrl = selection.Subtitle is null
                 ? null
                 : ServerUrlBuilder.BuildTicketSubtitleUrl(
@@ -180,6 +192,7 @@ public sealed class ExternalPlayerApiService : IService, IRequiresRequest
             StreamUrl = streamUrl,
             SubtitleUrl = subtitleUrl,
             Title = context.Item.Name,
+            HttpRequestHeaders = streamRequestHeaders,
             StartPositionTicks = request.Resume ? context.ResumePositionTicks : 0,
             Platform = platform,
         });
