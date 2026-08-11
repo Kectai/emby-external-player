@@ -32,4 +32,14 @@ public sealed class SecurityPolicyTests
         Assert.ThrowsExactly<InvalidOperationException>(() =>
             SafeFileNamePolicy.CreateContentDisposition("movie.mkv\r\nX-Evil: yes"));
     }
+
+    [TestMethod]
+    public void UrlTitle_PreservesUnicodeButRemovesPathAndQuerySyntax()
+    {
+        Assert.AreEqual(
+            "电影_第一集_片名_测试",
+            SafeFileNamePolicy.CreateUrlTitle("电影/第一集?片名#测试"));
+        Assert.AreEqual("media", SafeFileNamePolicy.CreateUrlTitle(" ../.. "));
+        Assert.AreEqual("🎬 电影", SafeFileNamePolicy.CreateUrlTitle("🎬 电影"));
+    }
 }

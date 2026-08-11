@@ -244,7 +244,7 @@ public sealed class PlayerAdapterRegistry
                 PlayerId.Iina,
                 "IINA",
                 new[] { ClientPlatform.MacOS },
-                PlayerCapabilities.StartPosition | PlayerCapabilities.DisplayTitle,
+                PlayerCapabilities.StartPosition,
                 new[] { "iina" }))
         {
         }
@@ -252,10 +252,6 @@ public sealed class PlayerAdapterRegistry
         public override string BuildLaunchUrl(PlayerLaunchContext context)
         {
             var parameters = new List<string> { "url=" + Encode(context.StreamUrl) };
-            if (!string.IsNullOrWhiteSpace(context.Title))
-            {
-                parameters.Add("mpv_force-media-title=" + Encode(context.Title!));
-            }
             if (context.StartPositionTicks > 0)
             {
                 parameters.Add("new_window=1");

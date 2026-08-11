@@ -118,7 +118,7 @@ flowchart LR
     F --> G["播放票据服务"]
     G --> H["播放器协议 URL"]
     H --> I["本地外部播放器"]
-    I --> J["GET/HEAD /ExternalPlayer/Stream/{ticket}"]
+    I --> J["GET/HEAD /ExternalPlayer/Stream/{title}?api_key={ticket}"]
     J --> K["安全流转发器"]
     K --> L["Emby 原生流接口"]
 ```
@@ -458,8 +458,8 @@ Content-Type: application/json
 ### 8.4 流媒体票据入口
 
 ```http
-GET  /ExternalPlayer/Stream/{ticket}/stream.js
-HEAD /ExternalPlayer/Stream/{ticket}/stream.js
+GET  /ExternalPlayer/Stream/{mediaTitle}?api_key={ticket}
+HEAD /ExternalPlayer/Stream/{mediaTitle}?api_key={ticket}
 ```
 
 该接口不要求额外 Emby header，因为随机票据本身就是短期 Bearer 凭证。
@@ -474,9 +474,10 @@ HEAD /ExternalPlayer/Stream/{ticket}/stream.js
 - 客户端断开时由请求取消令牌和 Emby 响应管线终止读取。
 - 不向任何 URL 发起回源请求，票据中不保存 Emby token。
 
-路由末尾的固定 `.js` 是有意的日志保护措施：Emby 4.9.x 核心会记录普通媒体请求路径，
-但会跳过静态扩展请求的详细记录。响应仍返回真实的视频 `Content-Type` 和安全文件名。
-这避免原始 Bearer 票据进入 Emby 核心日志，不改变传输内容。
+媒体标题经过清理和百分号编码后成为 URL 最后一个路径段，播放器可用标准 URL 文件名作为标题。
+短期票据放入名为 `api_key` 的查询参数，因为 Emby 4.9.x 核心在记录请求前会自动隐藏该参数值；
+这里的值是插件随机票据，不是长期 Emby access token。反向代理也必须配置相同的查询参数脱敏。
+旧的 `{ticket}/stream.js` 路由只保留兼容，不再由 Resolve 生成。
 
 ### 8.5 字幕票据入口
 

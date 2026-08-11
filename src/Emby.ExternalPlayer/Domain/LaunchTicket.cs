@@ -22,6 +22,8 @@ public sealed class LaunchTicketPayload
 
     public string SafeFileName { get; set; } = "media.bin";
 
+    public string UrlFileName { get; set; } = "media";
+
     public string SubtitleContentType { get; set; } = "text/plain; charset=utf-8";
 
     public long? SubtitleContentLength { get; set; }

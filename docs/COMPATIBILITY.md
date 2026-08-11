@@ -23,6 +23,8 @@
 
 插件 1.1.0 增加简体中文、繁体中文、英文语言目录、配置页本地化、自定义播放器模板及按播放器声明的协议白名单。隔离集成测试同时验证中文 Manifest、中文 Generic UI、官方应用名称、IINA 标题参数以及自定义播放器集合可被 Emby Generic UI 正常构建。
 
+插件 1.1.1 修正上述 IINA 标题判断：IINA 的 URL scheme 会拒绝不在 `safeMPVOptions` 中的 `force-media-title`。新版改为通用标题路径 `/ExternalPlayer/Stream/{媒体标题}?api_key={短期票据}`，并依靠 Emby 对 `api_key` 查询值的日志脱敏保护票据；旧 `stream.js` 路由保留兼容。该修复已通过 URL 构造、Unicode/路径注入、IINA 参数和 Web 回归测试；完整 Emby 测试宿主已按要求清理，尚未为 1.1.1 重新下载。
+
 Web 模块测试使用无依赖的假 DOM 覆盖：重复加载只保留一个按钮、事件退订、PascalCase/camelCase API 兼容、Escape 关闭、焦点恢复与 focus trap。实际 Chrome、Firefox、Safari 的人工视觉回归尚需在部署环境完成，因此不能把 DOM 自动化等同于三款浏览器实测。
 
 播放器 URL 适配器均有编码与能力测试。本机检测到 IINA 1.4.4 注册了 `iina` 协议，但遵循环境隔离要求未实际拉起；PotPlayer、VLC media player、Infuse 未安装，需按 [客户端说明](CLIENT_HANDLERS.md) 完成人工矩阵。

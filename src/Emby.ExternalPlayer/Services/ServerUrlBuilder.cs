@@ -58,12 +58,12 @@ public static class ServerUrlBuilder
             "/Subtitles/" + streamIndex + "/Stream." + extension);
     }
 
-    public static string BuildTicketStreamUrl(string apiBase, string ticket, string? container)
+    public static string BuildTicketStreamUrl(string apiBase, string ticket, string urlFileName)
     {
         return Combine(
             apiBase,
-            "ExternalPlayer/Stream/" + Uri.EscapeDataString(ticket) +
-            "/stream.js");
+            "ExternalPlayer/Stream/" + Uri.EscapeDataString(urlFileName) +
+            "?api_key=" + Uri.EscapeDataString(ticket));
     }
 
     public static string BuildTicketSubtitleUrl(string apiBase, string ticket, int index, string? format)

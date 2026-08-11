@@ -132,6 +132,7 @@ public sealed class ExternalPlayerApiService : IService, IRequiresRequest
                 subtitleFile = RequireAvailableFile(selection.Subtitle.Path);
             }
 
+            var urlFileName = SafeFileNamePolicy.CreateUrlTitle(context.Item.Name);
             var ticket = runtime.Tickets.Issue(
                 new LaunchTicketPayload
                 {
@@ -147,6 +148,7 @@ public sealed class ExternalPlayerApiService : IService, IRequiresRequest
                     SafeFileName = SafeFileNamePolicy.Create(
                         mediaFile.Name,
                         selection.MediaSource.Container),
+                    UrlFileName = urlFileName,
                     SubtitleContentType = selection.Subtitle is null
                         ? "text/plain; charset=utf-8"
                         : MimeTypes.GetMimeType(
@@ -163,7 +165,7 @@ public sealed class ExternalPlayerApiService : IService, IRequiresRequest
             streamUrl = ServerUrlBuilder.BuildTicketStreamUrl(
                 publicApiBase,
                 ticket.Value,
-                selection.MediaSource.Container);
+                urlFileName);
             subtitleUrl = selection.Subtitle is null
                 ? null
                 : ServerUrlBuilder.BuildTicketSubtitleUrl(

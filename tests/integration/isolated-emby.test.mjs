@@ -167,7 +167,7 @@ await api(`Users/${userId}/Items/${item.Id}/UserData`, {
 const unauthenticatedManifest = await fetch(new URL(`ExternalPlayer/Manifest?itemId=${item.Id}`, baseUrl));
 assert.equal(unauthenticatedManifest.status, 401);
 const invalidTicketResponse = await fetch(new URL(
-    `ExternalPlayer/Stream/${"A".repeat(43)}/stream.js`, baseUrl));
+    `ExternalPlayer/Stream/Invalid?api_key=${"A".repeat(43)}`, baseUrl));
 assert.equal(invalidTicketResponse.status, 401);
 
 const manifestResponse = await api(`ExternalPlayer/Manifest?itemId=${item.Id}&platform=MacOS&language=zh-CN`);
@@ -208,15 +208,17 @@ const iinaResolution = await (await resolve({
 })).json();
 assert.match(iinaResolution.LaunchUrl, /^iina:\/\/weblink\?/);
 assert.match(iinaResolution.LaunchUrl, /mpv_start=120/);
-assert.match(iinaResolution.LaunchUrl, /mpv_force-media-title=/);
+assert.doesNotMatch(iinaResolution.LaunchUrl, /mpv_force-media-title=/);
 assert.ok(iinaResolution.TicketExpiresAt);
 assert.ok(!iinaResolution.LaunchUrl.includes(token));
-assert.ok(!iinaResolution.LaunchUrl.includes("api_key"));
 
 const iinaUrl = new URL(iinaResolution.LaunchUrl);
 const streamUrl = iinaUrl.searchParams.get("url");
 assert.ok(streamUrl);
-assert.ok(new URL(streamUrl).pathname.includes("/ExternalPlayer/Stream/"));
+const parsedStreamUrl = new URL(streamUrl);
+assert.ok(parsedStreamUrl.pathname.includes("/ExternalPlayer/Stream/"));
+assert.match(decodeURIComponent(parsedStreamUrl.pathname), /集成测试|Integration/);
+assert.match(parsedStreamUrl.searchParams.get("api_key") || "", /^[A-Za-z0-9_-]{43}$/);
 
 const head = await fetch(streamUrl, { method: "HEAD" });
 assert.equal(head.status, 200);
@@ -284,8 +286,9 @@ if (programData) {
     const logText = logBuffer.subarray(serverLogStart).toString("utf8");
     const protectedUrls = [streamUrl, secondStreamUrl, subtitleUrl, assSubtitleUrl];
     const tickets = protectedUrls.map((url) => {
-        const segments = new URL(url).pathname.split("/");
-        return segments.includes("Stream") ? segments.at(-2) : segments.at(-3);
+        const parsed = new URL(url);
+        const segments = parsed.pathname.split("/");
+        return segments.includes("Stream") ? parsed.searchParams.get("api_key") : segments.at(-3);
     });
     assert.ok(!logText.includes(token), "The Emby access token must not appear in server logs.");
     for (const ticket of tickets) {

@@ -5,7 +5,7 @@
 | 播放器 | 默认平台 | 生成形式 | 续播 | 外挂字幕 |
 |---|---|---|---:|---:|
 | PotPlayer | Windows | `potplayer://<URL> /current /seek=... /sub=...` | 是 | 是 |
-| IINA | macOS | `iina://weblink?url=...&mpv_force-media-title=...&mpv_start=...` | 是 | 否 |
+| IINA | macOS | `iina://weblink?url=.../媒体标题?api_key=...&mpv_start=...` | 是 | 否 |
 | VLC media player | 桌面/移动 | 桌面 `vlc://...`；iOS x-callback | 否 | iOS |
 | Infuse | macOS/iOS/iPadOS | `infuse://x-callback-url/play?...` | 否 | 是 |
 | mpv | 桌面 | `mpv://play/...` | 否 | 否 |
@@ -15,7 +15,7 @@ mpv 与 nPlayer 默认关闭，因为不同第三方 handler 的实现差异较�
 
 ## IINA
 
-建议 IINA 1.4.3 或更高版本。本机只读检查确认 IINA 1.4.4 注册了 `iina` scheme；为了不写入现有应用的播放历史，自动化测试没有实际启动播放器。IINA 当前源码定义了 `open`/`weblink`、`url`、`new_window` 和 `mpv_*` 参数，插件使用 `mpv_force-media-title` 显示 Emby 媒体标题，并在需要时传递 `mpv_start`；不会把字幕路径作为 mpv 参数注入。
+建议 IINA 1.4.3 或更高版本。本机只读检查确认 IINA 1.4.4 注册了 `iina` scheme；为了不写入现有应用的播放历史，自动化测试没有实际启动播放器。IINA 当前源码虽然解析 `mpv_*`，但只接受内部 `safeMPVOptions` 白名单，`force-media-title` 不在其中。1.1.0 使用该参数的方案会被 IINA 拒绝；1.1.1 不再发送它，而是让安全中转 URL 的最后一个路径段直接使用 Emby 媒体标题，并继续用允许的 `mpv_start` 传递续播时间。
 
 来源：[IINA AppDelegate.swift](https://github.com/iina/iina/blob/develop/iina/AppDelegate.swift)。
 

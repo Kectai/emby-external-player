@@ -34,7 +34,15 @@ public sealed class StreamRelayService : IService, IRequiresRequest
 
     public Task<object> Get(GetExternalPlayerStream request)
     {
-        var payload = GetTicket(request.Ticket);
+        var rawTicket = !string.IsNullOrWhiteSpace(request.Ticket)
+            ? request.Ticket
+            : Request.QueryString["api_key"] ?? string.Empty;
+        var payload = GetTicket(rawTicket);
+        if (!string.IsNullOrWhiteSpace(request.FileName) &&
+            !string.Equals(request.FileName, payload.UrlFileName, StringComparison.Ordinal))
+        {
+            throw new ResourceNotFoundException("The playback title does not match the ticket.");
+        }
         return CreateFileResult(
             payload.MediaFilePath,
             payload.ContentType,

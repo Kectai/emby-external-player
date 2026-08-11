@@ -43,7 +43,6 @@ public sealed class PlayerAdapterRegistryTests
 
         Assert.AreEqual(
             "iina://weblink?url=https%3A%2F%2Femby.example%2FExternalPlayer%2FStream%2Fa_b-c" +
-            "&mpv_force-media-title=Movie%20%26%20One" +
             "&new_window=1&mpv_start=90",
             url);
     }

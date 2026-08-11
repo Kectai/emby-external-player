@@ -20,6 +20,8 @@
 
 覆盖加载器幂等与安全移除、未知锚点、播放器编码、官方应用名称、自定义 URL Scheme 模板、语言回退、URL base path、媒体/字幕/播放器选择校验、续播边界、票据随机性/过期/容量/并发/重启失效、Range、路径与 header 注入，以及 Web 生命周期、可访问性、Resolve JSON 解析、协议白名单和无效地址安全失败行为。
 
+三个官方 Emby `app.js` 全量夹具属于可选集成资源；项目 `.local/emby-hosts` 已清理时，这三项显示为跳过，其余单元和 Web 测试不需要下载完整 Emby Server。
+
 ## 隔离 Emby 集成测试
 
 先在项目 `.local/emby-hosts/<version>/` 放置官方测试发行版，并使用 `.local/emby-programdata/version-<version>/` 启动到非 8096 回环端口。测试媒体应位于 `.local/test-media/`。
@@ -36,7 +38,7 @@ EMBY_INTEGRATION_DASHBOARD_APP="$PWD/.local/emby-hosts/4.9.5.0/osx-arm64/EmbySer
 ./scripts/test-integration.sh
 ```
 
-脚本验证官方版本号、插件加载、英文及中文 Generic UI 配置、中文 Manifest、官方应用名称、IINA 标题参数、Web 资源、唯一注入标记、真实认证、权限拒绝、两个实际媒体版本、SRT/ASS 实际读取、续播、HEAD、四个 Range 和新增日志泄漏。
+脚本验证官方版本号、插件加载、英文及中文 Generic UI 配置、中文 Manifest、官方应用名称、标题路径和票据查询脱敏、Web 资源、唯一注入标记、真实认证、权限拒绝、两个实际媒体版本、SRT/ASS 实际读取、续播、HEAD、四个 Range 和新增日志泄漏。
 
 ## 发布检查
 

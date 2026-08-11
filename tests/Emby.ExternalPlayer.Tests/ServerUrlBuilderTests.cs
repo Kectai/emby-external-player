@@ -40,24 +40,25 @@ public sealed class ServerUrlBuilderTests
     }
 
     [TestMethod]
-    public void TicketUrl_DoesNotContainEmbyAccessToken()
+    public void TicketUrl_UsesMediaTitleAndRedactedQueryParameter()
     {
         var result = ServerUrlBuilder.BuildTicketStreamUrl(
             "https://media.example/emby/",
             "short_lived-ticket",
-            "mp4");
+            "中文 Movie & One");
 
         Assert.AreEqual(
-            "https://media.example/emby/ExternalPlayer/Stream/short_lived-ticket/stream.js",
+            "https://media.example/emby/ExternalPlayer/Stream/" +
+            "%E4%B8%AD%E6%96%87%20Movie%20%26%20One?api_key=short_lived-ticket",
             result);
-        Assert.IsFalse(result.Contains("api_key", StringComparison.OrdinalIgnoreCase));
     }
 
     [TestMethod]
-    public void TicketRoutes_UseEmbyQuietExtensionsToProtectBearerValuesFromCoreLogs()
+    public void TicketRoutes_UseEmbyLogRedactionOrQuietExtensions()
     {
-        Assert.IsTrue(ServerUrlBuilder.BuildTicketStreamUrl(
-            "https://media.example/", "ticket", "mkv").EndsWith("/stream.js", StringComparison.Ordinal));
+        StringAssert.Contains(
+            ServerUrlBuilder.BuildTicketStreamUrl("https://media.example/", "ticket", "Movie"),
+            "?api_key=ticket");
         Assert.IsTrue(ServerUrlBuilder.BuildTicketSubtitleUrl(
             "https://media.example/", "ticket", 3, "srt").EndsWith("/subtitle.css", StringComparison.Ordinal));
     }
