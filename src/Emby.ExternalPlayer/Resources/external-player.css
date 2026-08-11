@@ -1,0 +1,60 @@
+.emby-external-player-button {
+    white-space: nowrap;
+}
+
+.emby-external-player-overlay {
+    align-items: center;
+    background: rgba(0, 0, 0, .72);
+    display: flex;
+    inset: 0;
+    justify-content: center;
+    padding: 1.5rem;
+    position: fixed;
+    z-index: 99999;
+}
+
+.emby-external-player-dialog {
+    background: #202020;
+    border-radius: .5rem;
+    box-shadow: 0 .75rem 2.5rem rgba(0, 0, 0, .5);
+    color: #fff;
+    max-height: calc(100vh - 3rem);
+    max-width: 34rem;
+    overflow: auto;
+    padding: 1.25rem;
+    width: 100%;
+}
+
+.emby-external-player-dialog h2 {
+    margin: 0 0 1rem;
+}
+
+.emby-external-player-field {
+    display: block;
+    margin: .9rem 0;
+}
+
+.emby-external-player-field select {
+    box-sizing: border-box;
+    margin-top: .35rem;
+    width: 100%;
+}
+
+.emby-external-player-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .6rem;
+    margin-top: 1.25rem;
+}
+
+.emby-external-player-error {
+    color: #ffb4ab;
+    min-height: 1.4em;
+}
+
+.emby-external-player-manual-link {
+    color: #8ab4f8;
+    display: inline-block;
+    margin-top: .8rem;
+    overflow-wrap: anywhere;
+}

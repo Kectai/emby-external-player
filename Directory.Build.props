@@ -1,0 +1,13 @@
+<Project>
+  <PropertyGroup>
+    <RepositoryRoot>$(MSBuildThisFileDirectory)</RepositoryRoot>
+    <BaseOutputPath>$(RepositoryRoot).local/build/bin/</BaseOutputPath>
+    <BaseIntermediateOutputPath>$(RepositoryRoot).local/build/obj/$(MSBuildProjectName)/</BaseIntermediateOutputPath>
+    <MSBuildProjectExtensionsPath>$(BaseIntermediateOutputPath)</MSBuildProjectExtensionsPath>
+    <RestorePackagesPath>$(RepositoryRoot).local/nuget/packages</RestorePackagesPath>
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+    <DebugType>portable</DebugType>
+  </PropertyGroup>
+</Project>
+

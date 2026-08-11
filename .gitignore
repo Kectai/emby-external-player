@@ -1,0 +1,13 @@
+.DS_Store
+.idea/
+.vscode/
+.local/
+artifacts/
+bin/
+obj/
+TestResults/
+*.user
+*.suo
+*.nupkg
+*.snupkg
+

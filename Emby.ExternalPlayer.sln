@@ -1,0 +1,28 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Emby.ExternalPlayer", "src/Emby.ExternalPlayer/Emby.ExternalPlayer.csproj", "{D8BCDA9D-AF56-4847-ADAB-CEFD6ECD69E7}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Emby.ExternalPlayer.Tests", "tests/Emby.ExternalPlayer.Tests/Emby.ExternalPlayer.Tests.csproj", "{AF0EC8A5-C670-434C-BEFC-FCEE5E823556}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{D8BCDA9D-AF56-4847-ADAB-CEFD6ECD69E7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D8BCDA9D-AF56-4847-ADAB-CEFD6ECD69E7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D8BCDA9D-AF56-4847-ADAB-CEFD6ECD69E7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D8BCDA9D-AF56-4847-ADAB-CEFD6ECD69E7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AF0EC8A5-C670-434C-BEFC-FCEE5E823556}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AF0EC8A5-C670-434C-BEFC-FCEE5E823556}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AF0EC8A5-C670-434C-BEFC-FCEE5E823556}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AF0EC8A5-C670-434C-BEFC-FCEE5E823556}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
+
