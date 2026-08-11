@@ -3,7 +3,7 @@ define(["events", "connectionManager"], function (events, connectionManager) {
 
     var moduleKey = "__embyExternalPlayerModule";
     var buttonId = "embyExternalPlayerButton";
-    var resourceVersion = "1.2.1";
+    var resourceVersion = "1.2.2";
     var selectorProfile = {
         actionRow: ".mainDetailButtons, .detailPagePrimaryContainer .detailButtons",
         playButton: "button.btnPlay, button.btnResume, .btnPlay, .btnResume",
@@ -335,13 +335,6 @@ define(["events", "connectionManager"], function (events, connectionManager) {
         heading.appendChild(itemName);
         header.appendChild(heading);
 
-        var close = document.createElement("button");
-        close.type = "button";
-        close.className = "paper-icon-button-light emby-button emby-external-player-close";
-        close.setAttribute("aria-label", text(manifest, "Cancel", "Cancel"));
-        close.appendChild(makeSvgIcon("M18.3 5.71 12 12l6.3 6.29-1.41 1.42L10.59 13.41 4.29 19.71 2.88 18.3 9.17 12 2.88 5.7 4.29 4.29 10.59 10.59 16.89 4.29Z", "emby-external-player-close-icon"));
-        close.addEventListener("click", function () { closeDialog(overlay); });
-        header.appendChild(close);
         dialog.appendChild(header);
         dialog.setAttribute("aria-labelledby", title.id);
 

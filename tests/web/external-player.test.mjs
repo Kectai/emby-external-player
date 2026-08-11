@@ -276,7 +276,7 @@ await new Promise((resolve) => setTimeout(resolve, 0));
 assert.equal(document.body.walk().filter((item) => item.id === "embyExternalPlayerButton").length, 1);
 assert.equal(eventSubscriptions.size, 1);
 assert.equal(manifestQuery.language, "zh-CN");
-assert.equal(document.getElementById("embyExternalPlayerStyles").attributes.get("data-resource-version"), "1.2.1");
+assert.equal(document.getElementById("embyExternalPlayerStyles").attributes.get("data-resource-version"), "1.2.2");
 
 evaluateAndStart();
 await new Promise((resolve) => setTimeout(resolve, 0));
@@ -286,10 +286,12 @@ assert.equal(eventSubscriptions.size, 1, "reloading must unsubscribe the prior c
 const button = document.getElementById("embyExternalPlayerButton");
 assert.ok(button.className.includes("detailButton-autotext"));
 assert.ok(button.walk().some((item) => item.tagName === "SVG"), "the detail action must use an inline SVG icon");
+assert.ok(button.walk().some((item) => item.textContent === "外部播放"), "the detail action must retain its visible label");
 assert.ok(!button.walk().some((item) => item.textContent === "open_in_new"), "icon ligature text must never be visible");
 button.dispatch("click");
 const launchOverlay = document.querySelector(".emby-external-player-overlay");
 assert.ok(launchOverlay);
+assert.ok(!launchOverlay.walk().some((item) => item.className.includes("emby-external-player-close")), "the dialog must not duplicate Cancel with a large close icon");
 const iinaOption = launchOverlay.walk().find((item) => item.attributes.get("data-player-id") === "Iina");
 const customOption = launchOverlay.walk().find((item) => item.attributes.get("data-player-id") === "custom-1");
 const launchButton = launchOverlay.walk().find((item) => item.tagName === "BUTTON" && item.textContent === "打开");

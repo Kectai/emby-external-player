@@ -3,7 +3,7 @@ set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 project_root="$(cd "${script_dir}/.." && pwd)"
-version="1.2.1"
+version="1.2.2"
 package_name="Emby.ExternalPlayer-${version}"
 staging_parent="${project_root}/.local/package"
 staging_dir="${staging_parent}/${package_name}"

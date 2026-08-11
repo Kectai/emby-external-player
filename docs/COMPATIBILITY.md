@@ -29,6 +29,8 @@
 
 插件 1.2.1 修正 IINA 标题携带 `api_key`：安全中转媒体 URL 不再包含查询票据，改由 IINA 官方允许的 `mpv_http-header-fields` 发送 `X-Emby-Playback-Ticket`，并在服务端继续执行票据、用户可见性与播放权限校验。URL 构造、请求头编码、换行注入拒绝及无查询串标题均有回归测试；由于不写入 IINA 播放历史，本机未自动实际拉起 IINA。
 
+插件 1.2.2 覆盖 Emby 桌面端隐藏 `detailButton-autotext-text` 的规则，使详情页入口始终显示图标和本地化文字；同时移除弹窗标题栏中与底部“取消”重复的关闭叉号，继续保留遮罩、Esc 和底部按钮三种关闭方式。
+
 Web 模块测试使用无依赖的假 DOM 覆盖：重复加载只保留一个按钮、事件退订、内嵌 SVG、不泄漏 `open_in_new` 文本、默认选择状态、自定义播放器标识、PascalCase/camelCase API 兼容、Escape 关闭、焦点恢复与 focus trap。实际 Chrome、Firefox、Safari 的人工视觉回归尚需在部署环境完成，因此不能把 DOM 自动化和隔离预览等同于三款浏览器实测。
 
 播放器 URL 适配器均有编码与能力测试。本机检测到 IINA 1.4.4 注册了 `iina` 协议，但遵循环境隔离要求未实际拉起；PotPlayer、VLC media player、Infuse 未安装，需按 [客户端说明](CLIENT_HANDLERS.md) 完成人工矩阵。
