@@ -44,7 +44,7 @@
     flex-direction: column;
     max-height: min(46rem, calc(100vh - 3rem));
     max-height: min(46rem, calc(100dvh - 3rem));
-    max-width: 36rem;
+    max-width: 30rem;
     overflow: hidden;
     padding: 0;
     width: 100%;
@@ -53,6 +53,10 @@
 .emby-external-player-dialog,
 .emby-external-player-dialog * {
     box-sizing: border-box;
+}
+
+.emby-external-player-dialog:focus {
+    outline: 0;
 }
 
 .emby-external-player-header {
@@ -179,6 +183,7 @@
 
 .emby-external-player-option-badge {
     align-self: flex-start;
+    background: transparent !important;
     border: 1px solid var(--line-background, rgba(255, 255, 255, .2));
     border-radius: 999px;
     color: hsla(var(--theme-text-color-hue, 0), var(--theme-text-color-saturation, 0%), var(--theme-text-color-lightness, 100%), var(--theme-secondary-text-color-alpha, .62));
@@ -290,21 +295,23 @@
 }
 
 .emby-external-player-actions {
+    align-items: center;
     border-top: var(--line-size, 1px) solid var(--line-background, rgba(255, 255, 255, .18));
-    display: grid;
+    display: flex;
     flex: 0 0 auto;
-    gap: .75rem;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    padding: .8rem 1rem;
+    gap: .65rem;
+    justify-content: flex-end;
+    padding: .75rem 1rem;
     position: static;
 }
 
 .emby-external-player-actions .formDialogFooterItem {
+    flex: 0 1 auto !important;
     margin: 0 !important;
-    max-width: none !important;
-    min-width: 0;
-    padding: .7rem 1.1rem;
-    width: 100% !important;
+    max-width: 10rem !important;
+    min-width: 7.25rem;
+    padding: .65rem 1.1rem;
+    width: auto !important;
 }
 
 .emby-external-player-launch[aria-busy="true"] {
@@ -341,11 +348,5 @@
         max-height: none;
         overflow: visible;
         padding-right: .15rem;
-    }
-}
-
-@media (max-width: 24rem) {
-    .emby-external-player-actions {
-        grid-template-columns: minmax(0, 1fr);
     }
 }

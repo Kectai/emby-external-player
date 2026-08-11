@@ -1,10 +1,9 @@
+using System.ComponentModel;
 using System.Globalization;
 using System.Text.Json;
 using System.Xml.Serialization;
 using Emby.Web.GenericEdit;
 using Emby.Web.GenericEdit.Common;
-using Emby.Web.GenericEdit.Editors;
-using Emby.Web.GenericEdit.Elements.DxGrid;
 
 namespace Emby.ExternalPlayer.Tests;
 
@@ -12,7 +11,7 @@ namespace Emby.ExternalPlayer.Tests;
 public sealed class PluginOptionsEditorTests
 {
     [TestMethod]
-    public void CustomPlayers_UseAnAddEditDeleteGridInsteadOfFixedSlots()
+    public void CustomPlayers_UseTheOfficialDynamicChildCollectionPattern()
     {
         var originalCulture = CultureInfo.CurrentUICulture;
         try
@@ -35,21 +34,19 @@ public sealed class PluginOptionsEditorTests
 
             options.PrepareForEditor();
 
-            Assert.AreEqual(1, options.CustomPlayers.Count, "legacy empty slots must be removed");
-            Assert.AreEqual("自定义播放器", options.CustomPlayersCaption.Caption);
-            Assert.IsTrue(options.CustomPlayersCaption.IsVisible);
-            Assert.IsTrue(options.CustomPlayersHelp.IsVisible);
-            Assert.AreEqual(true, options.CustomPlayersEditor.Options.editing.allowAdding);
-            Assert.AreEqual(true, options.CustomPlayersEditor.Options.editing.allowDeleting);
-            Assert.AreEqual(true, options.CustomPlayersEditor.Options.editing.allowUpdating);
-            Assert.AreEqual("添加播放器", options.CustomPlayersEditor.Options.editing.texts.addRow);
-            Assert.AreEqual(false, options.CustomPlayersEditor.Options.paging.enabled);
+            Assert.AreEqual(2, options.CustomPlayers.Count, "keep valid rows and append exactly one empty add row");
+            Assert.AreEqual("myPLAYER pro", options.CustomPlayers[0].EditorTitle);
+            Assert.AreEqual("添加播放器", options.CustomPlayers[1].EditorTitle);
+
+            var descriptor = TypeDescriptor.GetProperties(options)[nameof(PluginOptions.CustomPlayers)];
+            Assert.IsNotNull(descriptor);
+            Assert.IsTrue(descriptor.IsBrowsable);
+            Assert.AreEqual("自定义播放器", descriptor.DisplayName);
 
             var container = (EditObjectContainer)options.CreateEditContainer();
-            var gridEditor = container.EditorRoot.EditorItems.OfType<EditorDxGrid>().Single();
-            Assert.AreEqual(nameof(PluginOptions.CustomPlayers), gridEditor.DataSourceId);
-            Assert.IsFalse(container.EditorRoot.EditorItems.Any(item =>
+            Assert.IsTrue(container.EditorRoot.EditorItems.Any(item =>
                 item.Id == nameof(PluginOptions.CustomPlayers) && item.EditorType == EditorTypes.Group));
+            Assert.IsFalse(container.EditorRoot.EditorItems.Any(item => item.EditorType == EditorTypes.DxDataGrid));
         }
         finally
         {
@@ -58,7 +55,7 @@ public sealed class PluginOptionsEditorTests
     }
 
     [TestMethod]
-    public void CustomPlayerEditorMetadata_IsNotWrittenToPersistentXml()
+    public void PersistentXml_ContainsOnlyCustomPlayerData()
     {
         var serializer = new XmlSerializer(typeof(PluginOptions));
         using var writer = new StringWriter(CultureInfo.InvariantCulture);
@@ -66,13 +63,12 @@ public sealed class PluginOptionsEditorTests
         serializer.Serialize(writer, new PluginOptions());
 
         var xml = writer.ToString();
-        Assert.IsFalse(xml.Contains(nameof(PluginOptions.CustomPlayersEditor), StringComparison.Ordinal));
-        Assert.IsFalse(xml.Contains(nameof(PluginOptions.CustomPlayersCaption), StringComparison.Ordinal));
         Assert.IsTrue(xml.Contains(nameof(PluginOptions.CustomPlayers), StringComparison.Ordinal));
+        Assert.IsFalse(xml.Contains("CustomPlayersEditor", StringComparison.Ordinal));
     }
 
     [TestMethod]
-    public void GenericUiPageSavePayload_RoundTripsDynamicPlayerRows()
+    public void GenericUiPageSavePayload_RoundTripsAndPrunesTheEmptyAddRow()
     {
         var options = new PluginOptions
         {
@@ -93,6 +89,8 @@ public sealed class PluginOptionsEditorTests
         var restored = JsonSerializer.Deserialize<PluginOptions>(payload);
 
         Assert.IsNotNull(restored);
+        Assert.AreEqual(2, restored.CustomPlayers.Count);
+        restored.NormalizeCustomPlayers();
         Assert.AreEqual(1, restored.CustomPlayers.Count);
         Assert.AreEqual("Elmedia Video Player", restored.CustomPlayers[0].ApplicationName);
         Assert.AreEqual(CustomPlayerPlatform.MacOS, restored.CustomPlayers[0].Platform);

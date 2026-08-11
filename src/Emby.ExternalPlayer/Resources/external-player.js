@@ -4,7 +4,7 @@ define(["events", "connectionManager"], function (events, connectionManager) {
     var moduleKey = "__embyExternalPlayerModule";
     var buttonId = "embyExternalPlayerButton";
     var configurationPageId = "f7e75c:Settings";
-    var resourceVersion = "1.3.0";
+    var resourceVersion = "1.3.1";
     var selectorProfile = {
         actionRow: ".mainDetailButtons, .detailPagePrimaryContainer .detailButtons",
         mediaSource: "select.selectSource",
@@ -162,8 +162,12 @@ define(["events", "connectionManager"], function (events, connectionManager) {
     }
 
     function findPlayButton(row) {
-        return row.querySelector("button.btnResume, .btnResume") ||
-            row.querySelector("button.btnPlay, .btnPlay");
+        return row.querySelector("button.btnMainPlay:not(.hide), .btnMainPlay:not(.hide)") ||
+            row.querySelector("button.btnPlay:not(.hide), .btnPlay:not(.hide)") ||
+            row.querySelector("button.btnMainPlay, .btnMainPlay") ||
+            row.querySelector("button.btnPlay, .btnPlay") ||
+            row.querySelector("button.btnResume:not(.hide), .btnResume:not(.hide)") ||
+            row.querySelector("button.btnResume, .btnResume");
     }
 
     function makeSvgIcon(pathData, className) {
@@ -378,6 +382,7 @@ define(["events", "connectionManager"], function (events, connectionManager) {
         dialog.className = "dialog formDialog emby-external-player-dialog";
         dialog.setAttribute("role", "dialog");
         dialog.setAttribute("aria-modal", "true");
+        dialog.setAttribute("tabindex", "-1");
 
         var header = document.createElement("header");
         header.className = "formDialogHeader emby-external-player-header";
@@ -671,8 +676,8 @@ define(["events", "connectionManager"], function (events, connectionManager) {
         document.addEventListener("keydown", overlay._externalPlayerKeyHandler, true);
         document.body.appendChild(overlay);
         state.activeDialog = overlay;
-        if (playerOptions.length) {
-            playerOptions[0].option.focus();
+        if (dialog.focus) {
+            dialog.focus();
         }
     }
 

@@ -140,9 +140,10 @@ class FakeDocument {
         this.activeElement = this.body;
         this.actionRow = new FakeElement("div", this);
         this.actionRow.className = "mainDetailButtons";
-        const play = new FakeElement("button", this);
-        play.className = "btnPlay";
-        this.actionRow.appendChild(play);
+        this.playButton = new FakeElement("button", this);
+        this.playButton.className = "raised emby-button detailButton btnPlay btnMainPlay";
+        this.playButton.textContent = "从头开始";
+        this.actionRow.appendChild(this.playButton);
         this.body.appendChild(this.actionRow);
     }
 
@@ -243,7 +244,7 @@ const document = new FakeDocument();
 const resumeButton = document.createElement("button");
 resumeButton.className = "raised emby-button detailButton detailButton-primary detailButton-stacked btnResume";
 resumeButton.textContent = "继续播放";
-document.actionRow.appendChild(resumeButton);
+document.actionRow.insertBefore(resumeButton, document.playButton);
 const eventSubscriptions = new Set();
 let ajaxResponse = { LaunchUrl: "iina://weblink?url=https%3A%2F%2Fexample.test" };
 let manifestQuery;
@@ -299,7 +300,7 @@ await new Promise((resolve) => setTimeout(resolve, 0));
 assert.equal(document.body.walk().filter((item) => item.id === "embyExternalPlayerButton").length, 1);
 assert.equal(eventSubscriptions.size, 1);
 assert.equal(manifestQuery.language, "zh-CN");
-assert.equal(document.getElementById("embyExternalPlayerStyles").attributes.get("data-resource-version"), "1.3.0");
+assert.equal(document.getElementById("embyExternalPlayerStyles").attributes.get("data-resource-version"), "1.3.1");
 
 evaluateAndStart();
 await new Promise((resolve) => setTimeout(resolve, 0));
@@ -308,13 +309,12 @@ assert.equal(eventSubscriptions.size, 1, "reloading must unsubscribe the prior c
 
 const button = document.getElementById("embyExternalPlayerButton");
 assert.ok(button.className.includes("raised"), "the detail action must use Emby's themed raised-button style");
-assert.ok(button.className.includes("detailButton-primary"), "the detail action must inherit the adjacent primary action theme");
-assert.ok(button.className.includes("detailButton-stacked"), "the detail action must inherit the adjacent responsive layout class");
+assert.ok(!button.className.includes("detailButton-primary"), "the detail action must inherit the From Beginning action instead of Resume");
 assert.ok(!button.className.includes("detailButton-autotext"));
 assert.equal(
     document.actionRow.children.indexOf(button),
-    document.actionRow.children.indexOf(resumeButton) + 1,
-    "the external-play action must be placed immediately after Resume when Resume is present");
+    document.actionRow.children.indexOf(document.playButton) + 1,
+    "the external-play action must be placed immediately after From Beginning");
 assert.ok(button.walk().some((item) => item.tagName === "SVG"), "the detail action must use an inline SVG icon");
 assert.ok(button.walk().some((item) => item.textContent === "外部播放"), "the detail action must retain its visible label");
 assert.ok(!button.walk().some((item) => item.textContent === "open_in_new"), "icon ligature text must never be visible");
@@ -329,6 +329,8 @@ assert.ok(iinaOption);
 assert.ok(customOption, "enabled custom applications must be visible in the chooser");
 assert.equal(iinaOption.attributes.get("aria-checked"), "true");
 assert.ok(iinaOption.className.includes("emby-external-player-option-selected"), "the default player must have a persistent selected state");
+assert.notEqual(document.activeElement, iinaOption, "opening the chooser must not apply Emby's white focus style to IINA");
+assert.equal(document.activeElement.attributes.get("role"), "dialog");
 assert.ok(customOption.walk().some((item) => item.textContent === "自定义播放器"));
 customOption.dispatch("click");
 assert.equal(customOption.attributes.get("aria-checked"), "true");

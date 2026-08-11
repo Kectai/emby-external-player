@@ -32,7 +32,7 @@ public enum CustomPlayerPlatform
 public sealed class CustomPlayerOptions : EditableOptionsBase
 {
     public override string EditorTitle => string.IsNullOrWhiteSpace(ApplicationName)
-        ? PluginStrings.CustomPlayer
+        ? PluginStrings.CustomPlayerAdd
         : ApplicationName;
 
     [DisplayNameL(nameof(PluginStrings.CustomPlayerEnabled), typeof(PluginStrings))]

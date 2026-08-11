@@ -1,11 +1,8 @@
 using System;
-using System.ComponentModel;
-using System.Xml.Serialization;
 using Emby.ExternalPlayer.Domain;
 using Emby.ExternalPlayer.Localization;
 using Emby.ExternalPlayer.Services;
 using Emby.Web.GenericEdit;
-using Emby.Web.GenericEdit.Elements;
 using MediaBrowser.Model.Attributes;
 using Emby.Web.GenericEdit.Validation;
 using MediaBrowser.Model.LocalizationAttributes;
@@ -124,17 +121,8 @@ public sealed class PluginOptions : EditableOptionsBase
     [DisplayNameL(nameof(PluginStrings.DefaultPlayerAndroid), typeof(PluginStrings))]
     public PlayerId DefaultPlayerAndroid { get; set; } = PlayerId.Vlc;
 
-    [XmlIgnore]
-    public CaptionItem CustomPlayersCaption { get; set; } = CustomPlayerGridFactory.CreateCaption();
-
-    [XmlIgnore]
-    public LabelItem CustomPlayersHelp { get; set; } = CustomPlayerGridFactory.CreateDescription();
-
-    [GridDataSource(nameof(CustomPlayers))]
-    [XmlIgnore]
-    public DxDataGrid CustomPlayersEditor { get; set; } = CustomPlayerGridFactory.CreateGrid();
-
-    [Browsable(false)]
+    [DisplayNameL(nameof(PluginStrings.CustomPlayers), typeof(PluginStrings))]
+    [DescriptionL(nameof(PluginStrings.CustomPlayersDescription), typeof(PluginStrings))]
     public CustomPlayerOptionsCollection CustomPlayers { get; set; } = new();
 
     [DisplayNameL(nameof(PluginStrings.DebugLogging), typeof(PluginStrings))]
@@ -234,9 +222,7 @@ public sealed class PluginOptions : EditableOptionsBase
     public void PrepareForEditor()
     {
         NormalizeCustomPlayers();
-        CustomPlayersCaption = CustomPlayerGridFactory.CreateCaption();
-        CustomPlayersHelp = CustomPlayerGridFactory.CreateDescription();
-        CustomPlayersEditor = CustomPlayerGridFactory.CreateGrid();
+        CustomPlayers.Add(new CustomPlayerOptions());
     }
 
     public void NormalizeCustomPlayers()

@@ -7,7 +7,7 @@
 ## 功能
 
 - PotPlayer、IINA、VLC media player、Infuse；mpv 与 nPlayer 为默认关闭的实验适配器，应用名称保持官方大小写。
-- 配置页用可新增、编辑、删除的动态表格管理自定义播放器，不再限制三个固定槽位；名称原样显示，URL Scheme 模板支持 `{url}`、`{title}`、`{subtitle}`、`{start}`。
+- 配置页使用 Emby 官方动态子集合模式管理自定义播放器：有效条目后始终保留一个“添加播放器”配置组，不再限制三个固定槽位；名称原样显示，URL Scheme 模板支持 `{url}`、`{title}`、`{subtitle}`、`{start}`。
 - 界面和配置页根据 Emby 客户端语言适配简体中文、繁体中文和英文，其他语言回退英文。
 - 详情页入口使用内嵌 SVG，并继承相邻“播放/继续播放”的 Emby `raised`、主色和响应式布局类；存在继续播放时固定插在其右侧。播放器选择器跟随当前主题，并为内置/自定义应用提供清晰的选中状态和窄屏布局。
 - 安全中转 URL 的末段使用 Emby 媒体标题，播放器不再把固定路由名 `stream.js` 当作标题；该修复不依赖某个播放器的私有参数。
@@ -27,7 +27,7 @@
 
 ## 安装
 
-1. 从 `artifacts/Emby.ExternalPlayer-1.3.0.zip` 取出 `Emby.ExternalPlayer.dll`。
+1. 从 `artifacts/Emby.ExternalPlayer-1.3.1.zip` 取出 `Emby.ExternalPlayer.dll`。
 2. 停止 Emby Server，把 DLL 放入 Emby 程序数据目录的 `plugins` 文件夹。
 3. 启动 Emby，在插件设置中确认 `External Player` 已启用；默认安全模式无需额外配置。
 4. 强制刷新一次 Emby Web，然后进入有媒体源的视频详情页。

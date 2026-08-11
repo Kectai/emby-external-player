@@ -222,7 +222,7 @@ docs/
 | `DefaultPlayerMacOS` | enum | IINA | macOS 默认播放器 |
 | `DefaultPlayerIOS` | enum | Infuse | iOS 默认播放器 |
 | `DefaultPlayerAndroid` | enum | VLC media player | Android 默认播放器 |
-| `CustomPlayers` | collection | 空集合 | 自定义应用名、平台与受限 URL Scheme 模板；配置页通过 Emby Generic UI 数据表格动态新增、编辑和删除，不设固定槽位 |
+| `CustomPlayers` | collection | 空集合 | 自定义应用名、平台与受限 URL Scheme 模板；配置页通过 Emby Generic UI 动态子集合展示有效项和一个追加项，不设固定槽位 |
 | `DebugLogging` | bool | false | 不记录令牌和完整播放 URL |
 
 配置校验规则：
@@ -315,9 +315,9 @@ data-item-id="..."
 - 统一的“打开”和“取消”底部动作。
 - 错误提示和再次尝试链接。
 
-入口图标和关闭/选中图标均使用内嵌 SVG，不能依赖 Material Icons 字体或把 ligature 名称写入可见文本。入口使用 Emby 原生 `raised`/`detailButton` 类，并继承相邻主播放或继续播放按钮的 `detailButton-primary` 与 `detailButton-stacked` 状态；存在继续播放按钮时插在它右侧。桌面弹窗最大宽度限制为 36rem，播放器列表采用两列并限制自身高度；窄屏采用单列且取消列表内部滚动，由弹窗内容区统一滚动，避免只露出前三个播放器或形成双重滚动条。底部操作区使用等宽两列，消除 Emby 全局 footer 样式造成的额外右侧留白。
+入口图标和关闭/选中图标均使用内嵌 SVG，不能依赖 Material Icons 字体或把 ligature 名称写入可见文本。入口使用 Emby 原生 `raised`/`detailButton` 类，并继承“播放/从头开始”按钮的主题状态；当恢复播放同时存在时，真实顺序为“恢复播放 → 从头开始 → 外部播放”。桌面弹窗最大宽度限制为 30rem，播放器列表采用两列并限制自身高度；窄屏采用单列且取消列表内部滚动，由弹窗内容区统一滚动，避免只露出前三个播放器或形成双重滚动条。底部操作区为靠右排列的紧凑按钮，不继承 Emby footer 的占满宽度行为。打开弹窗时焦点落在对话框容器，而非首个播放器，避免 Safari 首次打开时叠加白色焦点态。
 
-配置页继续使用 `BasePluginSimpleUI`。`CustomPlayers` 本身作为隐藏数据源持久化，`DxDataGrid` 只作为带 `[GridDataSource]` 的 UI 元数据存在并通过 `[XmlIgnore]` 排除持久化。表格允许新增、行内编辑和删除，关闭分页并启用窄屏列隐藏；旧版三个空槽位在显示或保存时会清理，有效条目原样保留。配置页的页面级保存命令由 Web 模块限定在 `f7e75c:Settings` 页面内按客户端语言修正为“保存 / 儲存 / Save”，不修改其他插件页面。
+配置页继续使用 `BasePluginSimpleUI`，并遵循 Emby SDK 的动态子集合范式。显示前先清理旧版空槽位、保留全部有效项，再追加且只追加一个空白 `CustomPlayerOptions`，其标题显示为“添加播放器”；保存时重新移除空白项。这样当前 Emby Web 无需加载 `DxDataGrid` 也能稳定展示配置，并可通过“填写追加项 → 保存”持续扩展。删除条目时关闭它并清空名称与模板，保存归一化会将其移除。配置页的页面级保存命令由 Web 模块限定在 `f7e75c:Settings` 页面内按客户端语言修正为“保存 / 儲存 / Save”，不修改其他插件页面。
 
 所有来自媒体元数据的文本只能通过 `textContent` 写入 DOM，禁止拼接为 HTML。
 
