@@ -197,7 +197,7 @@ docs/
 
 ## 6. 插件配置设计
 
-使用 `BasePluginSimpleUI<PluginOptions>`，避免自定义管理 HTML。
+常规配置使用 `BasePluginSimpleUI<PluginOptions>`；仅自定义播放器集合由内嵌轻量编辑区和管理员 API 管理，以绕开 Emby 4.9 Generic UI 对动态集合支持不稳定的问题。
 
 建议配置项：
 
@@ -222,7 +222,7 @@ docs/
 | `DefaultPlayerMacOS` | enum | IINA | macOS 默认播放器 |
 | `DefaultPlayerIOS` | enum | Infuse | iOS 默认播放器 |
 | `DefaultPlayerAndroid` | enum | VLC media player | Android 默认播放器 |
-| `CustomPlayers` | collection | 空集合 | 自定义应用名、平台与受限 URL Scheme 模板；配置页通过 Emby Generic UI 动态子集合展示有效项和一个追加项，不设固定槽位 |
+| `CustomPlayers` | collection | 空集合 | 自定义应用名、平台与受限 URL Scheme 模板；从独立管理 API 逐条保存或删除，不设固定槽位 |
 | `DebugLogging` | bool | false | 不记录令牌和完整播放 URL |
 
 配置校验规则：
@@ -230,7 +230,7 @@ docs/
 - 票据有效期必须在允许范围内。
 - 默认播放器必须已启用，否则保存时自动回退或报校验错误。
 - `LegacyTokenUrl` 模式必须显示明确的令牌泄露风险提示。
-- 自定义模板必须以安全的非 Web Scheme 开头、包含 `{url}`，且只能使用 `{url}`、`{title}`、`{subtitle}`、`{start}`。
+- 自定义模板必须以安全的非 Web Scheme 开头、包含 `{url}`，且只能使用 `{url}`、`{title}`、`{subtitle}`、`{start}`、`{headers}`。
 - 应用名称原样保存和显示，不做大小写或首字母转换。
 
 Simple UI 使用 Emby 的本地化 `DisplayNameL`/`DescriptionL` 属性；媒体页由 Manifest 根据客户端提交的 Emby Web 语言返回固定键值的文案目录。当前提供简体中文、繁体中文和英文，其他语言回退英文。
@@ -278,18 +278,18 @@ Web 模块优先使用 Emby 页面事件，DOM 观察只作为后备：
 2. 从 URL hash 或页面上下文提取 `itemId`。
 3. 检查是否存在可见的媒体详情根节点。
 4. 检查条目是否为 Movie、Episode 或 Video。
-5. 如果页面异步渲染未完成，使用有时限的 `MutationObserver` 等待动作区出现。
-6. 插入完成或超时后立即停止观察，避免永久监听整个文档树。
+5. 为应对 Emby 单页应用在同一媒体页内重建详情 DOM，当前媒体页保持一个受生命周期约束的 `MutationObserver`，只观察子节点和按钮类变化并执行幂等恢复。
+6. 页面导航、模块重载、禁用或卸载时立即断开观察器；观察器不发网络请求，也不承担文案翻译。
 
-不允许无限运行的全局 MutationObserver。
+不允许跨页面遗留的全局 `MutationObserver`。
 
 ### 7.4 按钮定位
 
 采用多级定位策略：
 
 1. 找到当前可见详情页中的 `.mainDetailButtons`。
-2. 在动作区内按优先级查找“播放/继续播放”按钮。
-3. 找到时插入到最后一个主要播放动作之后。
+2. 在动作区内查找 Emby 的“播放/从头开始”按钮（`.btnPlay` / `.btnMainPlay`）。
+3. 找到时插入到该按钮之后；存在续播记录时顺序为“恢复播放 → 从头开始 → 外部播放”。
 4. 找不到具体播放按钮但动作区存在时，追加到动作区末尾。
 5. 动作区也不存在时放弃注入，不创建漂浮按钮。
 
@@ -315,9 +315,9 @@ data-item-id="..."
 - 统一的“打开”和“取消”底部动作。
 - 错误提示和再次尝试链接。
 
-入口图标和关闭/选中图标均使用内嵌 SVG，不能依赖 Material Icons 字体或把 ligature 名称写入可见文本。入口使用 Emby 原生 `raised`/`detailButton` 类，并继承“播放/从头开始”按钮的主题状态；当恢复播放同时存在时，真实顺序为“恢复播放 → 从头开始 → 外部播放”。桌面弹窗最大宽度限制为 30rem，播放器列表采用两列并限制自身高度；窄屏采用单列且取消列表内部滚动，由弹窗内容区统一滚动，避免只露出前三个播放器或形成双重滚动条。底部操作区为靠右排列的紧凑按钮，不继承 Emby footer 的占满宽度行为。打开弹窗时焦点落在对话框容器，而非首个播放器，避免 Safari 首次打开时叠加白色焦点态。
+入口直接复制“从头开始”按钮的主题类并使用 Emby 自身的 `md-icon` DOM 结构，图标字符使用私有区码点，不能把 `open_in_new` ligature 名称写入可见文本；弹窗选中图标仍使用自包含 SVG。桌面弹窗最大宽度限制为 30rem，播放器列表采用两列并限制自身高度；窄屏采用单列且取消列表内部滚动，由弹窗内容区统一滚动，避免只露出前三个播放器或形成双重滚动条。底部操作区为靠右排列的紧凑按钮，不继承 Emby footer 的占满宽度行为。打开弹窗时焦点落在对话框容器，而非首个播放器，避免 Safari 首次打开时叠加白色焦点态。
 
-配置页继续使用 `BasePluginSimpleUI`，并遵循 Emby SDK 的动态子集合范式。显示前先清理旧版空槽位、保留全部有效项，再追加且只追加一个空白 `CustomPlayerOptions`，其标题显示为“添加播放器”；保存时重新移除空白项。这样当前 Emby Web 无需加载 `DxDataGrid` 也能稳定展示配置，并可通过“填写追加项 → 保存”持续扩展。删除条目时关闭它并清空名称与模板，保存归一化会将其移除。配置页的页面级保存命令由 Web 模块限定在 `f7e75c:Settings` 页面内按客户端语言修正为“保存 / 儲存 / Save”，不修改其他插件页面。
+常规配置继续使用 `BasePluginSimpleUI`；`CustomPlayers` 对 Generic UI 隐藏，由同页的轻量编辑区调用管理员专用 API 逐条加载、保存和删除。用户可一次添加多个未保存草稿，每张卡片独立提交，不依赖页面整体保存。为防止 Generic UI 的旧载荷覆盖独立保存结果，服务端在页面会话期间保存自定义播放器快照，并在常规配置提交时合并最新快照。页面级保存命令不再监听和改写 Emby 的英文 `Save`：Web 模块隐藏原命令，创建一次按当前客户端语言生成的“保存 / 儲存 / Save”按钮，并把点击委托给原生保存处理器。DOM 观察器只在 Emby 重建配置页时恢复这组插件节点。
 
 所有来自媒体元数据的文本只能通过 `textContent` 写入 DOM，禁止拼接为 HTML。
 
@@ -358,7 +358,19 @@ GET /ExternalPlayer/Status
 }
 ```
 
-### 8.2 获取媒体与播放器清单
+### 8.2 管理自定义播放器
+
+自定义播放器配置由独立管理员 API 管理：
+
+```http
+GET    /ExternalPlayer/CustomPlayers
+POST   /ExternalPlayer/CustomPlayers
+DELETE /ExternalPlayer/CustomPlayers/{id}
+```
+
+`GET` 返回全部有效条目；`POST` 以稳定 ID 新增或更新一条；`DELETE` 删除一条。三者均从认证上下文验证管理员身份。服务端逐条校验官方应用名称、平台、安全 Scheme 和模板占位符，并通过同一插件配置存储持久化，不新建数据库。
+
+### 8.3 获取媒体与播放器清单
 
 ```http
 GET /ExternalPlayer/Manifest?itemId={itemId}
@@ -418,7 +430,7 @@ GET /ExternalPlayer/Manifest?itemId={itemId}
 - 只返回用户可访问的媒体源。
 - 不返回服务器物理路径、Emby token 或上游凭据。
 
-### 8.3 解析播放器链接
+### 8.4 解析播放器链接
 
 ```http
 POST /ExternalPlayer/Resolve
@@ -459,7 +471,7 @@ Content-Type: application/json
 - `platform` 只能作为显示和协议选择提示，不能作为安全依据。
 - 续播位置以服务端 UserData 为准，不能接受任意前端时间覆盖。
 
-### 8.4 流媒体票据入口
+### 8.5 流媒体票据入口
 
 ```http
 GET  /ExternalPlayer/Stream/{mediaTitle}
@@ -483,7 +495,7 @@ HEAD /ExternalPlayer/Stream/{mediaTitle}
 IINA 的 `http-header-fields` 属于官方 URL Scheme 安全白名单，适配器同时要求 `new_window=1` 隔离请求头播放会话。
 旧的 `{ticket}/stream.js` 路由只保留兼容，不再由 Resolve 生成。
 
-### 8.5 字幕票据入口
+### 8.6 字幕票据入口
 
 ```http
 GET /ExternalPlayer/Subtitle/{ticket}/{subtitleIndex}/subtitle.css

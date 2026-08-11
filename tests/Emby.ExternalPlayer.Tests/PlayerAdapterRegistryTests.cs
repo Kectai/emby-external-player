@@ -185,6 +185,38 @@ public sealed class PlayerAdapterRegistryTests
     }
 
     [TestMethod]
+    public void CustomIinaDerivedPlayer_UsesPlaybackTicketHeaderWithoutAnApiKeyQuery()
+    {
+        var options = new PluginOptions
+        {
+            CustomPlayers = new CustomPlayerOptionsCollection
+            {
+                new()
+                {
+                    Enabled = true,
+                    ApplicationName = "IINA Nova",
+                    Platform = CustomPlayerPlatform.MacOS,
+                    UrlTemplate = "iina-nova://weblink?url={url}&new_window=1&mpv_start={start}",
+                },
+            },
+        };
+        var context = CreateContext();
+        context.HttpRequestHeaders = new[] { "X-Emby-Playback-Ticket: short_ticket" };
+
+        var descriptor = CreateRegistry().GetAvailable(options, ClientPlatform.MacOS, true)
+            .Single(player => player.Id == "custom-1");
+        var url = CreateRegistry().BuildLaunchUrl("custom-1", options, context);
+
+        Assert.IsTrue(descriptor.Capabilities.HasFlag(PlayerCapabilities.HttpRequestHeaders));
+        Assert.AreEqual(
+            "iina-nova://weblink?url=https%3A%2F%2Femby.example%2FExternalPlayer%2FStream%2Fa_b-c" +
+            "&new_window=1&mpv_start=90" +
+            "&mpv_http-header-fields=X-Emby-Playback-Ticket%3A%20short_ticket",
+            url);
+        Assert.IsFalse(url.Contains("api_key", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [TestMethod]
     public void BuildLaunchUrl_RejectsRelativeStreamUrl()
     {
         Assert.ThrowsExactly<ArgumentException>(() =>

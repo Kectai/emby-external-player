@@ -4,7 +4,7 @@ define(["events", "connectionManager"], function (events, connectionManager) {
     var moduleKey = "__embyExternalPlayerModule";
     var buttonId = "embyExternalPlayerButton";
     var configurationPageId = "f7e75c:Settings";
-    var resourceVersion = "1.3.1";
+    var resourceVersion = "1.4.0";
     var selectorProfile = {
         actionRow: ".mainDetailButtons, .detailPagePrimaryContainer .detailButtons",
         mediaSource: "select.selectSource",
@@ -56,15 +56,93 @@ define(["events", "connectionManager"], function (events, connectionManager) {
         return match ? decodeURIComponent(match[1]) : null;
     }
 
-    function configurationSaveText() {
+    function configurationTexts() {
         var language = detectLanguage().toLowerCase();
         if (language.indexOf("zh-hant") === 0 || language.indexOf("zh-tw") === 0 || language.indexOf("zh-hk") === 0) {
-            return "儲存";
+            return {
+                pageSave: "儲存",
+                title: "自訂播放器",
+                description: "自訂播放器在此獨立儲存，不需要使用頁面底部的儲存按鈕。URL 範本支援 {url}、{title}、{subtitle}、{start} 和 {headers}。",
+                add: "新增播放器",
+                enabled: "啟用",
+                applicationName: "官方應用程式名稱",
+                platform: "平台",
+                anyPlatform: "所有平台",
+                urlTemplate: "URL Scheme 範本",
+                save: "儲存此播放器",
+                remove: "刪除",
+                saved: "已儲存",
+                removed: "已刪除",
+                loadError: "無法載入自訂播放器設定。",
+                saveError: "無法儲存，請檢查應用程式名稱和 URL 範本。",
+                deleteConfirm: "確定刪除這個自訂播放器嗎？"
+            };
         }
         if (language.indexOf("zh") === 0) {
-            return "保存";
+            return {
+                pageSave: "保存",
+                title: "自定义播放器",
+                description: "自定义播放器在这里独立保存，不需要使用页面底部的保存按钮。URL 模板支持 {url}、{title}、{subtitle}、{start} 和 {headers}。",
+                add: "添加播放器",
+                enabled: "启用",
+                applicationName: "官方应用名称",
+                platform: "平台",
+                anyPlatform: "所有平台",
+                urlTemplate: "URL Scheme 模板",
+                save: "保存此播放器",
+                remove: "删除",
+                saved: "已保存",
+                removed: "已删除",
+                loadError: "无法加载自定义播放器配置。",
+                saveError: "无法保存，请检查应用名称和 URL 模板。",
+                deleteConfirm: "确定删除这个自定义播放器吗？"
+            };
         }
-        return "Save";
+        return {
+            pageSave: "Save",
+            title: "Custom players",
+            description: "Custom players are saved independently here; the page Save button is not required. Templates support {url}, {title}, {subtitle}, {start}, and {headers}.",
+            add: "Add player",
+            enabled: "Enabled",
+            applicationName: "Official application name",
+            platform: "Platform",
+            anyPlatform: "Any platform",
+            urlTemplate: "URL scheme template",
+            save: "Save player",
+            remove: "Delete",
+            saved: "Saved",
+            removed: "Deleted",
+            loadError: "Unable to load custom-player settings.",
+            saveError: "Unable to save. Check the application name and URL template.",
+            deleteConfirm: "Delete this custom player?"
+        };
+    }
+
+    function ensureLocalizedConfigurationSaveButton(originalButton) {
+        setClass(originalButton, "emby-external-player-native-save-hidden", true);
+        originalButton.setAttribute("aria-hidden", "true");
+        originalButton.setAttribute("tabindex", "-1");
+
+        var replacement = document.getElementById("embyExternalPlayerConfigurationSave");
+        if (!replacement) {
+            var localizedText = configurationTexts().pageSave;
+            replacement = document.createElement("button");
+            replacement.id = "embyExternalPlayerConfigurationSave";
+            replacement.type = "button";
+            replacement.className = "raised button-submit block emby-button emby-external-player-main-save";
+            replacement.textContent = localizedText;
+            replacement.setAttribute("aria-label", localizedText);
+            replacement.addEventListener("click", function () {
+                var currentOriginal = replacement._externalPlayerOriginalSave;
+                if (currentOriginal && currentOriginal.click) {
+                    currentOriginal.click();
+                }
+            });
+        }
+        replacement._externalPlayerOriginalSave = originalButton;
+        if (replacement.parentNode !== originalButton.parentNode || originalButton.nextSibling !== replacement) {
+            originalButton.parentNode.insertBefore(replacement, originalButton.nextSibling);
+        }
     }
 
     function enhanceConfigurationPage() {
@@ -74,20 +152,15 @@ define(["events", "connectionManager"], function (events, connectionManager) {
 
         var saveButtons = document.querySelectorAll(
             'button[data-data1="PageSave"], input[data-data1="PageSave"], .btnSave.pagebutton');
-        if (!saveButtons.length) {
-            return false;
-        }
-
         Array.prototype.forEach.call(saveButtons, function (button) {
-            var localizedText = configurationSaveText();
-            if (button.tagName === "INPUT") {
-                button.value = localizedText;
-            } else {
-                button.textContent = localizedText;
-            }
-            button.setAttribute("aria-label", localizedText);
+            ensureLocalizedConfigurationSaveButton(button);
         });
-        return true;
+
+        var mainContent = document.querySelector(".mainContent");
+        if (mainContent) {
+            ensureCustomPlayerConfiguration(mainContent);
+        }
+        return saveButtons.length > 0 || !!mainContent;
     }
 
     function text(manifest, key, fallback) {
@@ -132,6 +205,196 @@ define(["events", "connectionManager"], function (events, connectionManager) {
             data: JSON.stringify(body),
             contentType: "application/json",
             dataType: "json"
+        });
+    }
+
+    function apiDelete(path) {
+        var apiClient = getApiClient();
+        return apiClient.ajax({
+            type: "DELETE",
+            url: apiClient.getUrl(path),
+            dataType: "json"
+        });
+    }
+
+    function makeConfigurationField(labelText, control) {
+        var label = document.createElement("label");
+        label.className = "inputContainer emby-external-player-config-field";
+        var caption = document.createElement("span");
+        caption.className = "inputLabel inputLabelUnfocused";
+        caption.textContent = labelText;
+        label.appendChild(caption);
+        label.appendChild(control);
+        return label;
+    }
+
+    function ensureCustomPlayerConfiguration(mainContent) {
+        if (document.getElementById("embyExternalPlayerCustomPlayers")) {
+            return;
+        }
+
+        var strings = configurationTexts();
+        var section = document.createElement("section");
+        section.id = "embyExternalPlayerCustomPlayers";
+        section.className = "verticalSection emby-external-player-config-section";
+
+        var header = document.createElement("div");
+        header.className = "emby-external-player-config-header";
+        var headingBox = document.createElement("div");
+        var heading = document.createElement("h2");
+        heading.className = "sectionTitle emby-external-player-config-title";
+        heading.textContent = strings.title;
+        var description = document.createElement("div");
+        description.className = "fieldDescription emby-external-player-config-description";
+        description.textContent = strings.description;
+        headingBox.appendChild(heading);
+        headingBox.appendChild(description);
+        header.appendChild(headingBox);
+
+        var addButton = document.createElement("button");
+        addButton.type = "button";
+        addButton.className = "raised emby-button emby-external-player-config-add";
+        addButton.textContent = strings.add;
+        header.appendChild(addButton);
+        section.appendChild(header);
+
+        var list = document.createElement("div");
+        list.className = "emby-external-player-config-list";
+        section.appendChild(list);
+        var status = document.createElement("div");
+        status.className = "fieldDescription emby-external-player-config-status";
+        status.setAttribute("role", "status");
+        status.setAttribute("aria-live", "polite");
+        section.appendChild(status);
+        mainContent.appendChild(section);
+
+        function renderCard(player) {
+            player = player || {};
+            var card = document.createElement("div");
+            card.className = "paperList emby-external-player-config-card";
+            card.setAttribute("data-player-id", read(player, "Id") || "");
+
+            var cardHeader = document.createElement("div");
+            cardHeader.className = "emby-external-player-config-card-header";
+            var cardTitle = document.createElement("h3");
+            cardTitle.className = "emby-external-player-config-card-title";
+            cardTitle.textContent = read(player, "ApplicationName") || strings.add;
+            cardHeader.appendChild(cardTitle);
+            card.appendChild(cardHeader);
+
+            var fields = document.createElement("div");
+            fields.className = "emby-external-player-config-fields";
+
+            var enabled = document.createElement("input");
+            enabled.type = "checkbox";
+            enabled.className = "emby-external-player-config-enabled";
+            enabled.checked = read(player, "Enabled") !== false;
+            enabled.setAttribute("data-field", "enabled");
+            var enabledLabel = document.createElement("label");
+            enabledLabel.className = "emby-external-player-config-enabled-label";
+            enabledLabel.appendChild(enabled);
+            var enabledText = document.createElement("span");
+            enabledText.textContent = strings.enabled;
+            enabledLabel.appendChild(enabledText);
+            fields.appendChild(enabledLabel);
+
+            var applicationName = document.createElement("input");
+            applicationName.type = "text";
+            applicationName.className = "emby-input emby-external-player-config-input";
+            applicationName.value = read(player, "ApplicationName") || "";
+            applicationName.maxLength = 80;
+            applicationName.setAttribute("data-field", "applicationName");
+            fields.appendChild(makeConfigurationField(strings.applicationName, applicationName));
+
+            var platform = document.createElement("select");
+            platform.className = "emby-select emby-external-player-config-select";
+            platform.setAttribute("data-field", "platform");
+            ["Any", "Windows", "MacOS", "IOS", "Android", "Linux"].forEach(function (value) {
+                var option = document.createElement("option");
+                option.value = value;
+                option.textContent = value === "Any" ? strings.anyPlatform : value;
+                platform.appendChild(option);
+            });
+            platform.value = read(player, "Platform") || "Any";
+            fields.appendChild(makeConfigurationField(strings.platform, platform));
+
+            var urlTemplate = document.createElement("input");
+            urlTemplate.type = "text";
+            urlTemplate.className = "emby-input emby-external-player-config-input";
+            urlTemplate.value = read(player, "UrlTemplate") || "";
+            urlTemplate.setAttribute("data-field", "urlTemplate");
+            fields.appendChild(makeConfigurationField(strings.urlTemplate, urlTemplate));
+            card.appendChild(fields);
+
+            var actions = document.createElement("div");
+            actions.className = "emby-external-player-config-card-actions";
+            var saveButton = document.createElement("button");
+            saveButton.type = "button";
+            saveButton.className = "raised button-submit emby-button";
+            saveButton.textContent = strings.save;
+            var deleteButton = document.createElement("button");
+            deleteButton.type = "button";
+            deleteButton.className = "raised emby-button";
+            deleteButton.textContent = strings.remove;
+            actions.appendChild(saveButton);
+            actions.appendChild(deleteButton);
+            card.appendChild(actions);
+
+            applicationName.addEventListener("input", function () {
+                cardTitle.textContent = applicationName.value || strings.add;
+            });
+            saveButton.addEventListener("click", function () {
+                saveButton.disabled = true;
+                status.textContent = "";
+                apiPost("ExternalPlayer/CustomPlayers", {
+                    id: card.getAttribute("data-player-id") || "",
+                    enabled: enabled.checked,
+                    applicationName: applicationName.value,
+                    platform: platform.value,
+                    urlTemplate: urlTemplate.value
+                }).then(function (saved) {
+                    card.setAttribute("data-player-id", read(saved, "Id") || "");
+                    status.textContent = strings.saved;
+                }).catch(function () {
+                    status.textContent = strings.saveError;
+                }).then(function () {
+                    saveButton.disabled = false;
+                });
+            });
+            deleteButton.addEventListener("click", function () {
+                var id = card.getAttribute("data-player-id") || "";
+                if (id && window.confirm && !window.confirm(strings.deleteConfirm)) {
+                    return;
+                }
+                deleteButton.disabled = true;
+                var deletion = id
+                    ? apiDelete("ExternalPlayer/CustomPlayers/" + encodeURIComponent(id))
+                    : Promise.resolve();
+                deletion.then(function () {
+                    card.remove();
+                    status.textContent = strings.removed;
+                }).catch(function () {
+                    deleteButton.disabled = false;
+                    status.textContent = strings.saveError;
+                });
+            });
+
+            list.appendChild(card);
+            return card;
+        }
+
+        addButton.addEventListener("click", function () {
+            var card = renderCard({ Enabled: true, Platform: "Any" });
+            var nameInput = card.querySelector('[data-field="applicationName"]');
+            if (nameInput && nameInput.focus) {
+                nameInput.focus();
+            }
+        });
+
+        apiGet("ExternalPlayer/CustomPlayers").then(function (players) {
+            (players || []).forEach(renderCard);
+        }).catch(function () {
+            status.textContent = strings.loadError;
         });
     }
 
@@ -196,19 +459,46 @@ define(["events", "connectionManager"], function (events, connectionManager) {
         element.className = classes.join(" ");
     }
 
-    function makeButton(manifest) {
+    function syncButtonClasses(button, referenceButton) {
+        var ignored = {
+            btnPlay: true,
+            btnMainPlay: true,
+            btnResume: true,
+            hide: true,
+            detailButtonHighres3: true
+        };
+        var sourceClasses = String((referenceButton && referenceButton.className) || "raised detailButton emby-button")
+            .split(/\s+/)
+            .filter(Boolean)
+            .filter(function (className) {
+                return !ignored[className] &&
+                    className.indexOf("detailButton-highres") !== 0 &&
+                    className.indexOf("detailButton-lowres") !== 0;
+            });
+        ["raised", "detailButton", "emby-button", "emby-external-player-button"].forEach(function (className) {
+            if (sourceClasses.indexOf(className) < 0) {
+                sourceClasses.push(className);
+            }
+        });
+        var value = sourceClasses.join(" ");
+        if (button.className !== value) {
+            button.className = value;
+        }
+    }
+
+    function makeButton(manifest, referenceButton) {
         var button = document.createElement("button");
         button.id = buttonId;
         button.type = "button";
-        button.className = "raised emby-button detailButton emby-external-player-button";
+        syncButtonClasses(button, referenceButton);
         button.setAttribute("aria-label", read(manifest, "ButtonText") || text(manifest, "ExternalPlay", "External play"));
 
-        var icon = makeSvgIcon(
-            "M19 19H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7h-2v7ZM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7Z",
-            "detailButton-icon emby-external-player-button-icon");
+        var icon = document.createElement("i");
+        icon.className = "md-icon md-icon-fill button-icon button-icon-left autortl emby-external-player-button-icon";
+        icon.textContent = "\ue89e";
 
-        var label = document.createElement("div");
-        label.className = "detailButton-text emby-external-player-button-text";
+        var label = document.createElement("span");
+        label.className = "emby-external-player-button-text";
         label.textContent = read(manifest, "ButtonText") || text(manifest, "ExternalPlay", "External play");
 
         button.appendChild(icon);
@@ -227,25 +517,23 @@ define(["events", "connectionManager"], function (events, connectionManager) {
             return false;
         }
 
-        if (document.getElementById(buttonId)) {
-            return true;
-        }
-
         var row = findActionRow();
         if (!row) {
             return false;
         }
 
-        var button = makeButton(manifest);
         var playButton = findPlayButton(row);
-        if (playButton) {
-            var referenceClasses = String(playButton.className || "").split(/\s+/);
-            setClass(button, "detailButton-primary", referenceClasses.indexOf("detailButton-primary") >= 0);
-            setClass(button, "detailButton-stacked", referenceClasses.indexOf("detailButton-stacked") >= 0);
+        var button = document.getElementById(buttonId);
+        if (!button) {
+            button = makeButton(manifest, playButton);
+        } else {
+            syncButtonClasses(button, playButton);
         }
         if (read(manifest, "ButtonPlacement") === "AfterPrimaryPlay" && playButton && playButton.parentNode === row) {
-            row.insertBefore(button, playButton.nextSibling);
-        } else {
+            if (button.parentNode !== row || playButton.nextSibling !== button) {
+                row.insertBefore(button, playButton.nextSibling);
+            }
+        } else if (button.parentNode !== row) {
             row.appendChild(button);
         }
 
@@ -272,16 +560,11 @@ define(["events", "connectionManager"], function (events, connectionManager) {
         state.manifest = null;
 
         if (getConfigurationPageId() === configurationPageId) {
-            if (enhanceConfigurationPage()) {
-                return;
-            }
+            enhanceConfigurationPage();
             state.observer = new MutationObserver(function () {
-                if (enhanceConfigurationPage()) {
-                    stopObserver();
-                }
+                enhanceConfigurationPage();
             });
             state.observer.observe(document.body, { childList: true, subtree: true });
-            state.timer = window.setTimeout(stopObserver, 10000);
             return;
         }
 
@@ -301,17 +584,18 @@ define(["events", "connectionManager"], function (events, connectionManager) {
                 }
 
                 state.manifest = manifest;
-                if (insertButton(manifest)) {
-                    return;
-                }
-
+                insertButton(manifest);
                 state.observer = new MutationObserver(function () {
-                    if (insertButton(manifest)) {
-                        stopObserver();
+                    if (generation === state.generation && itemId === getItemId()) {
+                        insertButton(manifest);
                     }
                 });
-                state.observer.observe(document.body, { childList: true, subtree: true });
-                state.timer = window.setTimeout(stopObserver, 10000);
+                state.observer.observe(document.body, {
+                    attributes: true,
+                    attributeFilter: ["class"],
+                    childList: true,
+                    subtree: true
+                });
             })
             .catch(function () {
                 removeButton();

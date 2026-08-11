@@ -1,28 +1,13 @@
 .emby-external-player-button {
-    align-items: center;
-    border-radius: .4rem;
-    display: inline-flex;
-    flex: 0 0 auto;
-    flex-direction: row;
-    gap: .55rem;
-    justify-content: center;
-    min-height: 3rem;
-    padding: .65rem 1rem;
     white-space: nowrap;
-    width: auto;
 }
 
 .emby-external-player-button-icon {
-    display: inline-block;
-    fill: currentColor;
-    height: 1em;
-    overflow: visible;
-    width: 1em;
+    font-size: inherit;
 }
 
 .emby-external-player-button-text {
-    display: inline-block;
-    line-height: 1.2;
+    white-space: nowrap;
 }
 
 .emby-external-player-overlay {
@@ -319,6 +304,116 @@
     opacity: .72;
 }
 
+.emby-external-player-config-section {
+    border-top: var(--line-size, 1px) solid var(--line-background, rgba(255, 255, 255, .18));
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+}
+
+.emby-external-player-native-save-hidden {
+    display: none !important;
+}
+
+.emby-external-player-main-save {
+    width: 100%;
+}
+
+.emby-external-player-config-header {
+    align-items: flex-end;
+    display: flex;
+    gap: 1rem;
+    justify-content: space-between;
+}
+
+.emby-external-player-config-title {
+    margin: 0 0 .35rem;
+}
+
+.emby-external-player-config-description {
+    line-height: 1.45;
+    max-width: 58rem;
+}
+
+.emby-external-player-config-add {
+    flex: 0 0 auto;
+    margin: 0;
+    min-width: 7.5rem;
+}
+
+.emby-external-player-config-list {
+    display: grid;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.emby-external-player-config-card {
+    border-radius: .5rem;
+    padding: 1rem;
+}
+
+.emby-external-player-config-card-header {
+    align-items: center;
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: .8rem;
+}
+
+.emby-external-player-config-card-title {
+    font-size: 1.05rem;
+    margin: 0;
+}
+
+.emby-external-player-config-fields {
+    display: grid;
+    gap: .85rem 1rem;
+    grid-template-columns: minmax(0, 1fr) minmax(9rem, .45fr);
+}
+
+.emby-external-player-config-enabled-label {
+    align-items: center;
+    display: flex;
+    gap: .55rem;
+    grid-column: 1 / -1;
+}
+
+.emby-external-player-config-enabled {
+    accent-color: hsl(var(--theme-primary-color-hue, 116), var(--theme-primary-color-saturation, 42%), var(--theme-primary-color-lightness, 50%));
+    height: 1.15rem;
+    margin: 0;
+    width: 1.15rem;
+}
+
+.emby-external-player-config-field {
+    margin: 0;
+    min-width: 0;
+}
+
+.emby-external-player-config-field:last-child {
+    grid-column: 1 / -1;
+}
+
+.emby-external-player-config-input,
+.emby-external-player-config-select {
+    box-sizing: border-box;
+    width: 100%;
+}
+
+.emby-external-player-config-card-actions {
+    display: flex;
+    gap: .65rem;
+    justify-content: flex-end;
+    margin-top: 1rem;
+}
+
+.emby-external-player-config-card-actions .emby-button {
+    margin: 0;
+    min-width: 7.5rem;
+}
+
+.emby-external-player-config-status:not(:empty) {
+    margin-top: .75rem;
+}
+
 @media (max-width: 40rem) {
     .emby-external-player-overlay {
         align-items: flex-end;
@@ -340,8 +435,18 @@
     }
 
     .emby-external-player-player-list,
-    .emby-external-player-fields {
+    .emby-external-player-fields,
+    .emby-external-player-config-fields {
         grid-template-columns: minmax(0, 1fr);
+    }
+
+    .emby-external-player-config-header {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .emby-external-player-config-add {
+        align-self: flex-start;
     }
 
     .emby-external-player-player-list {

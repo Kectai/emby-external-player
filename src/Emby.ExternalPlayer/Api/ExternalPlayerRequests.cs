@@ -32,3 +32,31 @@ public sealed class ResolveExternalPlayer : IReturn<Domain.LaunchResolution>
 
     public string Language { get; set; } = string.Empty;
 }
+
+[Route("/ExternalPlayer/CustomPlayers", "GET", Summary = "Gets custom external-player configurations")]
+[Authenticated]
+public sealed class GetCustomPlayerConfigurations : IReturn<Domain.CustomPlayerConfiguration[]>
+{
+}
+
+[Route("/ExternalPlayer/CustomPlayers", "POST", Summary = "Creates or updates a custom external-player configuration")]
+[Authenticated]
+public sealed class SaveCustomPlayerConfiguration : IReturn<Domain.CustomPlayerConfiguration>
+{
+    public string Id { get; set; } = string.Empty;
+
+    public bool Enabled { get; set; }
+
+    public string ApplicationName { get; set; } = string.Empty;
+
+    public string Platform { get; set; } = string.Empty;
+
+    public string UrlTemplate { get; set; } = string.Empty;
+}
+
+[Route("/ExternalPlayer/CustomPlayers/{Id}", "DELETE", Summary = "Deletes a custom external-player configuration")]
+[Authenticated]
+public sealed class DeleteCustomPlayerConfiguration
+{
+    public string Id { get; set; } = string.Empty;
+}

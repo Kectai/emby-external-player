@@ -50,7 +50,7 @@ public static class PluginStrings
             [nameof(DebugLogging)] = "Diagnostic logging",
             [nameof(DebugLoggingDescription)] = "Writes diagnostic event names only. Tokens and resolved URLs are never logged.",
             [nameof(CustomPlayers)] = "Custom players",
-            [nameof(CustomPlayersDescription)] = "Existing handlers are followed by one Add player section. Fill it and save to create another. To remove a handler, disable it, clear its name and template, then save. Application names are displayed exactly as entered. Templates support {url}, {title}, {subtitle}, and {start}.",
+            [nameof(CustomPlayersDescription)] = "Custom players are managed independently below. Multiple drafts can be added at once, and each player has its own Save and Delete action. Application names are displayed exactly as entered. Templates support {url}, {title}, {subtitle}, {start}, and {headers}.",
             [nameof(CustomPlayerAdd)] = "Add player",
             [nameof(CustomPlayer)] = "Custom player",
             [nameof(CustomPlayerEnabled)] = "Enabled",
@@ -98,7 +98,7 @@ public static class PluginStrings
             [nameof(CustomPlayerNameRequired)] = "An enabled custom player requires an application name.",
             [nameof(CustomPlayerNameTooLong)] = "The application name cannot exceed 80 characters.",
             [nameof(CustomPlayerTemplateRequired)] = "An enabled custom player requires a URL scheme template.",
-            [nameof(CustomPlayerTemplateInvalid)] = "The URL scheme template must start with a safe custom scheme and may use only {url}, {title}, {subtitle}, and {start}.",
+            [nameof(CustomPlayerTemplateInvalid)] = "The URL scheme template must start with a safe custom scheme and may use only {url}, {title}, {subtitle}, {start}, and {headers}.",
         };
 
     private static readonly Dictionary<string, string> SimplifiedChinese =
@@ -140,7 +140,7 @@ public static class PluginStrings
             [nameof(DebugLogging)] = "诊断日志",
             [nameof(DebugLoggingDescription)] = "仅记录诊断事件名称，不记录令牌或解析后的地址。",
             [nameof(CustomPlayers)] = "自定义播放器",
-            [nameof(CustomPlayersDescription)] = "现有条目后会保留一个“添加播放器”配置组；填写并保存后会自动生成下一个。删除时请关闭该条目，并清空应用名称和 URL 模板后保存。应用名称按输入原样显示；模板支持 {url}、{title}、{subtitle} 和 {start}。",
+            [nameof(CustomPlayersDescription)] = "自定义播放器在下方独立管理，可一次添加多个草稿，每个播放器都有自己的保存和删除操作。应用名称按输入原样显示；模板支持 {url}、{title}、{subtitle}、{start} 和 {headers}。",
             [nameof(CustomPlayerAdd)] = "添加播放器",
             [nameof(CustomPlayer)] = "自定义播放器",
             [nameof(CustomPlayerEnabled)] = "启用",
@@ -182,7 +182,7 @@ public static class PluginStrings
             [nameof(CustomPlayerNameRequired)] = "已启用的自定义播放器必须填写应用名称。",
             [nameof(CustomPlayerNameTooLong)] = "应用名称不能超过 80 个字符。",
             [nameof(CustomPlayerTemplateRequired)] = "已启用的自定义播放器必须填写 URL Scheme 模板。",
-            [nameof(CustomPlayerTemplateInvalid)] = "URL Scheme 模板必须以安全的自定义协议开头，并且只能使用 {url}、{title}、{subtitle} 和 {start}。",
+            [nameof(CustomPlayerTemplateInvalid)] = "URL Scheme 模板必须以安全的自定义协议开头，并且只能使用 {url}、{title}、{subtitle}、{start} 和 {headers}。",
         };
 
     private static readonly IReadOnlyDictionary<string, string> TraditionalChinese =
@@ -198,7 +198,7 @@ public static class PluginStrings
             [nameof(AfterPrimaryPlay)] = "播放/從頭開始按鈕之後",
             [nameof(EndOfActionRow)] = "操作列末尾",
             [nameof(CustomPlayers)] = "自訂播放器",
-            [nameof(CustomPlayersDescription)] = "現有項目後會保留一個「新增播放器」設定群組；填寫並儲存後會自動產生下一個。刪除時請停用該項目，並清空應用程式名稱和 URL 範本後儲存。應用程式名稱按輸入原樣顯示；範本支援 {url}、{title}、{subtitle} 和 {start}。",
+            [nameof(CustomPlayersDescription)] = "自訂播放器在下方獨立管理，可一次加入多個草稿，每個播放器都有自己的儲存和刪除操作。應用程式名稱按輸入原樣顯示；範本支援 {url}、{title}、{subtitle}、{start} 和 {headers}。",
             [nameof(CustomPlayerAdd)] = "新增播放器",
             [nameof(CustomPlayer)] = "自訂播放器",
             [nameof(CustomPlayerEnabled)] = "啟用",

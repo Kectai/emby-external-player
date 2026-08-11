@@ -31,6 +31,39 @@ public sealed class ExternalPlayerApiService : IService, IRequiresRequest
 
     public IRequest Request { get; set; } = null!;
 
+    public object Get(GetCustomPlayerConfigurations request)
+    {
+        RequireAdministrator();
+        return Plugin.Instance?.GetCustomPlayerConfigurations().ToArray()
+            ?? Array.Empty<CustomPlayerConfiguration>();
+    }
+
+    public object Post(SaveCustomPlayerConfiguration request)
+    {
+        RequireAdministrator();
+        var plugin = Plugin.Instance
+            ?? throw new InvalidOperationException("The External Player plugin is unavailable.");
+        return plugin.SaveCustomPlayerConfiguration(new CustomPlayerConfiguration
+        {
+            Id = request.Id,
+            Enabled = request.Enabled,
+            ApplicationName = request.ApplicationName,
+            Platform = request.Platform,
+            UrlTemplate = request.UrlTemplate,
+        });
+    }
+
+    public object Delete(DeleteCustomPlayerConfiguration request)
+    {
+        RequireAdministrator();
+        var plugin = Plugin.Instance
+            ?? throw new InvalidOperationException("The External Player plugin is unavailable.");
+        return new
+        {
+            Deleted = plugin.DeleteCustomPlayerConfiguration(request.Id),
+        };
+    }
+
     public object Get(GetExternalPlayerManifest request)
     {
         var options = GetOptions();
@@ -223,6 +256,16 @@ public sealed class ExternalPlayerApiService : IService, IRequiresRequest
     {
         return authorizationContext.GetAuthorizationInfo(Request).User
             ?? throw new UnauthorizedAccessException("An authenticated Emby user is required.");
+    }
+
+    private MediaBrowser.Controller.Entities.User RequireAdministrator()
+    {
+        var user = GetAuthenticatedUser();
+        if (!user.Policy.IsAdministrator)
+        {
+            throw new UnauthorizedAccessException("An Emby administrator is required.");
+        }
+        return user;
     }
 
     private static PluginOptions GetOptions() =>

@@ -117,9 +117,22 @@ const localizedConfigurationView = await (await api(
     { headers: { ClientLocale: "zh-CN" } })).json();
 const localizedConfigurationJson = JSON.stringify(localizedConfigurationView);
 assert.match(localizedConfigurationJson, /外部播放器/);
-assert.match(localizedConfigurationJson, /添加播放器/);
 assert.match(localizedConfigurationJson, /IINA/);
 assert.match(localizedConfigurationJson, /VLC media player/);
+assert.match(webModule, /添加播放器/);
+
+const savedCustomConfig = await (await api("ExternalPlayer/CustomPlayers", {
+    method: "POST",
+    body: JSON.stringify({
+        Enabled: true,
+        ApplicationName: "IINA Nova Integration",
+        Platform: "MacOS",
+        UrlTemplate: "iina-nova://weblink?url={url}&new_window=1&mpv_start={start}"
+    })
+})).json();
+assert.match(savedCustomConfig.Id, /^[a-f0-9]{32}$/);
+const customConfigurations = await (await api("ExternalPlayer/CustomPlayers")).json();
+assert.ok(customConfigurations.some((entry) => entry.Id === savedCustomConfig.Id));
 
 const libraryName = "External Player Integration";
 const virtualFolders = await (await api("Library/VirtualFolders/Query")).json();
@@ -185,6 +198,8 @@ assert.equal(
 assert.ok(manifest.MediaSources.length >= 2, "The multi-version movie must expose at least two media sources.");
 assert.ok(manifest.Players.some((player) =>
     player.Id === "Iina" && player.DisplayName === "IINA" && player.LaunchSchemes.includes("iina")));
+const customIinaPlayer = manifest.Players.find((player) => player.DisplayName === "IINA Nova Integration");
+assert.ok(customIinaPlayer && customIinaPlayer.LaunchSchemes.includes("iina-nova"));
 
 const source = manifest.MediaSources[0];
 const subtitles = source.Subtitles || [];
@@ -226,6 +241,24 @@ const iinaTicketMatch = iinaTicketField.match(/^X-Emby-Playback-Ticket: ([A-Za-z
 assert.ok(iinaTicketMatch);
 const iinaTicket = iinaTicketMatch[1];
 const iinaHeaders = { "X-Emby-Playback-Ticket": iinaTicket };
+
+const customIinaResolution = await (await resolve({
+    PlayerId: customIinaPlayer.Id,
+    MediaSourceId: source.Id,
+    Resume: true
+})).json();
+assert.match(customIinaResolution.LaunchUrl, /^iina-nova:\/\/weblink\?/);
+assert.doesNotMatch(customIinaResolution.LaunchUrl, /api_key/i);
+const customIinaUrl = new URL(customIinaResolution.LaunchUrl);
+const customStreamUrl = customIinaUrl.searchParams.get("url");
+assert.ok(customStreamUrl);
+assert.equal(new URL(customStreamUrl).search, "", "custom IINA-derived players must keep tickets out of the media title");
+const customTicketField = customIinaUrl.searchParams.get("mpv_http-header-fields") || "";
+const customTicketMatch = customTicketField.match(/^X-Emby-Playback-Ticket: ([A-Za-z0-9_-]{43})$/);
+assert.ok(customTicketMatch);
+const customTicket = customTicketMatch[1];
+
+await api(`ExternalPlayer/CustomPlayers/${savedCustomConfig.Id}`, { method: "DELETE" });
 
 const head = await fetch(streamUrl, { method: "HEAD", headers: iinaHeaders });
 assert.equal(head.status, 200);
@@ -298,8 +331,8 @@ if (programData) {
     const logBuffer = fs.readFileSync(serverLogPath);
     assert.ok(logBuffer.length >= serverLogStart, "The Emby log unexpectedly rotated during the test.");
     const logText = logBuffer.subarray(serverLogStart).toString("utf8");
-    const protectedUrls = [streamUrl, secondStreamUrl, subtitleUrl, assSubtitleUrl];
-    const tickets = [iinaTicket, secondTicket, ...[subtitleUrl, assSubtitleUrl].map((url) => {
+    const protectedUrls = [streamUrl, customStreamUrl, secondStreamUrl, subtitleUrl, assSubtitleUrl];
+    const tickets = [iinaTicket, customTicket, secondTicket, ...[subtitleUrl, assSubtitleUrl].map((url) => {
         const parsed = new URL(url);
         const segments = parsed.pathname.split("/");
         return segments.at(-3);

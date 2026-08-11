@@ -35,6 +35,9 @@ public sealed class CustomPlayerOptions : EditableOptionsBase
         ? PluginStrings.CustomPlayerAdd
         : ApplicationName;
 
+    [System.ComponentModel.Browsable(false)]
+    public string Id { get; set; } = string.Empty;
+
     [DisplayNameL(nameof(PluginStrings.CustomPlayerEnabled), typeof(PluginStrings))]
     public bool Enabled { get; set; }
 

@@ -152,6 +152,10 @@ public sealed class PlayerAdapterRegistry
         {
             capabilities |= PlayerCapabilities.DisplayTitle;
         }
+        if (CustomPlayerTemplate.SupportsHttpRequestHeaders(custom.UrlTemplate))
+        {
+            capabilities |= PlayerCapabilities.HttpRequestHeaders;
+        }
 
         return new PlayerDescriptor(
             "custom-" + (index + 1).ToString(CultureInfo.InvariantCulture),

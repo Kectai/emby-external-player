@@ -26,5 +26,6 @@ public sealed class LocalizationTests
         Assert.IsFalse(CustomPlayerTemplate.IsValid("https://example.test/?url={url}"));
         Assert.IsFalse(CustomPlayerTemplate.IsValid("player://open?url={unknown}"));
         Assert.IsTrue(CustomPlayerTemplate.IsValid("player-pro://open?url={url}&title={title}"));
+        Assert.IsTrue(CustomPlayerTemplate.IsValid("iina-nova://weblink?url={url}&mpv_http-header-fields={headers}"));
     }
 }

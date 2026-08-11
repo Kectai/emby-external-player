@@ -19,7 +19,7 @@ public static class CustomPlayerTemplate
     private static readonly ISet<string> AllowedPlaceholders =
         new HashSet<string>(StringComparer.Ordinal)
         {
-            "url", "title", "subtitle", "start",
+            "url", "title", "subtitle", "start", "headers",
         };
 
     private static readonly ISet<string> ProhibitedSchemes =
@@ -67,15 +67,24 @@ public static class CustomPlayerTemplate
             throw new ArgumentException("The custom player URL template is invalid.", nameof(template));
         }
 
+        var hasHeaderPlaceholder = template.Contains("{headers}", StringComparison.Ordinal);
         var rendered = template
             .Replace("{url}", Encode(context.StreamUrl), StringComparison.Ordinal)
             .Replace("{title}", Encode(context.Title ?? string.Empty), StringComparison.Ordinal)
             .Replace("{subtitle}", Encode(context.SubtitleUrl ?? string.Empty), StringComparison.Ordinal)
+            .Replace("{headers}", Encode(string.Join(",", context.HttpRequestHeaders)), StringComparison.Ordinal)
             .Replace(
                 "{start}",
                 Math.Max(0, context.StartPositionTicks / TimeSpan.TicksPerSecond)
                     .ToString(CultureInfo.InvariantCulture),
                 StringComparison.Ordinal);
+
+        if (!hasHeaderPlaceholder && context.HttpRequestHeaders.Count > 0 &&
+            SupportsHttpRequestHeaders(template))
+        {
+            rendered += (rendered.Contains("?", StringComparison.Ordinal) ? "&" : "?") +
+                "mpv_http-header-fields=" + Encode(string.Join(",", context.HttpRequestHeaders));
+        }
 
         if (!Uri.TryCreate(rendered, UriKind.Absolute, out var uri) ||
             !string.Equals(uri.Scheme, GetScheme(template), StringComparison.OrdinalIgnoreCase))
@@ -84,6 +93,12 @@ public static class CustomPlayerTemplate
         }
         return rendered;
     }
+
+    public static bool SupportsHttpRequestHeaders(string template) =>
+        template.Contains("{headers}", StringComparison.Ordinal) ||
+        (template.Contains("weblink?", StringComparison.OrdinalIgnoreCase) &&
+         template.Contains("mpv_", StringComparison.OrdinalIgnoreCase) &&
+         !template.Contains("mpv_http-header-fields=", StringComparison.OrdinalIgnoreCase));
 
     private static string Encode(string value) => Uri.EscapeDataString(value);
 }

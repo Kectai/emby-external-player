@@ -7,11 +7,11 @@
 ## 功能
 
 - PotPlayer、IINA、VLC media player、Infuse；mpv 与 nPlayer 为默认关闭的实验适配器，应用名称保持官方大小写。
-- 配置页使用 Emby 官方动态子集合模式管理自定义播放器：有效条目后始终保留一个“添加播放器”配置组，不再限制三个固定槽位；名称原样显示，URL Scheme 模板支持 `{url}`、`{title}`、`{subtitle}`、`{start}`。
+- 配置页提供独立的自定义播放器编辑区，可一次新增多个草稿，每条配置单独保存或删除，不再与页面整体保存强耦合；名称原样显示，URL Scheme 模板支持 `{url}`、`{title}`、`{subtitle}`、`{start}`、`{headers}`。
 - 界面和配置页根据 Emby 客户端语言适配简体中文、繁体中文和英文，其他语言回退英文。
-- 详情页入口使用内嵌 SVG，并继承相邻“播放/继续播放”的 Emby `raised`、主色和响应式布局类；存在继续播放时固定插在其右侧。播放器选择器跟随当前主题，并为内置/自定义应用提供清晰的选中状态和窄屏布局。
+- 详情页入口直接复用“从头开始”按钮的 Emby 类与原生图标结构，并持续跟随页面重建恢复在其右侧；播放器选择器跟随当前主题，并为内置/自定义应用提供清晰的选中状态和窄屏布局。
 - 安全中转 URL 的末段使用 Emby 媒体标题，播放器不再把固定路由名 `stream.js` 当作标题；该修复不依赖某个播放器的私有参数。
-- IINA 的安全中转地址不再携带 `api_key` 查询串；短期票据通过受限 HTTP 请求头交付，标题栏只从干净的媒体路径读取名称。
+- IINA 及声明请求头能力的自定义播放器在安全中转地址中不再携带 `api_key` 查询串；短期票据通过受限 HTTP 请求头交付，标题栏只从干净的媒体路径读取名称。
 - 多媒体版本、SRT/ASS 等 Emby 已识别的外挂字幕、服务端 UserData 续播位置。
 - 默认 `SecureTicketRelay`：播放器 URL 不包含 Emby token，支持 HEAD 和单 Range/206。
 - 短期 256 位随机票据，只在内存保存哈希索引，默认 8 小时、最多 2000 条，服务重启全部失效。
@@ -27,7 +27,7 @@
 
 ## 安装
 
-1. 从 `artifacts/Emby.ExternalPlayer-1.3.1.zip` 取出 `Emby.ExternalPlayer.dll`。
+1. 从 `artifacts/Emby.ExternalPlayer-1.4.0.zip` 取出 `Emby.ExternalPlayer.dll`。
 2. 停止 Emby Server，把 DLL 放入 Emby 程序数据目录的 `plugins` 文件夹。
 3. 启动 Emby，在插件设置中确认 `External Player` 已启用；默认安全模式无需额外配置。
 4. 强制刷新一次 Emby Web，然后进入有媒体源的视频详情页。

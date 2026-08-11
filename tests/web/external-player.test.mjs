@@ -31,6 +31,9 @@ class FakeElement {
     }
 
     insertBefore(child, reference) {
+        if (child.parentNode) {
+            child.parentNode.removeChild(child);
+        }
         child.parentNode = this;
         const index = this.children.indexOf(reference);
         this.children.splice(index < 0 ? this.children.length : index, 0, child);
@@ -53,6 +56,10 @@ class FakeElement {
         this.attributes.set(name, String(value));
     }
 
+    getAttribute(name) {
+        return this.attributes.get(name) ?? null;
+    }
+
     addEventListener(name, handler) {
         const listeners = this.listeners.get(name) || [];
         listeners.push(handler);
@@ -69,6 +76,10 @@ class FakeElement {
         for (const handler of this.listeners.get(name) || []) {
             handler(event);
         }
+    }
+
+    click() {
+        this.dispatch("click");
     }
 
     focus() {
@@ -164,6 +175,9 @@ class FakeDocument {
         if (selector.startsWith(".mainDetailButtons")) {
             return this.actionRow;
         }
+        if (selector === ".mainContent") {
+            return this.body.walk().find((item) => item.className.split(/\s+/).includes("mainContent")) || null;
+        }
         if (selector === ".emby-external-player-overlay") {
             return this.body.walk().find((item) => item.className.split(/\s+/).includes("emby-external-player-overlay")) || null;
         }
@@ -258,7 +272,18 @@ const apiClient = {
         if (path === "ExternalPlayer/Manifest") manifestQuery = query;
         return `http://127.0.0.1:18095/${path}`;
     },
-    getJSON() { return Promise.resolve(manifest); },
+    getJSON(url) {
+        if (String(url).includes("ExternalPlayer/CustomPlayers")) {
+            return Promise.resolve([{
+                Id: "custom-config-1",
+                Enabled: true,
+                ApplicationName: "IINA Nova",
+                Platform: "MacOS",
+                UrlTemplate: "iina-nova://weblink?url={url}&new_window=1&mpv_start={start}"
+            }]);
+        }
+        return Promise.resolve(manifest);
+    },
     ajax(options) {
         assert.equal(options.dataType, "json", "Emby ajax must parse the Resolve response as JSON");
         lastResolveBody = JSON.parse(options.data);
@@ -278,12 +303,24 @@ const window = {
     setTimeout,
     clearTimeout
 };
+const mutationObservers = [];
+class FakeMutationObserver {
+    constructor(callback) {
+        this.callback = callback;
+        this.connected = false;
+        mutationObservers.push(this);
+    }
+
+    observe() { this.connected = true; }
+    disconnect() { this.connected = false; }
+    trigger() { if (this.connected) this.callback([]); }
+}
 let initializer;
 const sandbox = {
     window,
     document,
     navigator: { platform: "MacIntel", userAgent: "test", language: "zh-CN" },
-    MutationObserver: class { observe() {} disconnect() {} },
+    MutationObserver: FakeMutationObserver,
     define(_dependencies, factory) { initializer = factory(events, connectionManager); },
     setTimeout,
     clearTimeout,
@@ -300,14 +337,14 @@ await new Promise((resolve) => setTimeout(resolve, 0));
 assert.equal(document.body.walk().filter((item) => item.id === "embyExternalPlayerButton").length, 1);
 assert.equal(eventSubscriptions.size, 1);
 assert.equal(manifestQuery.language, "zh-CN");
-assert.equal(document.getElementById("embyExternalPlayerStyles").attributes.get("data-resource-version"), "1.3.1");
+assert.equal(document.getElementById("embyExternalPlayerStyles").attributes.get("data-resource-version"), "1.4.0");
 
 evaluateAndStart();
 await new Promise((resolve) => setTimeout(resolve, 0));
 assert.equal(document.body.walk().filter((item) => item.id === "embyExternalPlayerButton").length, 1);
 assert.equal(eventSubscriptions.size, 1, "reloading must unsubscribe the prior connection event");
 
-const button = document.getElementById("embyExternalPlayerButton");
+let button = document.getElementById("embyExternalPlayerButton");
 assert.ok(button.className.includes("raised"), "the detail action must use Emby's themed raised-button style");
 assert.ok(!button.className.includes("detailButton-primary"), "the detail action must inherit the From Beginning action instead of Resume");
 assert.ok(!button.className.includes("detailButton-autotext"));
@@ -315,9 +352,18 @@ assert.equal(
     document.actionRow.children.indexOf(button),
     document.actionRow.children.indexOf(document.playButton) + 1,
     "the external-play action must be placed immediately after From Beginning");
-assert.ok(button.walk().some((item) => item.tagName === "SVG"), "the detail action must use an inline SVG icon");
+assert.ok(button.walk().some((item) => item.tagName === "I" && item.textContent === "\ue89e"), "the detail action must use Emby's native icon structure without a ligature word");
 assert.ok(button.walk().some((item) => item.textContent === "外部播放"), "the detail action must retain its visible label");
 assert.ok(!button.walk().some((item) => item.textContent === "open_in_new"), "icon ligature text must never be visible");
+
+button.remove();
+mutationObservers.at(-1).trigger();
+button = document.getElementById("embyExternalPlayerButton");
+assert.ok(button, "the persistent item-page observer must restore the button after Emby rebuilds the view");
+assert.equal(
+    document.actionRow.children.indexOf(button),
+    document.actionRow.children.indexOf(document.playButton) + 1,
+    "the restored action must remain after From Beginning");
 button.dispatch("click");
 const launchOverlay = document.querySelector(".emby-external-player-overlay");
 assert.ok(launchOverlay);
@@ -366,11 +412,51 @@ saveButton.className = "raised emby-button btnSave pagebutton";
 saveButton.setAttribute("data-data1", "PageSave");
 saveButton.textContent = "save";
 document.body.appendChild(saveButton);
+const configurationMain = document.createElement("div");
+configurationMain.className = "mainContent";
+document.body.appendChild(configurationMain);
 window.location.hash = "#!/genericui?PageId=f7e75c%3ASettings";
 evaluateAndStart();
 await new Promise((resolve) => setTimeout(resolve, 0));
-assert.equal(saveButton.textContent, "保存", "the plugin configuration Save command must follow the Emby client language");
-assert.equal(saveButton.attributes.get("aria-label"), "保存");
+const localizedSaveButton = document.getElementById("embyExternalPlayerConfigurationSave");
+assert.ok(localizedSaveButton, "the plugin configuration must render its own localized Save command");
+assert.equal(localizedSaveButton.textContent, "保存");
+assert.equal(localizedSaveButton.attributes.get("aria-label"), "保存");
+assert.equal(saveButton.textContent, "save", "the plugin must not translate Emby's command by mutation");
+assert.ok(saveButton.className.includes("emby-external-player-native-save-hidden"));
+let nativeSaveClicks = 0;
+saveButton.addEventListener("click", () => { nativeSaveClicks += 1; });
+localizedSaveButton.click();
+assert.equal(nativeSaveClicks, 1, "the localized command must delegate to Emby's native Save handler");
+saveButton.textContent = "Save";
+mutationObservers.at(-1).trigger();
+assert.equal(saveButton.textContent, "Save", "the lifecycle observer must not rewrite Emby's caption");
+assert.equal(localizedSaveButton.textContent, "保存", "the plugin-owned caption remains localized without translation watching");
+saveButton.remove();
+const rebuiltSaveButton = document.createElement("button");
+rebuiltSaveButton.className = "raised emby-button btnSave pagebutton";
+rebuiltSaveButton.setAttribute("data-data1", "PageSave");
+rebuiltSaveButton.textContent = "Save";
+let rebuiltNativeSaveClicks = 0;
+rebuiltSaveButton.addEventListener("click", () => { rebuiltNativeSaveClicks += 1; });
+document.body.appendChild(rebuiltSaveButton);
+mutationObservers.at(-1).trigger();
+localizedSaveButton.click();
+assert.equal(rebuiltNativeSaveClicks, 1, "the localized command must rebind after Emby rebuilds the native command");
+assert.equal(nativeSaveClicks, 1, "the removed native command must no longer receive delegated clicks");
+assert.equal(rebuiltSaveButton.nextSibling, localizedSaveButton);
+const customConfigurationSection = document.getElementById("embyExternalPlayerCustomPlayers");
+assert.ok(customConfigurationSection, "the independent custom-player editor must be added to the plugin page");
+const addCustomPlayerButton = customConfigurationSection.walk().find((item) =>
+    item.tagName === "BUTTON" && item.textContent === "添加播放器");
+assert.ok(addCustomPlayerButton);
+addCustomPlayerButton.dispatch("click");
+addCustomPlayerButton.dispatch("click");
+assert.equal(
+    customConfigurationSection.walk().filter((item) =>
+        item.className.split(/\s+/).includes("emby-external-player-config-card")).length,
+    3,
+    "multiple custom-player drafts must be addable without the page Save command");
 assert.match(
     invalidOverlay.walk().find((item) => item.className === "emby-external-player-error").textContent,
     /无法生成播放地址/);

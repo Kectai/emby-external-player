@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using Emby.ExternalPlayer.Domain;
 using Emby.ExternalPlayer.Localization;
 using Emby.ExternalPlayer.Services;
@@ -121,8 +122,7 @@ public sealed class PluginOptions : EditableOptionsBase
     [DisplayNameL(nameof(PluginStrings.DefaultPlayerAndroid), typeof(PluginStrings))]
     public PlayerId DefaultPlayerAndroid { get; set; } = PlayerId.Vlc;
 
-    [DisplayNameL(nameof(PluginStrings.CustomPlayers), typeof(PluginStrings))]
-    [DescriptionL(nameof(PluginStrings.CustomPlayersDescription), typeof(PluginStrings))]
+    [Browsable(false)]
     public CustomPlayerOptionsCollection CustomPlayers { get; set; } = new();
 
     [DisplayNameL(nameof(PluginStrings.DebugLogging), typeof(PluginStrings))]
@@ -222,16 +222,26 @@ public sealed class PluginOptions : EditableOptionsBase
     public void PrepareForEditor()
     {
         NormalizeCustomPlayers();
-        CustomPlayers.Add(new CustomPlayerOptions());
     }
 
-    public void NormalizeCustomPlayers()
+    public bool NormalizeCustomPlayers()
     {
         CustomPlayers ??= new CustomPlayerOptionsCollection();
-        CustomPlayers.RemoveAll(custom => custom is null ||
+        var changed = CustomPlayers.RemoveAll(custom => custom is null ||
             (!custom.Enabled &&
              string.IsNullOrWhiteSpace(custom.ApplicationName) &&
-             string.IsNullOrWhiteSpace(custom.UrlTemplate)));
+             string.IsNullOrWhiteSpace(custom.UrlTemplate))) > 0;
+
+        foreach (var custom in CustomPlayers)
+        {
+            if (string.IsNullOrWhiteSpace(custom.Id))
+            {
+                custom.Id = Guid.NewGuid().ToString("N");
+                changed = true;
+            }
+        }
+
+        return changed;
     }
 
     public PlayerId? GetDefaultPlayer(ClientPlatform platform)
