@@ -21,14 +21,13 @@ public sealed class PlayerAdapterRegistryTests
     }
 
     [TestMethod]
-    public void Iina_UsesWeblinkAndMpvOptions()
+    public void Iina_UsesOnlySafeSupportedWeblinkOptions()
     {
         var url = CreateRegistry().BuildLaunchUrl(PlayerId.Iina, CreateContext());
 
         Assert.AreEqual(
             "iina://weblink?url=https%3A%2F%2Femby.example%2FExternalPlayer%2FStream%2Fa_b-c" +
-            "&new_window=1&mpv_start=90" +
-            "&mpv_sub_file=https%3A%2F%2Femby.example%2FExternalPlayer%2FSubtitle%2Fa_b-c%2F2.srt",
+            "&new_window=1&mpv_start=90",
             url);
     }
 
@@ -39,6 +38,33 @@ public sealed class PlayerAdapterRegistryTests
 
         Assert.AreEqual(
             "infuse://x-callback-url/play?url=https%3A%2F%2Femby.example%2FExternalPlayer%2FStream%2Fa_b-c",
+            url.Replace(
+                "&sub=https%3A%2F%2Femby.example%2FExternalPlayer%2FSubtitle%2Fa_b-c%2F2.srt",
+                string.Empty));
+    }
+
+    [TestMethod]
+    public void Infuse_IncludesOfficialSubtitleParameter()
+    {
+        var url = CreateRegistry().BuildLaunchUrl(PlayerId.Infuse, CreateContext());
+
+        StringAssert.EndsWith(
+            url,
+            "&sub=https%3A%2F%2Femby.example%2FExternalPlayer%2FSubtitle%2Fa_b-c%2F2.srt");
+    }
+
+    [TestMethod]
+    public void VlcIos_UsesCallbackSchemeAndSubtitleParameter()
+    {
+        var context = CreateContext();
+        context.Platform = ClientPlatform.IOS;
+
+        var url = CreateRegistry().BuildLaunchUrl(PlayerId.Vlc, context);
+
+        Assert.AreEqual(
+            "vlc-x-callback://x-callback-url/stream?" +
+            "url=https%3A%2F%2Femby.example%2FExternalPlayer%2FStream%2Fa_b-c&" +
+            "sub=https%3A%2F%2Femby.example%2FExternalPlayer%2FSubtitle%2Fa_b-c%2F2.srt",
             url);
     }
 
@@ -67,6 +93,16 @@ public sealed class PlayerAdapterRegistryTests
             CreateRegistry().BuildLaunchUrl(
                 PlayerId.Vlc,
                 new PlayerLaunchContext { StreamUrl = "/Videos/1/stream" }));
+    }
+
+    [TestMethod]
+    public void BuildLaunchUrl_RejectsNonHttpSubtitleUrl()
+    {
+        var context = CreateContext();
+        context.SubtitleUrl = "file:///etc/passwd";
+
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            CreateRegistry().BuildLaunchUrl(PlayerId.PotPlayer, context));
     }
 
     private static PlayerAdapterRegistry CreateRegistry() => new();

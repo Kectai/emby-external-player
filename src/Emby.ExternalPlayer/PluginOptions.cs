@@ -1,5 +1,6 @@
 using System;
 using System.ComponentModel;
+using Emby.ExternalPlayer.Domain;
 using Emby.Web.GenericEdit;
 using Emby.Web.GenericEdit.Validation;
 
@@ -51,6 +52,11 @@ public sealed class PluginOptions : EditableOptionsBase
 
     public bool ResumeByDefault { get; set; } = true;
 
+    [DisplayName("Restart near end (minutes)")]
+    [Description("Treat a saved position this close to the end as completed. Allowed range: 0 to 30 minutes.")]
+    public int RestartNearEndMinutes { get; set; } = 5;
+
+    [Description("SecureTicketRelay hides Emby tokens and supports local files. LegacyTokenUrl exposes the Emby token in the player URL and should only be used for incompatible remote sources.")]
     public StreamMode StreamMode { get; set; } = StreamMode.SecureTicketRelay;
 
     [DisplayName("Ticket lifetime (minutes)")]
@@ -99,10 +105,33 @@ public sealed class PluginOptions : EditableOptionsBase
                 "Ticket lifetime must be between 30 and 720 minutes.");
         }
 
-        ValidateDefaultPlayer(context, DefaultPlayerWindows, nameof(DefaultPlayerWindows));
-        ValidateDefaultPlayer(context, DefaultPlayerMacOS, nameof(DefaultPlayerMacOS));
-        ValidateDefaultPlayer(context, DefaultPlayerIOS, nameof(DefaultPlayerIOS));
-        ValidateDefaultPlayer(context, DefaultPlayerAndroid, nameof(DefaultPlayerAndroid));
+        if (RestartNearEndMinutes < 0 || RestartNearEndMinutes > 30)
+        {
+            context.AddValidationError(
+                nameof(RestartNearEndMinutes),
+                "Restart-near-end must be between 0 and 30 minutes.");
+        }
+
+        ValidateDefaultPlayer(
+            context,
+            DefaultPlayerWindows,
+            nameof(DefaultPlayerWindows),
+            PlayerId.PotPlayer, PlayerId.Vlc, PlayerId.Mpv);
+        ValidateDefaultPlayer(
+            context,
+            DefaultPlayerMacOS,
+            nameof(DefaultPlayerMacOS),
+            PlayerId.Iina, PlayerId.Vlc, PlayerId.Infuse, PlayerId.Mpv);
+        ValidateDefaultPlayer(
+            context,
+            DefaultPlayerIOS,
+            nameof(DefaultPlayerIOS),
+            PlayerId.Infuse, PlayerId.Vlc, PlayerId.NPlayer);
+        ValidateDefaultPlayer(
+            context,
+            DefaultPlayerAndroid,
+            nameof(DefaultPlayerAndroid),
+            PlayerId.Vlc, PlayerId.NPlayer);
     }
 
     public bool IsPlayerEnabled(PlayerId playerId)
@@ -119,11 +148,32 @@ public sealed class PluginOptions : EditableOptionsBase
         };
     }
 
-    private void ValidateDefaultPlayer(ValidationContext context, PlayerId playerId, string propertyName)
+    public PlayerId? GetDefaultPlayer(ClientPlatform platform)
+    {
+        return platform switch
+        {
+            ClientPlatform.Windows => DefaultPlayerWindows,
+            ClientPlatform.MacOS => DefaultPlayerMacOS,
+            ClientPlatform.IOS => DefaultPlayerIOS,
+            ClientPlatform.Android => DefaultPlayerAndroid,
+            _ => null,
+        };
+    }
+
+    private void ValidateDefaultPlayer(
+        ValidationContext context,
+        PlayerId playerId,
+        string propertyName,
+        params PlayerId[] supportedPlayers)
     {
         if (!IsPlayerEnabled(playerId))
         {
             context.AddValidationError(propertyName, "The selected default player is disabled.");
+        }
+
+        if (Array.IndexOf(supportedPlayers, playerId) < 0)
+        {
+            context.AddValidationError(propertyName, "The selected default player does not support this platform.");
         }
     }
 }

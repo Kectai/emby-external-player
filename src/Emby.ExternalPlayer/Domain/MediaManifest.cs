@@ -67,5 +67,7 @@ public sealed class LaunchResolution
 {
     public string LaunchUrl { get; set; } = string.Empty;
 
-    public string ExpiresAt { get; set; } = string.Empty;
+    public string TicketExpiresAt { get; set; } = string.Empty;
+
+    public IReadOnlyCollection<string> Warnings { get; set; } = new List<string>();
 }

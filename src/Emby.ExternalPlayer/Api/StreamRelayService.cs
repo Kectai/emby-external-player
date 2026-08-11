@@ -1,12 +1,13 @@
 using System;
 using System.Collections.Generic;
-using System.Net;
+using System.Globalization;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Emby.ExternalPlayer.Domain;
 using Emby.ExternalPlayer.Services;
 using MediaBrowser.Common.Extensions;
-using MediaBrowser.Common.Net;
+using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Net;
 using MediaBrowser.Model.IO;
 using MediaBrowser.Model.Services;
@@ -15,13 +16,18 @@ namespace Emby.ExternalPlayer.Api;
 
 public sealed class StreamRelayService : IService, IRequiresRequest
 {
-    private readonly IHttpClient httpClient;
     private readonly IHttpResultFactory resultFactory;
+    private readonly ILibraryManager libraryManager;
+    private readonly IUserManager userManager;
 
-    public StreamRelayService(IHttpClient httpClient, IHttpResultFactory resultFactory)
+    public StreamRelayService(
+        IHttpResultFactory resultFactory,
+        ILibraryManager libraryManager,
+        IUserManager userManager)
     {
-        this.httpClient = httpClient;
         this.resultFactory = resultFactory;
+        this.libraryManager = libraryManager;
+        this.userManager = userManager;
     }
 
     public IRequest Request { get; set; } = null!;
@@ -29,28 +35,33 @@ public sealed class StreamRelayService : IService, IRequiresRequest
     public Task<object> Get(GetExternalPlayerStream request)
     {
         var payload = GetTicket(request.Ticket);
-        return CreateRelayResult(
-            payload.UpstreamUrl,
-            payload.AccessToken,
+        return CreateFileResult(
+            payload.MediaFilePath,
             payload.ContentType,
+            payload.SafeFileName,
             payload.ContentLength);
     }
+
+    public Task<object> Head(GetExternalPlayerStream request) => Get(request);
 
     public Task<object> Get(GetExternalPlayerSubtitle request)
     {
         var payload = GetTicket(request.Ticket);
-        if (payload.SubtitleUpstreamUrl is null ||
+        if (payload.SubtitleFilePath is null ||
             payload.SubtitleStreamIndex != request.Index)
         {
             throw new ResourceNotFoundException("The subtitle playback ticket is invalid.");
         }
 
-        return CreateRelayResult(
-            payload.SubtitleUpstreamUrl,
-            payload.AccessToken,
-            "text/plain; charset=utf-8",
-            null);
+        var subtitleFile = LocalMediaFilePolicy.RequireExistingFile(payload.SubtitleFilePath);
+        return CreateFileResult(
+            subtitleFile.FullName,
+            payload.SubtitleContentType,
+            payload.SafeSubtitleFileName ?? "subtitle.srt",
+            payload.SubtitleContentLength ?? -1);
     }
+
+    public Task<object> Head(GetExternalPlayerSubtitle request) => Get(request);
 
     private LaunchTicketPayload GetTicket(string rawTicket)
     {
@@ -58,144 +69,88 @@ public sealed class StreamRelayService : IService, IRequiresRequest
             ?? throw new InvalidOperationException("The External Player runtime is unavailable.");
         if (!runtime.Tickets.TryGet(rawTicket, out var payload) || payload is null)
         {
-            throw new ResourceNotFoundException("The playback ticket is invalid or expired.");
+            throw UnauthorizedTicket("The playback ticket is invalid or expired.");
+        }
+
+        var user = userManager.GetUserById(payload.UserId);
+        var item = libraryManager.GetItemById(payload.ItemId);
+        if (user is null || item is null || !item.IsVisible(user) || !user.Policy.EnableMediaPlayback)
+        {
+            runtime.Tickets.Revoke(rawTicket);
+            throw UnauthorizedTicket("The playback ticket is no longer authorized.");
         }
 
         return payload;
     }
 
-    private async Task<object> CreateRelayResult(
-        string upstreamUrl,
-        string? accessToken,
+    private async Task<object> CreateFileResult(
+        string path,
         string contentType,
-        long? knownContentLength)
+        string safeFileName,
+        long issuedContentLength)
     {
-        var metadata = knownContentLength.HasValue
-            ? new RelayMetadata(knownContentLength, contentType)
-            : await InspectAsync(upstreamUrl, accessToken, Request.CancellationToken).ConfigureAwait(false);
-        var incomingHasRange = !string.IsNullOrWhiteSpace(Request.Headers.Get("Range"));
+        var file = LocalMediaFilePolicy.RequireExistingFile(path);
+        if (issuedContentLength < 0 || file.Length != issuedContentLength)
+        {
+            throw new ResourceNotFoundException("The selected media file changed after the ticket was issued.");
+        }
+
+        var responseHeaders = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Accept-Ranges"] = "bytes",
+            ["Cache-Control"] = "private, no-store",
+            ["X-Content-Type-Options"] = "nosniff",
+            ["Content-Disposition"] = SafeFileNamePolicy.CreateContentDisposition(safeFileName),
+            ["ETag"] = CreateEntityTag(file),
+            ["Last-Modified"] = file.LastWriteTimeUtc.ToString("R", CultureInfo.InvariantCulture),
+        };
 
         return await resultFactory.GetStaticResult(Request, new StaticResultOptions
         {
             CacheKey = Guid.Empty,
-            ContentLength = metadata.ContentLength,
-            ContentType = string.IsNullOrWhiteSpace(metadata.ContentType) ? contentType : metadata.ContentType,
+            ContentLength = file.Length,
+            ContentType = contentType,
             IsHeadRequest = string.Equals(Request.Verb, "HEAD", StringComparison.OrdinalIgnoreCase),
             SupportsRangeRequests = true,
             RequestHeaders = Request.Headers.ToDictionary(),
-            ResponseHeaders = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["Accept-Ranges"] = "bytes",
-                ["Cache-Control"] = "private, no-store",
-                ["X-Content-Type-Options"] = "nosniff",
-            },
+            ResponseHeaders = responseHeaders,
             ContentFactory = (offset, length, cancellationToken) =>
-                OpenStreamAsync(
-                    upstreamUrl,
-                    accessToken,
-                    incomingHasRange,
-                    offset,
-                    length,
-                    metadata.ContentLength,
-                    cancellationToken),
+                OpenFileAsync(file.FullName, offset, length, file.Length, cancellationToken),
         }).ConfigureAwait(false);
     }
 
-    private async Task<RelayMetadata> InspectAsync(
-        string upstreamUrl,
-        string? accessToken,
-        CancellationToken cancellationToken)
-    {
-        using var response = await httpClient.SendAsync(
-            CreateOptions(upstreamUrl, accessToken, cancellationToken),
-            "HEAD").ConfigureAwait(false);
-        EnsureSuccess(response, rangeRequested: false);
-        return new RelayMetadata(response.ContentLength, response.ContentType);
-    }
-
-    private async Task<StreamHandler> OpenStreamAsync(
-        string upstreamUrl,
-        string? accessToken,
-        bool rangeRequested,
+    private static Task<StreamHandler> OpenFileAsync(
+        string path,
         long offset,
         long length,
-        long? totalLength,
+        long totalLength,
         CancellationToken cancellationToken)
     {
-        var options = CreateOptions(upstreamUrl, accessToken, cancellationToken);
-        if (rangeRequested)
+        cancellationToken.ThrowIfCancellationRequested();
+        if (offset < 0 || length < 0 || offset > totalLength || length > totalLength - offset)
         {
-            options.RequestHeaders["Range"] = RelayRange.BuildHeader(offset, length);
+            throw new ArgumentOutOfRangeException(nameof(offset), "The requested file range is invalid.");
         }
-
-        var response = await httpClient.SendAsync(options, "GET").ConfigureAwait(false);
-        try
+        var stream = new FileStream(
+            path,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.ReadWrite | FileShare.Delete,
+            64 * 1024,
+            useAsync: true);
+        stream.Seek(offset, SeekOrigin.Begin);
+        return Task.FromResult(new StreamHandler
         {
-            EnsureSuccess(response, rangeRequested);
-            return new StreamHandler
-            {
-                Stream = response.Content,
-                Length = response.ContentLength,
-                TotalLength = totalLength,
-                Handlers = new IDisposable[] { response },
-            };
-        }
-        catch
-        {
-            response.Dispose();
-            throw;
-        }
+            Stream = stream,
+            Length = length,
+            TotalLength = totalLength,
+        });
     }
 
-    private static HttpRequestOptions CreateOptions(
-        string upstreamUrl,
-        string? accessToken,
-        CancellationToken cancellationToken)
-    {
-        var options = new HttpRequestOptions
-        {
-            Url = upstreamUrl,
-            BufferContent = false,
-            CancellationToken = cancellationToken,
-            EnableAutomaticTimeouts = false,
-            LogErrors = false,
-            LogRequest = false,
-            LogResponse = false,
-            LogResponseHeaders = false,
-            ThrowOnErrorResponse = false,
-        };
+    private static string CreateEntityTag(FileInfo file) =>
+        "\"" + file.Length.ToString("x", CultureInfo.InvariantCulture) + "-" +
+        file.LastWriteTimeUtc.Ticks.ToString("x", CultureInfo.InvariantCulture) + "\"";
 
-        if (!string.IsNullOrWhiteSpace(accessToken))
-        {
-            options.RequestHeaders["X-Emby-Token"] = accessToken;
-        }
-
-        return options;
-    }
-
-    private static void EnsureSuccess(HttpResponseInfo response, bool rangeRequested)
-    {
-        if (rangeRequested && response.StatusCode != HttpStatusCode.PartialContent)
-        {
-            throw new InvalidOperationException("The upstream media endpoint did not honor the byte range.");
-        }
-
-        if ((int)response.StatusCode < 200 || (int)response.StatusCode >= 300)
-        {
-            throw new ResourceNotFoundException("The upstream media endpoint rejected the ticket request.");
-        }
-    }
-
-    private sealed class RelayMetadata
-    {
-        public RelayMetadata(long? contentLength, string contentType)
-        {
-            ContentLength = contentLength;
-            ContentType = contentType;
-        }
-
-        public long? ContentLength { get; }
-
-        public string ContentType { get; }
-    }
+    private static MediaBrowser.Controller.Net.SecurityException UnauthorizedTicket(string message) =>
+        new(message, SecurityExceptionType.Unauthenticated);
 }

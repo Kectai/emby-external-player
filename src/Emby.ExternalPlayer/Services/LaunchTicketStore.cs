@@ -10,11 +10,12 @@ public sealed class LaunchTicketStore
 {
     public const int MinimumLifetimeMinutes = 30;
     public const int MaximumLifetimeMinutes = 720;
-    public const int DefaultCapacity = 2048;
+    public const int DefaultCapacity = 2000;
 
     private readonly ConcurrentDictionary<string, TicketEntry> tickets = new(StringComparer.Ordinal);
     private readonly IClock clock;
     private readonly int capacity;
+    private readonly object issueLock = new();
 
     public LaunchTicketStore(IClock clock, int capacity = DefaultCapacity)
     {
@@ -37,20 +38,24 @@ public sealed class LaunchTicketStore
             throw new ArgumentOutOfRangeException(nameof(lifetime));
         }
 
-        RemoveExpired();
-        if (tickets.Count >= capacity)
+        lock (issueLock)
         {
-            throw new InvalidOperationException("The playback ticket store is at capacity.");
-        }
-
-        for (var attempt = 0; attempt < 5; attempt++)
-        {
-            var rawTicket = CreateRandomTicket();
-            var key = Hash(rawTicket);
-            var expiresAt = clock.UtcNow.Add(lifetime);
-            if (tickets.TryAdd(key, new TicketEntry(payload, expiresAt)))
+            RemoveExpired();
+            while (tickets.Count >= capacity)
             {
-                return new LaunchTicket(rawTicket, expiresAt);
+                EvictOldest();
+            }
+
+            for (var attempt = 0; attempt < 5; attempt++)
+            {
+                var rawTicket = CreateRandomTicket();
+                var key = Hash(rawTicket);
+                var createdAt = clock.UtcNow;
+                var expiresAt = createdAt.Add(lifetime);
+                if (tickets.TryAdd(key, new TicketEntry(payload, createdAt, expiresAt)))
+                {
+                    return new LaunchTicket(rawTicket, expiresAt);
+                }
             }
         }
 
@@ -78,6 +83,7 @@ public sealed class LaunchTicketStore
         }
 
         payload = entry.Payload;
+        entry.LastAccessAt = clock.UtcNow;
         return true;
     }
 
@@ -94,6 +100,16 @@ public sealed class LaunchTicketStore
         }
 
         return removed;
+    }
+
+    public bool Revoke(string rawTicket)
+    {
+        if (string.IsNullOrWhiteSpace(rawTicket))
+        {
+            return false;
+        }
+
+        return tickets.TryRemove(Hash(rawTicket), out _);
     }
 
     private static string CreateRandomTicket()
@@ -117,16 +133,44 @@ public sealed class LaunchTicketStore
         return Convert.ToBase64String(digest);
     }
 
+    private void EvictOldest()
+    {
+        string? oldestKey = null;
+        var oldestCreatedAt = DateTimeOffset.MaxValue;
+        foreach (var pair in tickets)
+        {
+            if (pair.Value.CreatedAt < oldestCreatedAt)
+            {
+                oldestKey = pair.Key;
+                oldestCreatedAt = pair.Value.CreatedAt;
+            }
+        }
+
+        if (oldestKey is null || !tickets.TryRemove(oldestKey, out _))
+        {
+            throw new InvalidOperationException("Unable to enforce the playback ticket capacity.");
+        }
+    }
+
     private sealed class TicketEntry
     {
-        public TicketEntry(LaunchTicketPayload payload, DateTimeOffset expiresAt)
+        public TicketEntry(
+            LaunchTicketPayload payload,
+            DateTimeOffset createdAt,
+            DateTimeOffset expiresAt)
         {
             Payload = payload;
+            CreatedAt = createdAt;
             ExpiresAt = expiresAt;
+            LastAccessAt = createdAt;
         }
 
         public LaunchTicketPayload Payload { get; }
 
+        public DateTimeOffset CreatedAt { get; }
+
         public DateTimeOffset ExpiresAt { get; }
+
+        public DateTimeOffset LastAccessAt { get; set; }
     }
 }

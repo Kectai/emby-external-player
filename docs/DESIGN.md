@@ -135,7 +135,7 @@ flowchart LR
 | `MediaManifestService` | 读取媒体源、字幕、用户续播位置并执行权限检查 |
 | `PlayerAdapterRegistry` | 管理各播放器的协议、平台和能力 |
 | `LaunchTicketStore` | 管理内存中的短期随机播放票据 |
-| `StreamRelayService` | 用票据访问 Emby 原生流，转发 Range/HEAD 请求 |
+| `StreamRelayService` | 用票据和已授权本地路径提供 Range/HEAD 文件流 |
 | `ExternalUrlProvider` | Phase 3 可选的 ExternalUrls 实验实现 |
 
 ## 5. 建议的代码目录
@@ -453,8 +453,8 @@ Content-Type: application/json
 ### 8.4 流媒体票据入口
 
 ```http
-GET  /ExternalPlayer/Stream/{ticket}/{safeFileName}
-HEAD /ExternalPlayer/Stream/{ticket}/{safeFileName}
+GET  /ExternalPlayer/Stream/{ticket}/stream.js
+HEAD /ExternalPlayer/Stream/{ticket}/stream.js
 ```
 
 该接口不要求额外 Emby header，因为随机票据本身就是短期 Bearer 凭证。
@@ -463,16 +463,20 @@ HEAD /ExternalPlayer/Stream/{ticket}/{safeFileName}
 
 - `GET` 和 `HEAD`。
 - 单 Range 请求和 `206 Partial Content`。
-- 转发 `Range`、`If-Range`、`If-None-Match`、`If-Modified-Since`。
+- 由 Emby `IHttpResultFactory` 处理 `Range`、`If-Range`、`If-None-Match`、`If-Modified-Since`。
 - 保留必要响应头：`Content-Type`、`Content-Length`、`Content-Range`、`Accept-Ranges`、`ETag`、`Last-Modified`、`Content-Disposition`。
-- 流式转发，禁止先把完整视频加载到内存。
-- 客户端断开时取消上游请求。
-- 禁止向任意用户提供的 URL 发起请求；上游必须是当前 Emby 实例自己的受控流路径。
+- 直接从 Resolve 阶段已验证的本地媒体文件流式读取，单连接缓冲 64 KB，禁止把完整视频加载到内存。
+- 客户端断开时由请求取消令牌和 Emby 响应管线终止读取。
+- 不向任何 URL 发起回源请求，票据中不保存 Emby token。
+
+路由末尾的固定 `.js` 是有意的日志保护措施：Emby 4.9.x 核心会记录普通媒体请求路径，
+但会跳过静态扩展请求的详细记录。响应仍返回真实的视频 `Content-Type` 和安全文件名。
+这避免原始 Bearer 票据进入 Emby 核心日志，不改变传输内容。
 
 ### 8.5 字幕票据入口
 
 ```http
-GET /ExternalPlayer/Subtitle/{ticket}/{subtitleIndex}.{extension}
+GET /ExternalPlayer/Subtitle/{ticket}/{subtitleIndex}/subtitle.css
 ```
 
 字幕必须绑定在同一条播放票据上，不能仅凭条目 ID 下载。服务端重新确认字幕索引属于票据中的媒体源。
@@ -491,13 +495,15 @@ UserId
 ItemId
 MediaSourceId
 SubtitleIndex
-NativeStreamRoute
+LocalMediaFilePath
+LocalSubtitleFilePath
+ContentLength
 CreatedAtUtc
 ExpiresAtUtc
 LastAccessAtUtc
 ```
 
-如果安全流转发需要调用本机 Emby 原生流接口，可把原请求的用户访问令牌只保存在进程内存中，不写磁盘、不写日志、不返回给客户端。
+当前实现不调用本机 Emby HTTP 接口，也不在票据中保存用户访问令牌。媒体与字幕物理路径只存在服务端内存中的票据载荷，绝不返回前端或写入日志。
 
 ### 9.2 生命周期
 
@@ -533,9 +539,9 @@ LastAccessAtUtc
 
 代价：
 
-- 插件需要正确实现 Range/HEAD 流式转发。
+- 插件需要正确实现 Range/HEAD 流式文件读取。
 - 所有外部播放流量会经过插件的轻量转发层。
-- 对远程 STRM、HLS 和特殊媒体源需要额外兼容测试。
+- 当前仅支持 Emby 可直接访问的本地 `File` 媒体源；远程 STRM、HLS 和特殊媒体源需显式使用高风险的 `LegacyTokenUrl` 兼容模式。
 
 ### 10.2 LegacyTokenUrl
 
@@ -744,7 +750,8 @@ SelectorProfile
 
 | Emby 版本 | app.js 锚点 | 详情页 selector | Chrome | Firefox | Safari | 结果 |
 |---|---|---|---|---|---|---|
-| 4.9.5.0 | 待探针 | 待探针 | 待测 | 待测 | 待测 | 待测 |
+| 4.9.3.0 | `Promise.all(list.map(loadPlugin))` | 自动化 DOM 夹具通过 | DOM 夹具 | DOM 夹具 | DOM 夹具 | 插件、配置 UI、HEAD/Range、字幕通过 |
+| 4.9.5.0 | `Promise.all(list.map(loadPlugin))` | 自动化 DOM 夹具通过 | DOM 夹具 | DOM 夹具 | DOM 夹具 | 插件、配置 UI、HEAD/Range、字幕通过 |
 
 ## 15. 故障处理
 
@@ -757,7 +764,7 @@ SelectorProfile
 | 自定义协议未注册 | 显示安装/配置提示，允许复制安全流 URL |
 | 票据过期 | Stream 返回 401/410，不重定向到登录页 |
 | 媒体权限变化 | 下一次票据访问失败并撤销票据 |
-| Range 转发失败 | 返回可诊断状态，禁止静默降级为整文件缓冲 |
+| Range 读取失败 | 返回可诊断状态，禁止静默降级为整文件缓冲 |
 | 外部播放器不支持字幕 | 正常播放并显示 warning |
 
 ## 16. 性能约束
@@ -785,7 +792,7 @@ SelectorProfile
 - 无效 item、source、subtitle、player 的拒绝逻辑。
 - 票据创建、过期、容量淘汰和并发读取。
 - 日志脱敏。
-- Range header 解析。
+- Range/HEAD 响应长度、状态码和边界。
 - 文件名安全化和 header 注入防护。
 
 ### 17.2 集成测试
@@ -916,7 +923,7 @@ SelectorProfile
 | 浏览器阻止自定义协议 | 中 | 无法自动拉起播放器 | 二次显式链接和安装提示 |
 | 播放器协议版本差异 | 中 | 参数失效 | 每播放器独立适配器和人工矩阵 |
 | 票据泄露 | 低至中 | 临时媒体访问 | HTTPS、短期、单媒体绑定、禁止日志 |
-| Range relay 实现缺陷 | 中 | 无法拖动或高内存 | 集成测试、有界流、稳定版前不默认启用 |
+| Range 文件流实现缺陷 | 中 | 无法拖动或高内存 | 集成测试、有界流、稳定版前不默认启用 |
 | 与其他 UI 插件冲突 | 低至中 | Web 资源加载失败 | 唯一资源路由，不接管 shortcuts.js，唯一 DOM 命名空间 |
 
 ## 22. 参考资料

@@ -35,7 +35,7 @@ public sealed class PlayerAdapterRegistry
             .Where(adapter => !platformOnly ||
                               platform == ClientPlatform.Unknown ||
                               adapter.Descriptor.Platforms.Contains(platform))
-            .Select(adapter => adapter.Descriptor)
+            .Select(adapter => adapter.Describe(platform))
             .ToArray();
     }
 
@@ -56,12 +56,21 @@ public sealed class PlayerAdapterRegistry
             throw new ArgumentException("Stream URL must be absolute.", nameof(context));
         }
 
+        if (!string.IsNullOrWhiteSpace(context.SubtitleUrl) &&
+            (!Uri.TryCreate(context.SubtitleUrl, UriKind.Absolute, out var subtitleUri) ||
+             (subtitleUri.Scheme != Uri.UriSchemeHttp && subtitleUri.Scheme != Uri.UriSchemeHttps)))
+        {
+            throw new ArgumentException("Subtitle URL must be absolute.", nameof(context));
+        }
+
         return adapter.BuildLaunchUrl(context);
     }
 
     private interface IPlayerAdapter
     {
         PlayerDescriptor Descriptor { get; }
+
+        PlayerDescriptor Describe(ClientPlatform platform);
 
         string BuildLaunchUrl(PlayerLaunchContext context);
     }
@@ -74,6 +83,8 @@ public sealed class PlayerAdapterRegistry
         }
 
         public PlayerDescriptor Descriptor { get; }
+
+        public virtual PlayerDescriptor Describe(ClientPlatform platform) => Descriptor;
 
         public abstract string BuildLaunchUrl(PlayerLaunchContext context);
 
@@ -120,7 +131,7 @@ public sealed class PlayerAdapterRegistry
                 PlayerId.Iina,
                 "IINA",
                 new[] { ClientPlatform.MacOS },
-                PlayerCapabilities.StartPosition | PlayerCapabilities.ExternalSubtitle))
+                PlayerCapabilities.StartPosition))
         {
         }
 
@@ -131,11 +142,6 @@ public sealed class PlayerAdapterRegistry
             {
                 parameters.Add("new_window=1");
                 parameters.Add("mpv_start=" + Seconds(context));
-            }
-
-            if (!string.IsNullOrWhiteSpace(context.SubtitleUrl))
-            {
-                parameters.Add("mpv_sub_file=" + Encode(context.SubtitleUrl!));
             }
 
             return "iina://weblink?" + string.Join("&", parameters);
@@ -154,7 +160,31 @@ public sealed class PlayerAdapterRegistry
         }
 
         public override string BuildLaunchUrl(PlayerLaunchContext context) =>
-            "vlc://" + context.StreamUrl;
+            context.Platform == ClientPlatform.IOS
+                ? BuildIosLaunchUrl(context)
+                : "vlc://" + context.StreamUrl;
+
+        public override PlayerDescriptor Describe(ClientPlatform platform)
+        {
+            return platform == ClientPlatform.IOS
+                ? new PlayerDescriptor(
+                    PlayerId.Vlc,
+                    "VLC",
+                    Descriptor.Platforms,
+                    PlayerCapabilities.ExternalSubtitle)
+                : Descriptor;
+        }
+
+        private static string BuildIosLaunchUrl(PlayerLaunchContext context)
+        {
+            var parameters = new List<string> { "url=" + Encode(context.StreamUrl) };
+            if (!string.IsNullOrWhiteSpace(context.SubtitleUrl))
+            {
+                parameters.Add("sub=" + Encode(context.SubtitleUrl!));
+            }
+
+            return "vlc-x-callback://x-callback-url/stream?" + string.Join("&", parameters);
+        }
     }
 
     private sealed class InfuseAdapter : PlayerAdapterBase
@@ -164,12 +194,17 @@ public sealed class PlayerAdapterRegistry
                 PlayerId.Infuse,
                 "Infuse",
                 new[] { ClientPlatform.IOS, ClientPlatform.MacOS },
-                PlayerCapabilities.None))
+                PlayerCapabilities.ExternalSubtitle))
         {
         }
 
-        public override string BuildLaunchUrl(PlayerLaunchContext context) =>
-            "infuse://x-callback-url/play?url=" + Encode(context.StreamUrl);
+        public override string BuildLaunchUrl(PlayerLaunchContext context)
+        {
+            var url = "infuse://x-callback-url/play?url=" + Encode(context.StreamUrl);
+            return string.IsNullOrWhiteSpace(context.SubtitleUrl)
+                ? url
+                : url + "&sub=" + Encode(context.SubtitleUrl!);
+        }
     }
 
     private sealed class MpvAdapter : PlayerAdapterBase

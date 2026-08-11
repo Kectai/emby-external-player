@@ -10,17 +10,23 @@ public sealed class LaunchTicketPayload
 
     public string MediaSourceId { get; set; } = string.Empty;
 
-    public string UpstreamUrl { get; set; } = string.Empty;
+    public string MediaFilePath { get; set; } = string.Empty;
 
-    public string? SubtitleUpstreamUrl { get; set; }
+    public string? SubtitleFilePath { get; set; }
 
     public int? SubtitleStreamIndex { get; set; }
 
-    public string? AccessToken { get; set; }
-
-    public long? ContentLength { get; set; }
+    public long ContentLength { get; set; }
 
     public string ContentType { get; set; } = "application/octet-stream";
+
+    public string SafeFileName { get; set; } = "media.bin";
+
+    public string SubtitleContentType { get; set; } = "text/plain; charset=utf-8";
+
+    public long? SubtitleContentLength { get; set; }
+
+    public string? SafeSubtitleFileName { get; set; }
 
     public long StartPositionTicks { get; set; }
 }

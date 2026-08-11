@@ -25,6 +25,11 @@
     width: 100%;
 }
 
+.emby-external-player-dialog,
+.emby-external-player-dialog * {
+    box-sizing: border-box;
+}
+
 .emby-external-player-dialog h2 {
     margin: 0 0 1rem;
 }
@@ -47,6 +52,13 @@
     margin-top: 1.25rem;
 }
 
+.emby-external-player-actions button:focus-visible,
+.emby-external-player-dialog select:focus-visible,
+.emby-external-player-manual-link:focus-visible {
+    outline: .2rem solid #52b54b;
+    outline-offset: .15rem;
+}
+
 .emby-external-player-error {
     color: #ffb4ab;
     min-height: 1.4em;
@@ -57,4 +69,24 @@
     display: inline-block;
     margin-top: .8rem;
     overflow-wrap: anywhere;
+}
+
+.emby-external-player-manual-link[hidden] {
+    display: none;
+}
+
+@media (max-width: 32rem) {
+    .emby-external-player-overlay {
+        align-items: flex-end;
+        padding: .75rem;
+    }
+
+    .emby-external-player-dialog {
+        max-height: calc(100vh - 1.5rem);
+        padding: 1rem;
+    }
+
+    .emby-external-player-actions button {
+        flex: 1 1 45%;
+    }
 }

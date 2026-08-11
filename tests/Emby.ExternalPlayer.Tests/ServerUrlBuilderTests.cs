@@ -48,8 +48,17 @@ public sealed class ServerUrlBuilderTests
             "mp4");
 
         Assert.AreEqual(
-            "https://media.example/emby/ExternalPlayer/Stream/short_lived-ticket/stream.mp4",
+            "https://media.example/emby/ExternalPlayer/Stream/short_lived-ticket/stream.js",
             result);
         Assert.IsFalse(result.Contains("api_key", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [TestMethod]
+    public void TicketRoutes_UseEmbyQuietExtensionsToProtectBearerValuesFromCoreLogs()
+    {
+        Assert.IsTrue(ServerUrlBuilder.BuildTicketStreamUrl(
+            "https://media.example/", "ticket", "mkv").EndsWith("/stream.js", StringComparison.Ordinal));
+        Assert.IsTrue(ServerUrlBuilder.BuildTicketSubtitleUrl(
+            "https://media.example/", "ticket", 3, "srt").EndsWith("/subtitle.css", StringComparison.Ordinal));
     }
 }

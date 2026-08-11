@@ -43,7 +43,11 @@ public sealed class DashboardPatchEngineTests
             "dashboard-ui",
             "app.js");
         Assert.IsTrue(File.Exists(appJsPath), "The verified official Emby fixture is missing.");
-        var source = File.ReadAllText(appJsPath);
+        var fixture = File.ReadAllText(appJsPath);
+        var precleaned = DashboardPatchEngine.Remove(fixture);
+        var source = precleaned.Status == DashboardPatchStatus.Removed
+            ? precleaned.Content
+            : fixture;
 
         var applied = DashboardPatchEngine.Apply(source);
         var removed = DashboardPatchEngine.Remove(applied.Content);

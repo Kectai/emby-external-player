@@ -3,6 +3,12 @@ define(["events", "connectionManager"], function (events, connectionManager) {
 
     var moduleKey = "__embyExternalPlayerModule";
     var buttonId = "embyExternalPlayerButton";
+    var selectorProfile = {
+        actionRow: ".mainDetailButtons, .detailPagePrimaryContainer .detailButtons",
+        playButton: "button.btnPlay, button.btnResume, .btnPlay, .btnResume",
+        mediaSource: "select.selectSource",
+        subtitle: "select.selectSubtitles"
+    };
     var state = window[moduleKey];
 
     if (state && state.dispose) {
@@ -14,7 +20,10 @@ define(["events", "connectionManager"], function (events, connectionManager) {
         timer: null,
         generation: 0,
         currentItemId: null,
-        manifest: null
+        manifest: null,
+        activeDialog: null,
+        installed: false,
+        connectionSubscribed: false
     };
     window[moduleKey] = state;
 
@@ -23,14 +32,37 @@ define(["events", "connectionManager"], function (events, connectionManager) {
         return match ? decodeURIComponent(match[1]) : null;
     }
 
+    function read(object, name) {
+        if (!object) {
+            return undefined;
+        }
+
+        if (Object.prototype.hasOwnProperty.call(object, name)) {
+            return object[name];
+        }
+
+        var camelName = name.charAt(0).toLowerCase() + name.slice(1);
+        return object[camelName];
+    }
+
+    function getApiClient() {
+        if (connectionManager && connectionManager.currentApiClient) {
+            return connectionManager.currentApiClient();
+        }
+
+        return window.ApiClient;
+    }
+
     function apiGet(path, query) {
-        return ApiClient.getJSON(ApiClient.getUrl(path, query || {}));
+        var apiClient = getApiClient();
+        return apiClient.getJSON(apiClient.getUrl(path, query || {}));
     }
 
     function apiPost(path, body) {
-        return ApiClient.ajax({
+        var apiClient = getApiClient();
+        return apiClient.ajax({
             type: "POST",
-            url: ApiClient.getUrl(path),
+            url: apiClient.getUrl(path),
             data: JSON.stringify(body),
             contentType: "application/json"
         });
@@ -44,7 +76,11 @@ define(["events", "connectionManager"], function (events, connectionManager) {
         var link = document.createElement("link");
         link.id = "embyExternalPlayerStyles";
         link.rel = "stylesheet";
-        link.href = ApiClient.getUrl("ExternalPlayer/Web/style.css");
+        var apiClient = getApiClient();
+        if (!apiClient) {
+            return;
+        }
+        link.href = apiClient.getUrl("ExternalPlayer/Web/style.css");
         document.head.appendChild(link);
     }
 
@@ -56,11 +92,11 @@ define(["events", "connectionManager"], function (events, connectionManager) {
     }
 
     function findActionRow() {
-        return document.querySelector(".mainDetailButtons, .detailPagePrimaryContainer .detailButtons");
+        return document.querySelector(selectorProfile.actionRow);
     }
 
     function findPlayButton(row) {
-        return row.querySelector("button.btnPlay, button.btnResume, .btnPlay, .btnResume");
+        return row.querySelector(selectorProfile.playButton);
     }
 
     function makeButton(manifest) {
@@ -68,7 +104,7 @@ define(["events", "connectionManager"], function (events, connectionManager) {
         button.id = buttonId;
         button.type = "button";
         button.className = "emby-button detailButton emby-external-player-button";
-        button.setAttribute("aria-label", manifest.buttonText || "外部播放");
+        button.setAttribute("aria-label", read(manifest, "ButtonText") || "外部播放");
 
         var icon = document.createElement("span");
         icon.className = "material-icons detailButton-icon";
@@ -77,7 +113,7 @@ define(["events", "connectionManager"], function (events, connectionManager) {
 
         var label = document.createElement("div");
         label.className = "detailButton-text";
-        label.textContent = manifest.buttonText || "外部播放";
+        label.textContent = read(manifest, "ButtonText") || "外部播放";
 
         button.appendChild(icon);
         button.appendChild(label);
@@ -88,7 +124,9 @@ define(["events", "connectionManager"], function (events, connectionManager) {
     }
 
     function insertButton(manifest) {
-        if (!manifest || !manifest.enabled || !manifest.players || !manifest.players.length) {
+        var players = read(manifest, "Players") || [];
+        var mediaSources = read(manifest, "MediaSources") || [];
+        if (!manifest || !read(manifest, "Enabled") || !players.length || !mediaSources.length) {
             removeButton();
             return false;
         }
@@ -104,7 +142,7 @@ define(["events", "connectionManager"], function (events, connectionManager) {
 
         var button = makeButton(manifest);
         var playButton = findPlayButton(row);
-        if (manifest.buttonPlacement === "AfterPrimaryPlay" && playButton && playButton.parentNode === row) {
+        if (read(manifest, "ButtonPlacement") === "AfterPrimaryPlay" && playButton && playButton.parentNode === row) {
             row.insertBefore(button, playButton.nextSibling);
         } else {
             row.appendChild(button);
@@ -132,7 +170,8 @@ define(["events", "connectionManager"], function (events, connectionManager) {
         state.currentItemId = itemId;
         state.manifest = null;
 
-        if (!itemId || !window.ApiClient || !ApiClient.getUrl) {
+        var apiClient = getApiClient();
+        if (!itemId || !apiClient || !apiClient.getUrl) {
             return;
         }
 
@@ -189,8 +228,21 @@ define(["events", "connectionManager"], function (events, connectionManager) {
     }
 
     function closeDialog(overlay) {
+        if (!overlay) {
+            return;
+        }
+
+        if (overlay._externalPlayerKeyHandler) {
+            document.removeEventListener("keydown", overlay._externalPlayerKeyHandler, true);
+        }
         if (overlay && overlay.parentNode) {
             overlay.parentNode.removeChild(overlay);
+        }
+        if (state.activeDialog === overlay) {
+            state.activeDialog = null;
+        }
+        if (overlay._externalPlayerRestoreFocus && overlay._externalPlayerRestoreFocus.focus) {
+            overlay._externalPlayerRestoreFocus.focus();
         }
     }
 
@@ -210,25 +262,49 @@ define(["events", "connectionManager"], function (events, connectionManager) {
         dialog.setAttribute("aria-modal", "true");
 
         var title = document.createElement("h2");
-        title.textContent = manifest.itemName || "外部播放";
+        title.id = "embyExternalPlayerDialogTitle";
+        title.textContent = read(manifest, "ItemName") || "外部播放";
+        dialog.setAttribute("aria-labelledby", title.id);
         dialog.appendChild(title);
 
         var sourceSelect = document.createElement("select");
-        (manifest.mediaSources || []).forEach(function (source, index) {
-            appendOption(sourceSelect, source.id, source.name || ("版本 " + (index + 1)), source.isDefault);
+        var mediaSources = read(manifest, "MediaSources") || [];
+        mediaSources.forEach(function (source, index) {
+            appendOption(
+                sourceSelect,
+                read(source, "Id"),
+                read(source, "Name") || ("版本 " + (index + 1)),
+                read(source, "IsDefault"));
         });
+        var pageSourceSelect = document.querySelector(selectorProfile.mediaSource);
+        if (pageSourceSelect && mediaSources.some(function (source) {
+            return read(source, "Id") === pageSourceSelect.value;
+        })) {
+            sourceSelect.value = pageSourceSelect.value;
+        }
         dialog.appendChild(makeField("媒体版本", sourceSelect));
 
         var subtitleSelect = document.createElement("select");
         function refreshSubtitles() {
             subtitleSelect.textContent = "";
             appendOption(subtitleSelect, "", "不加载外挂字幕", true);
-            var selectedSource = (manifest.mediaSources || []).find(function (source) {
-                return source.id === sourceSelect.value;
+            var selectedSource = mediaSources.find(function (source) {
+                return read(source, "Id") === sourceSelect.value;
             });
-            ((selectedSource && selectedSource.subtitles) || []).forEach(function (subtitle) {
-                appendOption(subtitleSelect, String(subtitle.index), subtitle.displayTitle || subtitle.language || ("字幕 " + subtitle.index), subtitle.isDefault);
+            ((selectedSource && read(selectedSource, "Subtitles")) || []).forEach(function (subtitle) {
+                var index = read(subtitle, "Index");
+                appendOption(
+                    subtitleSelect,
+                    String(index),
+                    read(subtitle, "DisplayTitle") || read(subtitle, "Language") || ("字幕 " + index),
+                    read(subtitle, "IsDefault"));
             });
+            var pageSubtitleSelect = document.querySelector(selectorProfile.subtitle);
+            if (pageSubtitleSelect && Array.prototype.some.call(subtitleSelect.options, function (option) {
+                return option.value === pageSubtitleSelect.value;
+            })) {
+                subtitleSelect.value = pageSubtitleSelect.value;
+            }
         }
         sourceSelect.addEventListener("change", refreshSubtitles);
         refreshSubtitles();
@@ -236,8 +312,8 @@ define(["events", "connectionManager"], function (events, connectionManager) {
 
         var resume = document.createElement("input");
         resume.type = "checkbox";
-        resume.checked = !!manifest.resumeByDefault && manifest.resumePositionTicks > 0;
-        resume.disabled = !(manifest.resumePositionTicks > 0);
+        resume.checked = !!read(manifest, "ResumeByDefault") && read(manifest, "ResumePositionTicks") > 0;
+        resume.disabled = !(read(manifest, "ResumePositionTicks") > 0);
         var resumeField = makeField("从上次位置继续", resume);
         resumeField.insertBefore(resume, resumeField.firstChild);
         dialog.appendChild(resumeField);
@@ -255,26 +331,29 @@ define(["events", "connectionManager"], function (events, connectionManager) {
 
         var actions = document.createElement("div");
         actions.className = "emby-external-player-actions";
-        (manifest.players || []).forEach(function (player) {
+        (read(manifest, "Players") || []).forEach(function (player) {
             var launch = document.createElement("button");
             launch.type = "button";
             launch.className = "raised button-submit emby-button";
-            launch.textContent = player.displayName;
+            launch.textContent = read(player, "DisplayName");
             launch.addEventListener("click", function () {
                 error.textContent = "";
                 launch.disabled = true;
                 apiPost("ExternalPlayer/Resolve", {
-                    itemId: manifest.itemId,
+                    itemId: read(manifest, "ItemId"),
                     mediaSourceId: sourceSelect.value,
                     subtitleStreamIndex: subtitleSelect.value === "" ? null : Number(subtitleSelect.value),
                     resume: resume.checked,
-                    playerId: player.id,
+                    playerId: read(player, "Id"),
                     platform: detectPlatform()
                 }).then(function (resolution) {
                     launch.disabled = false;
-                    manual.href = resolution.launchUrl;
+                    var launchUrl = read(resolution, "LaunchUrl");
+                    var warnings = read(resolution, "Warnings") || [];
+                    error.textContent = warnings.join(" ");
+                    manual.href = launchUrl;
                     manual.hidden = false;
-                    window.location.href = resolution.launchUrl;
+                    window.location.href = launchUrl;
                 }).catch(function () {
                     launch.disabled = false;
                     error.textContent = "无法生成播放地址，请检查权限、媒体版本或服务器连接。";
@@ -296,7 +375,41 @@ define(["events", "connectionManager"], function (events, connectionManager) {
                 closeDialog(overlay);
             }
         });
+        overlay._externalPlayerRestoreFocus = document.activeElement;
+        overlay._externalPlayerKeyHandler = function (event) {
+            if (event.key === "Escape") {
+                event.preventDefault();
+                closeDialog(overlay);
+                return;
+            }
+
+            if (event.key !== "Tab") {
+                return;
+            }
+
+            var focusable = dialog.querySelectorAll("button:not([disabled]), select:not([disabled]), input:not([disabled]), a[href]");
+            if (!focusable.length) {
+                event.preventDefault();
+                return;
+            }
+
+            var first = focusable[0];
+            var last = focusable[focusable.length - 1];
+            if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first.focus();
+            }
+        };
+        document.addEventListener("keydown", overlay._externalPlayerKeyHandler, true);
         document.body.appendChild(overlay);
+        state.activeDialog = overlay;
+        var firstAction = actions.querySelector("button");
+        if (firstAction) {
+            firstAction.focus();
+        }
     }
 
     function lifecycleHandler() {
@@ -304,6 +417,10 @@ define(["events", "connectionManager"], function (events, connectionManager) {
     }
 
     function install() {
+        if (state.installed) {
+            return;
+        }
+        state.installed = true;
         ensureStylesheet();
         window.addEventListener("hashchange", lifecycleHandler);
         window.addEventListener("popstate", lifecycleHandler);
@@ -315,14 +432,23 @@ define(["events", "connectionManager"], function (events, connectionManager) {
     state.dispose = function () {
         stopObserver();
         removeButton();
+        closeDialog(state.activeDialog);
         window.removeEventListener("hashchange", lifecycleHandler);
         window.removeEventListener("popstate", lifecycleHandler);
         document.removeEventListener("viewshow", lifecycleHandler, true);
         document.removeEventListener("viewbeforeshow", lifecycleHandler, true);
+        if (state.connectionSubscribed && events.off) {
+            events.off(connectionManager, "localusersignedin", lifecycleHandler);
+            state.connectionSubscribed = false;
+        }
+        state.installed = false;
     };
 
     return function () {
-        events.on(connectionManager, "localusersignedin", lifecycleHandler);
+        if (!state.connectionSubscribed) {
+            events.on(connectionManager, "localusersignedin", lifecycleHandler);
+            state.connectionSubscribed = true;
+        }
         install();
     };
 });

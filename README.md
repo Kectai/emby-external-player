@@ -1,32 +1,55 @@
-# Emby External Player Plugin 设计项目
+# Emby External Player
 
-这是一个面向 Emby Server 的轻量外部播放器插件设计项目，当前只包含设计资料，不包含实现代码。
+一个轻量的 Emby Server 4.9.x 插件：只安装服务端 DLL，即可在 Emby Web 的电影、剧集和普通视频详情页增加“外部播放”按钮，并选择播放器、媒体版本、外挂字幕和续播位置。
 
-目标是在不要求用户安装浏览器扩展或用户脚本的前提下，仅通过服务端安装一个插件 DLL，在 Emby Web 媒体详情页的原生播放按钮旁增加一个“外部播放”按钮。用户点击后可以选择 PotPlayer、IINA、VLC、Infuse、MPV 等播放器打开当前媒体。
+不需要浏览器扩展或用户脚本；不写 Emby 数据库，不做播放进度回传，不启动后台轮询任务。
 
-设计明确不包含播放进度回传。
+## 功能
 
-实现基线采用 `netstandard2.1`，面向运行在现代 .NET 宿主上的 Emby Server 4.9.x。
+- PotPlayer、IINA、VLC、Infuse；MPV 与 nPlayer 为默认关闭的实验适配器。
+- 多媒体版本、SRT/ASS 等 Emby 已识别的外挂字幕、服务端 UserData 续播位置。
+- 默认 `SecureTicketRelay`：播放器 URL 不包含 Emby token，支持 HEAD 和单 Range/206。
+- 短期 256 位随机票据，只在内存保存哈希索引，默认 8 小时、最多 2000 条，服务重启全部失效。
+- 启动时幂等加载 Web 模块；停止、禁用或正常卸载时精确移除自己的加载片段。
+- Web 适配失败时保持 Emby 原生播放不受影响。
+
+## 支持范围
+
+- 已在隔离的 Emby Server 4.9.3.0 和 4.9.5.0（.NET 6 宿主）完成 DLL 加载、配置 UI、认证、两媒体版本、SRT/ASS、续播、HEAD、非连续 Range 和泄漏扫描。
+- 插件程序集目标框架为 `netstandard2.1`；与上述两个宿主实测无冲突。
+- 只支持由服务器提供的 Emby Web。原生电视/移动客户端若不加载服务器 Web UI，不会显示按钮。
+- Secure 模式当前只处理本地 `File` 媒体源。STRM、HLS 和远程 URL 需要显式启用 `LegacyTokenUrl`，并承担 token 暴露风险。
+
+## 安装
+
+1. 从 `artifacts/Emby.ExternalPlayer-1.0.0.zip` 取出 `Emby.ExternalPlayer.dll`。
+2. 停止 Emby Server，把 DLL 放入 Emby 程序数据目录的 `plugins` 文件夹。
+3. 启动 Emby，在插件设置中确认 `External Player` 已启用；默认安全模式无需额外配置。
+4. 强制刷新一次 Emby Web，然后进入有媒体源的视频详情页。
+
+升级和卸载前应正常停止 Emby，让插件安全撤销 Web 加载片段。完整步骤见 [安装与运维](docs/INSTALL.md)。
+
+## 构建与验证
+
+要求 .NET SDK 10.0.203。仓库把 NuGet、临时文件、编译产物和测试结果全部定向到项目内 `.local/`：
+
+```bash
+./scripts/test.sh
+./scripts/build.sh
+./scripts/package.sh
+```
+
+生成的发布 ZIP 和 SHA-256 位于 `artifacts/`。隔离 Emby 集成测试的准备和命令见 [测试说明](docs/TESTING.md)。
 
 ## 文档
 
-- [详细设计方案](docs/DESIGN.md)
+- [详细设计](docs/DESIGN.md)
+- [安装与运维](docs/INSTALL.md)
+- [客户端 URL Handler](docs/CLIENT_HANDLERS.md)
+- [安全模型](docs/SECURITY.md)
+- [兼容性矩阵](docs/COMPATIBILITY.md)
+- [测试说明](docs/TESTING.md)
 
-## 当前结论
+## 许可证
 
-- 可通过“服务端 DLL + 插件提供的固定 Web 模块”实现 Emby Web 按钮，不需要浏览器单独安装脚本。
-- Emby 没有公开的媒体详情页按钮扩展接口，因此 Web 按钮属于受控的非官方 UI 适配层。
-- 原生 Android TV、Apple TV 等不加载服务器 Web UI 的客户端，无法仅靠服务端 DLL获得相同按钮。
-- 稳定版本应使用短期播放票据隐藏 Emby 长期访问令牌；社区项目常见的 `api_key` 直出方式只作为受限兼容模式。
-- MVP 不做播放进度回传、数据库、后台扫描、转码控制和客户端安装器。
-
-## 建议的后续步骤
-
-按照详细设计中的 Phase 0 先做兼容性探针，在目标 Emby Server 上验证：
-
-1. 插件能够加载并提供独立 Web 资源路由。
-2. 启动时能够幂等注入一条 Web 模块加载语句。
-3. 媒体详情页按钮能够稳定出现且不重复。
-4. 浏览器能够通过自定义协议拉起至少一个目标播放器。
-
-探针通过后再进入完整实现。
+MIT，见 [LICENSE](LICENSE)。

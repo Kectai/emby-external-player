@@ -1,12 +1,15 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using Emby.ExternalPlayer.Domain;
 using Emby.ExternalPlayer.Services;
+using MediaBrowser.Common.Extensions;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Net;
-using MediaBrowser.Model.Dto;
+using MediaBrowser.Model.MediaInfo;
 using MediaBrowser.Model.Services;
+using MediaBrowser.Model.Net;
 
 namespace Emby.ExternalPlayer.Api;
 
@@ -34,6 +37,7 @@ public sealed class ExternalPlayerApiService : IService, IRequiresRequest
         var user = GetAuthenticatedUser();
         var context = manifestService.GetContext(request.ItemId, user);
         var platform = ParsePlatform(request.Platform);
+        var defaultPlayer = options.GetDefaultPlayer(platform);
 
         return new ExternalPlayerManifest
         {
@@ -47,6 +51,7 @@ public sealed class ExternalPlayerApiService : IService, IRequiresRequest
             MediaSources = MediaManifestService.MapMediaSources(context),
             Players = GetRuntime().Players
                 .GetAvailable(options, platform, options.ShowOnlyPlatformPlayers)
+                .OrderBy(player => player.Id == defaultPlayer ? 0 : 1)
                 .Select(ToApiDescriptor)
                 .ToArray(),
         };
@@ -59,40 +64,31 @@ public sealed class ExternalPlayerApiService : IService, IRequiresRequest
         var user = GetAuthenticatedUser();
         var context = manifestService.GetContext(request.ItemId, user);
         var platform = ParsePlatform(request.Platform);
-        var playerId = ParsePlayer(request.PlayerId);
         var runtime = GetRuntime();
+        var selection = ResolveSelectionValidator.Validate(
+            options,
+            runtime.Players,
+            context,
+            request.PlayerId,
+            platform,
+            request.MediaSourceId,
+            request.SubtitleStreamIndex);
 
-        var allowedPlayer = runtime.Players
-            .GetAvailable(options, platform, options.ShowOnlyPlatformPlayers)
-            .Any(player => player.Id == playerId);
-        if (!allowedPlayer)
-        {
-            throw new ArgumentException("The requested player is disabled or unavailable on this platform.");
-        }
-
-        var mediaSource = context.MediaSources.FirstOrDefault(source =>
-            string.Equals(source.Id, request.MediaSourceId, StringComparison.Ordinal));
-        if (mediaSource is null)
-        {
-            throw new ArgumentException("The selected media source is not available.");
-        }
-
-        var apiBase = ServerUrlBuilder.GetApiBase(Request.AbsoluteUri, "ExternalPlayer/Resolve");
-        var upstreamStreamUrl = ServerUrlBuilder.BuildDirectStreamUrl(
-            apiBase,
+        var publicApiBase = ServerUrlBuilder.GetApiBase(Request.AbsoluteUri, "ExternalPlayer/Resolve");
+        var directStreamUrl = ServerUrlBuilder.BuildDirectStreamUrl(
+            publicApiBase,
             context.Item.Id,
-            mediaSource.Id,
-            mediaSource.Container);
+            selection.MediaSource.Id,
+            selection.MediaSource.Container);
 
-        var subtitle = FindSubtitle(mediaSource, request.SubtitleStreamIndex);
-        var upstreamSubtitleUrl = subtitle is null
+        var directSubtitleUrl = selection.Subtitle is null
             ? null
             : ServerUrlBuilder.BuildSubtitleUrl(
-                apiBase,
+                publicApiBase,
                 context.Item.Id,
-                mediaSource.Id,
-                subtitle.Index,
-                subtitle.Codec);
+                selection.MediaSource.Id,
+                selection.Subtitle.Index,
+                selection.Subtitle.Codec);
 
         string streamUrl;
         string? subtitleUrl;
@@ -105,53 +101,100 @@ public sealed class ExternalPlayerApiService : IService, IRequiresRequest
                 throw new UnauthorizedAccessException("The Emby access token is unavailable.");
             }
 
-            streamUrl = ServerUrlBuilder.AppendApiKey(upstreamStreamUrl, token);
-            subtitleUrl = upstreamSubtitleUrl is null
+            streamUrl = ServerUrlBuilder.AppendApiKey(directStreamUrl, token);
+            subtitleUrl = directSubtitleUrl is null
                 ? null
-                : ServerUrlBuilder.AppendApiKey(upstreamSubtitleUrl, token);
+                : ServerUrlBuilder.AppendApiKey(directSubtitleUrl, token);
         }
         else
         {
-            var authorization = authorizationContext.GetAuthorizationInfo(Request);
+            if (selection.MediaSource.Protocol != MediaProtocol.File)
+            {
+                throw new ArgumentException(
+                    "SecureTicketRelay supports local file media sources only. Use LegacyTokenUrl for this source.");
+            }
+
+            var mediaFile = RequireAvailableFile(selection.MediaSource.Path);
+            FileInfo? subtitleFile = null;
+            if (selection.Subtitle is not null)
+            {
+                if (selection.Subtitle.Protocol != MediaProtocol.File)
+                {
+                    throw new ArgumentException(
+                        "SecureTicketRelay supports local external subtitle files only.");
+                }
+
+                subtitleFile = RequireAvailableFile(selection.Subtitle.Path);
+            }
+
             var ticket = runtime.Tickets.Issue(
                 new LaunchTicketPayload
                 {
                     UserId = user.Id,
                     ItemId = context.Item.Id,
-                    MediaSourceId = mediaSource.Id,
-                    UpstreamUrl = upstreamStreamUrl,
-                    SubtitleUpstreamUrl = upstreamSubtitleUrl,
-                    SubtitleStreamIndex = subtitle?.Index,
-                    AccessToken = authorization.Token,
-                    ContentLength = mediaSource.Size,
-                    ContentType = "video/" + ServerUrlBuilder.NormalizeExtension(mediaSource.Container, "mkv"),
+                    MediaSourceId = selection.MediaSource.Id,
+                    MediaFilePath = mediaFile.FullName,
+                    SubtitleFilePath = subtitleFile?.FullName,
+                    SubtitleStreamIndex = selection.Subtitle?.Index,
+                    ContentLength = mediaFile.Length,
+                    ContentType = MimeTypes.GetMimeType(
+                        "stream." + ServerUrlBuilder.NormalizeExtension(selection.MediaSource.Container, "mkv")),
+                    SafeFileName = SafeFileNamePolicy.Create(
+                        mediaFile.Name,
+                        selection.MediaSource.Container),
+                    SubtitleContentType = selection.Subtitle is null
+                        ? "text/plain; charset=utf-8"
+                        : MimeTypes.GetMimeType(
+                            "subtitle." + ServerUrlBuilder.NormalizeExtension(selection.Subtitle.Codec, "srt")),
+                    SubtitleContentLength = subtitleFile?.Length,
+                    SafeSubtitleFileName = selection.Subtitle is null
+                        ? null
+                        : SafeFileNamePolicy.Create(subtitleFile?.Name, selection.Subtitle.Codec),
                     StartPositionTicks = request.Resume ? context.ResumePositionTicks : 0,
                 },
                 TimeSpan.FromMinutes(options.TicketLifetimeMinutes));
 
             expiresAt = ticket.ExpiresAt;
-            streamUrl = ServerUrlBuilder.BuildTicketStreamUrl(apiBase, ticket.Value, mediaSource.Container);
-            subtitleUrl = subtitle is null
+            streamUrl = ServerUrlBuilder.BuildTicketStreamUrl(
+                publicApiBase,
+                ticket.Value,
+                selection.MediaSource.Container);
+            subtitleUrl = selection.Subtitle is null
                 ? null
                 : ServerUrlBuilder.BuildTicketSubtitleUrl(
-                    apiBase,
+                    publicApiBase,
                     ticket.Value,
-                    subtitle.Index,
-                    subtitle.Codec);
+                    selection.Subtitle.Index,
+                    selection.Subtitle.Codec);
         }
 
-        var launchUrl = runtime.Players.BuildLaunchUrl(playerId, new PlayerLaunchContext
+        var launchUrl = runtime.Players.BuildLaunchUrl(selection.PlayerId, new PlayerLaunchContext
         {
             StreamUrl = streamUrl,
             SubtitleUrl = subtitleUrl,
             Title = context.Item.Name,
             StartPositionTicks = request.Resume ? context.ResumePositionTicks : 0,
+            Platform = platform,
         });
+
+        var warnings = new List<string>();
+        if (request.Resume && context.ResumePositionTicks > 0 &&
+            (selection.Player.Capabilities & PlayerCapabilities.StartPosition) == 0)
+        {
+            warnings.Add("The selected player does not support a start position in its URL handler.");
+        }
+
+        if (selection.Subtitle is not null &&
+            (selection.Player.Capabilities & PlayerCapabilities.ExternalSubtitle) == 0)
+        {
+            warnings.Add("The selected player does not support an external subtitle in its URL handler.");
+        }
 
         return new LaunchResolution
         {
             LaunchUrl = launchUrl,
-            ExpiresAt = expiresAt?.ToString("O") ?? string.Empty,
+            TicketExpiresAt = expiresAt?.ToString("O") ?? string.Empty,
+            Warnings = warnings,
         };
     }
 
@@ -175,6 +218,18 @@ public sealed class ExternalPlayerApiService : IService, IRequiresRequest
         }
     }
 
+    private static FileInfo RequireAvailableFile(string? path)
+    {
+        try
+        {
+            return LocalMediaFilePolicy.RequireExistingFile(path);
+        }
+        catch (InvalidOperationException)
+        {
+            throw new ResourceNotFoundException("The selected local media file is unavailable.");
+        }
+    }
+
     private static PlayerApiDescriptor ToApiDescriptor(PlayerDescriptor descriptor)
     {
         return new PlayerApiDescriptor
@@ -193,30 +248,4 @@ public sealed class ExternalPlayerApiService : IService, IRequiresRequest
             : ClientPlatform.Unknown;
     }
 
-    private static PlayerId ParsePlayer(string value)
-    {
-        if (!Enum.TryParse(value, ignoreCase: true, out PlayerId playerId))
-        {
-            throw new ArgumentException("Unknown player id.", nameof(value));
-        }
-
-        return playerId;
-    }
-
-    private static MediaBrowser.Model.Entities.MediaStream? FindSubtitle(
-        MediaSourceInfo mediaSource,
-        int? streamIndex)
-    {
-        if (!streamIndex.HasValue)
-        {
-            return null;
-        }
-
-        var subtitle = (mediaSource.MediaStreams ?? new List<MediaBrowser.Model.Entities.MediaStream>())
-            .FirstOrDefault(stream =>
-                stream.Type == MediaBrowser.Model.Entities.MediaStreamType.Subtitle &&
-                stream.IsExternal &&
-                stream.Index == streamIndex.Value);
-        return subtitle ?? throw new ArgumentException("The selected external subtitle is not available.");
-    }
 }

@@ -63,7 +63,7 @@ public static class ServerUrlBuilder
         return Combine(
             apiBase,
             "ExternalPlayer/Stream/" + Uri.EscapeDataString(ticket) +
-            "/stream." + NormalizeExtension(container, "mkv"));
+            "/stream.js");
     }
 
     public static string BuildTicketSubtitleUrl(string apiBase, string ticket, int index, string? format)
@@ -71,7 +71,7 @@ public static class ServerUrlBuilder
         return Combine(
             apiBase,
             "ExternalPlayer/Subtitle/" + Uri.EscapeDataString(ticket) + "/" + index +
-            "." + NormalizeExtension(format, "srt"));
+            "/subtitle.css");
     }
 
     public static string AppendApiKey(string url, string accessToken)

@@ -58,13 +58,59 @@ public sealed class LaunchTicketStoreTests
     }
 
     [TestMethod]
-    public void Issue_EnforcesBoundedCapacity()
+    public void Issue_EvictsOldestTicketAtBoundedCapacity()
     {
-        var store = new LaunchTicketStore(new FakeClock(), 1);
-        store.Issue(CreatePayload(), TimeSpan.FromMinutes(30));
+        var clock = new FakeClock();
+        var store = new LaunchTicketStore(clock, 1);
+        var oldest = store.Issue(CreatePayload(), TimeSpan.FromMinutes(30));
+        clock.UtcNow = clock.UtcNow.AddSeconds(1);
 
-        Assert.ThrowsExactly<InvalidOperationException>(
-            () => store.Issue(CreatePayload(), TimeSpan.FromMinutes(30)));
+        var newest = store.Issue(CreatePayload(), TimeSpan.FromMinutes(30));
+
+        Assert.IsFalse(store.TryGet(oldest.Value, out _));
+        Assert.IsTrue(store.TryGet(newest.Value, out _));
+        Assert.AreEqual(1, store.Count);
+    }
+
+    [TestMethod]
+    public void TryGet_AllowsConcurrentRangeStyleReads()
+    {
+        var store = new LaunchTicketStore(new FakeClock());
+        var payload = CreatePayload();
+        var ticket = store.Issue(payload, TimeSpan.FromMinutes(30));
+        var failures = 0;
+
+        Parallel.For(0, 500, _ =>
+        {
+            if (!store.TryGet(ticket.Value, out var restored) || !ReferenceEquals(payload, restored))
+            {
+                Interlocked.Increment(ref failures);
+            }
+        });
+
+        Assert.AreEqual(0, failures);
+    }
+
+    [TestMethod]
+    public void NewRuntimeStore_RejectsTicketIssuedBeforeRestart()
+    {
+        var clock = new FakeClock();
+        var ticket = new LaunchTicketStore(clock)
+            .Issue(CreatePayload(), TimeSpan.FromMinutes(30));
+
+        var restartedStore = new LaunchTicketStore(clock);
+
+        Assert.IsFalse(restartedStore.TryGet(ticket.Value, out _));
+    }
+
+    [TestMethod]
+    public void Revoke_InvalidatesTicket()
+    {
+        var store = new LaunchTicketStore(new FakeClock());
+        var ticket = store.Issue(CreatePayload(), TimeSpan.FromMinutes(30));
+
+        Assert.IsTrue(store.Revoke(ticket.Value));
+        Assert.IsFalse(store.TryGet(ticket.Value, out _));
     }
 
     private static LaunchTicketPayload CreatePayload()
@@ -74,8 +120,8 @@ public sealed class LaunchTicketStoreTests
             UserId = Guid.NewGuid(),
             ItemId = Guid.NewGuid(),
             MediaSourceId = "source-1",
-            UpstreamUrl = "https://media.example/video.mkv",
-            AccessToken = "must-remain-server-side",
+            MediaFilePath = "/library/video.mkv",
+            ContentLength = 1024,
         };
     }
 

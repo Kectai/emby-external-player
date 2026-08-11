@@ -71,7 +71,10 @@ public sealed class MediaManifestService
             Item = item,
             User = user,
             MediaSources = sources,
-            ResumePositionTicks = Math.Max(0, userData?.PlaybackPositionTicks ?? 0),
+            ResumePositionTicks = ResumePositionPolicy.Normalize(
+                userData?.PlaybackPositionTicks ?? 0,
+                item.RunTimeTicks,
+                Plugin.Instance?.Options.RestartNearEndMinutes ?? 5),
         };
     }
 
