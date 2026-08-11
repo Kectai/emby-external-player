@@ -18,7 +18,9 @@
 ./scripts/test.sh
 ```
 
-覆盖加载器幂等与安全移除、未知锚点、播放器编码、官方应用名称、自定义 URL Scheme 模板、语言回退、URL base path、媒体/字幕/播放器选择校验、续播边界、票据随机性/过期/容量/并发/重启失效、Range、路径与 header 注入，以及 Web 生命周期、可访问性、Resolve JSON 解析、协议白名单和无效地址安全失败行为。
+覆盖加载器幂等与安全移除、未知锚点、播放器编码、官方应用名称、自定义 URL Scheme 模板、语言回退、URL base path、媒体/字幕/播放器选择校验、续播边界、票据随机性/过期/容量/并发/重启失效、Range、路径与 header 注入，以及 Web 生命周期、SVG 图标、默认选择、自定义播放器展示、可访问性、Resolve JSON 解析、协议白名单和无效地址安全失败行为。
+
+`tests/visual/` 提供隔离的 Emby 风格桌面与 390 px 窄屏预览页，加载生产 JS/CSS 和固定假 Manifest；它用于人工检查主题、间距、列表溢出和自定义播放器标识，不访问真实 Emby Server。
 
 三个官方 Emby `app.js` 全量夹具属于可选集成资源；项目 `.local/emby-hosts` 已清理时，这三项显示为跳过，其余单元和 Web 测试不需要下载完整 Emby Server。
 

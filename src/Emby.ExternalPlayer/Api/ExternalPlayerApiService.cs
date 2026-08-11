@@ -244,6 +244,7 @@ public sealed class ExternalPlayerApiService : IService, IRequiresRequest
         {
             Id = descriptor.Id.ToString(),
             DisplayName = descriptor.DisplayName,
+            IsCustom = !descriptor.BuiltInId.HasValue,
             SupportsStartPosition = (descriptor.Capabilities & PlayerCapabilities.StartPosition) != 0,
             SupportsExternalSubtitle = (descriptor.Capabilities & PlayerCapabilities.ExternalSubtitle) != 0,
             SupportsDisplayTitle = (descriptor.Capabilities & PlayerCapabilities.DisplayTitle) != 0,

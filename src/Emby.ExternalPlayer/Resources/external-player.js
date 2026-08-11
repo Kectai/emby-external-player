@@ -3,6 +3,7 @@ define(["events", "connectionManager"], function (events, connectionManager) {
 
     var moduleKey = "__embyExternalPlayerModule";
     var buttonId = "embyExternalPlayerButton";
+    var resourceVersion = "1.2.0";
     var selectorProfile = {
         actionRow: ".mainDetailButtons, .detailPagePrimaryContainer .detailButtons",
         playButton: "button.btnPlay, button.btnResume, .btnPlay, .btnResume",
@@ -96,19 +97,18 @@ define(["events", "connectionManager"], function (events, connectionManager) {
     }
 
     function ensureStylesheet() {
-        if (document.getElementById("embyExternalPlayerStyles")) {
-            return;
-        }
-
-        var link = document.createElement("link");
-        link.id = "embyExternalPlayerStyles";
-        link.rel = "stylesheet";
         var apiClient = getApiClient();
         if (!apiClient) {
             return;
         }
-        link.href = apiClient.getUrl("ExternalPlayer/Web/style.css");
-        document.head.appendChild(link);
+        var link = document.getElementById("embyExternalPlayerStyles") || document.createElement("link");
+        link.id = "embyExternalPlayerStyles";
+        link.rel = "stylesheet";
+        link.href = apiClient.getUrl("ExternalPlayer/Web/style.css", { v: resourceVersion });
+        link.setAttribute("data-resource-version", resourceVersion);
+        if (!link.parentNode) {
+            document.head.appendChild(link);
+        }
     }
 
     function removeButton() {
@@ -126,20 +126,45 @@ define(["events", "connectionManager"], function (events, connectionManager) {
         return row.querySelector(selectorProfile.playButton);
     }
 
+    function makeSvgIcon(pathData, className) {
+        var namespace = "http://www.w3.org/2000/svg";
+        var svg = document.createElementNS ? document.createElementNS(namespace, "svg") : document.createElement("svg");
+        var path = document.createElementNS ? document.createElementNS(namespace, "path") : document.createElement("path");
+        if (className) {
+            svg.setAttribute("class", className);
+        }
+        svg.setAttribute("viewBox", "0 0 24 24");
+        svg.setAttribute("focusable", "false");
+        svg.setAttribute("aria-hidden", "true");
+        path.setAttribute("d", pathData);
+        svg.appendChild(path);
+        return svg;
+    }
+
+    function setClass(element, className, enabled) {
+        var classes = String(element.className || "").split(/\s+/).filter(Boolean);
+        var index = classes.indexOf(className);
+        if (enabled && index < 0) {
+            classes.push(className);
+        } else if (!enabled && index >= 0) {
+            classes.splice(index, 1);
+        }
+        element.className = classes.join(" ");
+    }
+
     function makeButton(manifest) {
         var button = document.createElement("button");
         button.id = buttonId;
         button.type = "button";
-        button.className = "emby-button detailButton emby-external-player-button";
+        button.className = "emby-button detailButton detailButton-autotext emby-external-player-button";
         button.setAttribute("aria-label", read(manifest, "ButtonText") || text(manifest, "ExternalPlay", "External play"));
 
-        var icon = document.createElement("span");
-        icon.className = "material-icons detailButton-icon";
-        icon.setAttribute("aria-hidden", "true");
-        icon.textContent = "open_in_new";
+        var icon = makeSvgIcon(
+            "M19 19H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7h-2v7ZM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7Z",
+            "detailButton-icon detailButton-autotext-icon emby-external-player-button-icon");
 
         var label = document.createElement("div");
-        label.className = "detailButton-text";
+        label.className = "detailButton-text detailButton-autotext-text";
         label.textContent = read(manifest, "ButtonText") || text(manifest, "ExternalPlay", "External play");
 
         button.appendChild(icon);
@@ -250,10 +275,12 @@ define(["events", "connectionManager"], function (events, connectionManager) {
 
     function makeField(labelText, control) {
         var label = document.createElement("label");
-        label.className = "emby-external-player-field";
-        var text = document.createElement("span");
-        text.textContent = labelText;
-        label.appendChild(text);
+        label.className = "selectContainer emby-external-player-field";
+        var labelElement = document.createElement("span");
+        labelElement.className = "selectLabelText emby-external-player-field-label";
+        labelElement.textContent = labelText;
+        control.className = (control.className ? control.className + " " : "") + "emby-select";
+        label.appendChild(labelElement);
         label.appendChild(control);
         return label;
     }
@@ -263,6 +290,7 @@ define(["events", "connectionManager"], function (events, connectionManager) {
             return;
         }
 
+        overlay._externalPlayerClosed = true;
         if (overlay._externalPlayerKeyHandler) {
             document.removeEventListener("keydown", overlay._externalPlayerKeyHandler, true);
         }
@@ -280,23 +308,138 @@ define(["events", "connectionManager"], function (events, connectionManager) {
     function openChooser(manifest) {
         var oldDialog = document.querySelector(".emby-external-player-overlay");
         if (oldDialog) {
-            oldDialog.remove();
+            closeDialog(oldDialog);
         }
 
         var overlay = document.createElement("div");
-        overlay.className = "emby-external-player-overlay";
+        overlay.className = "dialogContainer emby-external-player-overlay";
         overlay.setAttribute("role", "presentation");
 
         var dialog = document.createElement("section");
-        dialog.className = "emby-external-player-dialog";
+        dialog.className = "dialog formDialog emby-external-player-dialog";
         dialog.setAttribute("role", "dialog");
         dialog.setAttribute("aria-modal", "true");
 
+        var header = document.createElement("header");
+        header.className = "formDialogHeader emby-external-player-header";
+        var heading = document.createElement("div");
+        heading.className = "emby-external-player-heading";
         var title = document.createElement("h2");
         title.id = "embyExternalPlayerDialogTitle";
-        title.textContent = read(manifest, "ItemName") || text(manifest, "ExternalPlay", "External play");
+        title.className = "formDialogHeaderTitle emby-external-player-title";
+        title.textContent = text(manifest, "ExternalPlay", "External play");
+        var itemName = document.createElement("div");
+        itemName.className = "secondaryText emby-external-player-item-name";
+        itemName.textContent = read(manifest, "ItemName") || "";
+        heading.appendChild(title);
+        heading.appendChild(itemName);
+        header.appendChild(heading);
+
+        var close = document.createElement("button");
+        close.type = "button";
+        close.className = "paper-icon-button-light emby-button emby-external-player-close";
+        close.setAttribute("aria-label", text(manifest, "Cancel", "Cancel"));
+        close.appendChild(makeSvgIcon("M18.3 5.71 12 12l6.3 6.29-1.41 1.42L10.59 13.41 4.29 19.71 2.88 18.3 9.17 12 2.88 5.7 4.29 4.29 10.59 10.59 16.89 4.29Z", "emby-external-player-close-icon"));
+        close.addEventListener("click", function () { closeDialog(overlay); });
+        header.appendChild(close);
+        dialog.appendChild(header);
         dialog.setAttribute("aria-labelledby", title.id);
-        dialog.appendChild(title);
+
+        var content = document.createElement("div");
+        content.className = "formDialogContent emby-external-player-content";
+        var contentInner = document.createElement("div");
+        contentInner.className = "dialogContentInner dialogContentInner-normalbottompadding emby-external-player-content-inner";
+
+        var playerSection = document.createElement("section");
+        playerSection.className = "emby-external-player-section";
+        var playerTitle = document.createElement("h3");
+        playerTitle.className = "emby-external-player-section-title";
+        playerTitle.textContent = text(manifest, "ChoosePlayer", "Choose a player");
+        playerSection.appendChild(playerTitle);
+
+        var players = read(manifest, "Players") || [];
+        var customPlayerCount = players.filter(function (player) { return !!read(player, "IsCustom"); }).length;
+        var playerHint = document.createElement("div");
+        playerHint.className = "fieldDescription emby-external-player-player-hint";
+        playerHint.textContent = customPlayerCount > 0
+            ? text(manifest, "CustomPlayerHint", "Custom applications configured in the plugin are shown here.")
+            : text(manifest, "NoCustomPlayerHint", "Custom applications can be added in the External Player plugin settings.");
+        playerSection.appendChild(playerHint);
+
+        var playerList = document.createElement("div");
+        playerList.className = "emby-scroller emby-external-player-player-list";
+        playerList.setAttribute("role", "radiogroup");
+        playerList.setAttribute("aria-label", playerTitle.textContent);
+        var playerOptions = [];
+        var selectedPlayer = players[0] || null;
+
+        function selectPlayer(player, option, moveFocus) {
+            selectedPlayer = player;
+            playerOptions.forEach(function (candidate) {
+                var selected = candidate.player === player;
+                candidate.option.setAttribute("aria-checked", selected ? "true" : "false");
+                setClass(candidate.option, "emby-external-player-option-selected", selected);
+            });
+            if (moveFocus && option && option.focus) {
+                option.focus();
+            }
+            if (typeof error !== "undefined" && error) {
+                error.textContent = "";
+            }
+            if (typeof manual !== "undefined" && manual) {
+                manual.hidden = true;
+            }
+        }
+
+        players.forEach(function (player, playerIndex) {
+            var option = document.createElement("button");
+            option.type = "button";
+            option.className = "emby-button emby-external-player-option";
+            option.setAttribute("role", "radio");
+            option.setAttribute("aria-checked", playerIndex === 0 ? "true" : "false");
+            option.setAttribute("data-player-id", read(player, "Id"));
+            option.title = read(player, "DisplayName");
+
+            var optionText = document.createElement("span");
+            optionText.className = "emby-external-player-option-text";
+            var optionName = document.createElement("span");
+            optionName.className = "emby-external-player-option-name";
+            optionName.textContent = read(player, "DisplayName");
+            var optionBadge = document.createElement("span");
+            optionBadge.className = "emby-external-player-option-badge" +
+                (read(player, "IsCustom") ? " emby-external-player-option-badge-custom" : "");
+            optionBadge.textContent = read(player, "IsCustom")
+                ? text(manifest, "CustomPlayer", "Custom player")
+                : text(manifest, "BuiltInPlayer", "Built-in");
+            optionText.appendChild(optionName);
+            optionText.appendChild(optionBadge);
+            option.appendChild(optionText);
+            option.appendChild(makeSvgIcon("m9 16.17-3.59-3.58L4 14l5 5 11-11-1.41-1.41Z", "emby-external-player-option-check"));
+
+            option.addEventListener("click", function () {
+                selectPlayer(player, option, false);
+            });
+            option.addEventListener("keydown", function (event) {
+                var direction = event.key === "ArrowRight" || event.key === "ArrowDown" ? 1 :
+                    event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 0;
+                if (!direction) {
+                    return;
+                }
+                event.preventDefault();
+                var next = (playerIndex + direction + playerOptions.length) % playerOptions.length;
+                selectPlayer(playerOptions[next].player, playerOptions[next].option, true);
+            });
+            playerOptions.push({ player: player, option: option });
+            playerList.appendChild(option);
+        });
+        if (playerOptions.length) {
+            setClass(playerOptions[0].option, "emby-external-player-option-selected", true);
+        }
+        playerSection.appendChild(playerList);
+        contentInner.appendChild(playerSection);
+
+        var fields = document.createElement("div");
+        fields.className = "emby-external-player-fields";
 
         var sourceSelect = document.createElement("select");
         var mediaSources = read(manifest, "MediaSources") || [];
@@ -313,7 +456,7 @@ define(["events", "connectionManager"], function (events, connectionManager) {
         })) {
             sourceSelect.value = pageSourceSelect.value;
         }
-        dialog.appendChild(makeField(text(manifest, "MediaVersion", "Media version"), sourceSelect));
+        fields.appendChild(makeField(text(manifest, "MediaVersion", "Media version"), sourceSelect));
 
         var subtitleSelect = document.createElement("select");
         function refreshSubtitles() {
@@ -340,70 +483,101 @@ define(["events", "connectionManager"], function (events, connectionManager) {
         }
         sourceSelect.addEventListener("change", refreshSubtitles);
         refreshSubtitles();
-        dialog.appendChild(makeField(text(manifest, "Subtitle", "Subtitle"), subtitleSelect));
+        fields.appendChild(makeField(text(manifest, "Subtitle", "Subtitle"), subtitleSelect));
 
         var resume = document.createElement("input");
         resume.type = "checkbox";
+        resume.className = "emby-external-player-resume-checkbox";
         resume.checked = !!read(manifest, "ResumeByDefault") && read(manifest, "ResumePositionTicks") > 0;
         resume.disabled = !(read(manifest, "ResumePositionTicks") > 0);
-        var resumeField = makeField(text(manifest, "ResumeFromLastPosition", "Resume from the last position"), resume);
-        resumeField.insertBefore(resume, resumeField.firstChild);
-        dialog.appendChild(resumeField);
+        var resumeField = document.createElement("label");
+        resumeField.className = "emby-external-player-resume";
+        resumeField.appendChild(resume);
+        var resumeLabel = document.createElement("span");
+        resumeLabel.textContent = text(manifest, "ResumeFromLastPosition", "Resume from the last position");
+        resumeField.appendChild(resumeLabel);
+        fields.appendChild(resumeField);
+        contentInner.appendChild(fields);
 
         var error = document.createElement("div");
         error.className = "emby-external-player-error";
         error.setAttribute("role", "status");
-        dialog.appendChild(error);
+        error.setAttribute("aria-live", "polite");
+        contentInner.appendChild(error);
 
         var manual = document.createElement("a");
         manual.className = "emby-external-player-manual-link";
         manual.hidden = true;
         manual.textContent = text(manifest, "RetryLaunch", "If the player did not open, select here to retry");
-        dialog.appendChild(manual);
+        contentInner.appendChild(manual);
+        content.appendChild(contentInner);
+        dialog.appendChild(content);
 
         var actions = document.createElement("div");
-        actions.className = "emby-external-player-actions";
-        (read(manifest, "Players") || []).forEach(function (player) {
-            var launch = document.createElement("button");
-            launch.type = "button";
-            launch.className = "raised button-submit emby-button";
-            launch.textContent = read(player, "DisplayName");
-            launch.addEventListener("click", function () {
-                error.textContent = "";
-                launch.disabled = true;
-                apiPost("ExternalPlayer/Resolve", {
-                    itemId: read(manifest, "ItemId"),
-                    mediaSourceId: sourceSelect.value,
-                    subtitleStreamIndex: subtitleSelect.value === "" ? null : Number(subtitleSelect.value),
-                    resume: resume.checked,
-                    playerId: read(player, "Id"),
-                    platform: detectPlatform(),
-                    language: detectLanguage()
-                }).then(function (resolution) {
-                    launch.disabled = false;
-                    var launchUrl = read(resolution, "LaunchUrl");
-                    if (!isAllowedLaunchUrl(launchUrl, player)) {
-                        throw new Error(text(manifest, "InvalidLaunchUrl", "The server did not return a safe application URL."));
-                    }
-                    var warnings = read(resolution, "Warnings") || [];
-                    error.textContent = warnings.join(" ");
-                    manual.href = launchUrl;
-                    manual.hidden = false;
-                    window.location.href = launchUrl;
-                }).catch(function () {
-                    launch.disabled = false;
-                    error.textContent = text(
-                        manifest,
-                        "ResolveError",
-                        "Unable to create the playback address. Check permissions, the media version, and the server connection.");
-                });
+        actions.className = "formDialogFooter formDialogFooter-flex emby-external-player-actions";
+
+        var launch = document.createElement("button");
+        launch.type = "button";
+        launch.className = "raised button-submit emby-button formDialogFooterItem emby-external-player-launch";
+        launch.textContent = text(manifest, "Open", "Open");
+        launch.disabled = !selectedPlayer;
+        var resumeUnavailable = resume.disabled;
+        function setBusy(busy) {
+            launch.disabled = busy || !selectedPlayer;
+            sourceSelect.disabled = busy;
+            subtitleSelect.disabled = busy;
+            resume.disabled = busy || resumeUnavailable;
+            playerOptions.forEach(function (candidate) {
+                candidate.option.disabled = busy;
             });
-            actions.appendChild(launch);
+            launch.setAttribute("aria-busy", busy ? "true" : "false");
+        }
+        launch.addEventListener("click", function () {
+            var player = selectedPlayer;
+            if (!player || launch.disabled) {
+                return;
+            }
+            error.textContent = "";
+            manual.hidden = true;
+            setBusy(true);
+            apiPost("ExternalPlayer/Resolve", {
+                itemId: read(manifest, "ItemId"),
+                mediaSourceId: sourceSelect.value,
+                subtitleStreamIndex: subtitleSelect.value === "" ? null : Number(subtitleSelect.value),
+                resume: resume.checked,
+                playerId: read(player, "Id"),
+                platform: detectPlatform(),
+                language: detectLanguage()
+            }).then(function (resolution) {
+                if (overlay._externalPlayerClosed) {
+                    return;
+                }
+                var launchUrl = read(resolution, "LaunchUrl");
+                if (!isAllowedLaunchUrl(launchUrl, player)) {
+                    throw new Error(text(manifest, "InvalidLaunchUrl", "The server did not return a safe application URL."));
+                }
+                var warnings = read(resolution, "Warnings") || [];
+                error.textContent = warnings.join(" ");
+                manual.href = launchUrl;
+                manual.hidden = false;
+                window.location.href = launchUrl;
+            }).catch(function () {
+                if (overlay._externalPlayerClosed) {
+                    return;
+                }
+                error.textContent = text(
+                    manifest,
+                    "ResolveError",
+                    "Unable to create the playback address. Check permissions, the media version, and the server connection.");
+            }).then(function () {
+                setBusy(false);
+            });
         });
+        actions.appendChild(launch);
 
         var cancel = document.createElement("button");
         cancel.type = "button";
-        cancel.className = "emby-button";
+        cancel.className = "raised emby-button formDialogFooterItem emby-external-player-cancel";
         cancel.textContent = text(manifest, "Cancel", "Cancel");
         cancel.addEventListener("click", function () { closeDialog(overlay); });
         actions.appendChild(cancel);
@@ -445,9 +619,8 @@ define(["events", "connectionManager"], function (events, connectionManager) {
         document.addEventListener("keydown", overlay._externalPlayerKeyHandler, true);
         document.body.appendChild(overlay);
         state.activeDialog = overlay;
-        var firstAction = actions.querySelector("button");
-        if (firstAction) {
-            firstAction.focus();
+        if (playerOptions.length) {
+            playerOptions[0].option.focus();
         }
     }
 

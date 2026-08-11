@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>External Player narrow UI preview</title>
+    <style>
+        html, body { background: #080808; margin: 0; min-height: 100%; }
+        body { align-items: flex-start; display: flex; justify-content: center; padding: 1rem; }
+        iframe {
+            border: 1px solid #303030;
+            box-shadow: 0 .5rem 2rem rgba(0,0,0,.6);
+            height: 844px;
+            max-height: calc(100vh - 2rem);
+            width: 390px;
+        }
+    </style>
+</head>
+<body>
+    <iframe title="窄屏外部播放器预览" src="external-player-preview.html?narrow=1"></iframe>
+</body>
+</html>

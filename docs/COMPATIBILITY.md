@@ -25,7 +25,9 @@
 
 插件 1.1.1 修正上述 IINA 标题判断：IINA 的 URL scheme 会拒绝不在 `safeMPVOptions` 中的 `force-media-title`。新版改为通用标题路径 `/ExternalPlayer/Stream/{媒体标题}?api_key={短期票据}`，并依靠 Emby 对 `api_key` 查询值的日志脱敏保护票据；旧 `stream.js` 路由保留兼容。该修复已通过 URL 构造、Unicode/路径注入、IINA 参数和 Web 回归测试；完整 Emby 测试宿主已按要求清理，尚未为 1.1.1 重新下载。
 
-Web 模块测试使用无依赖的假 DOM 覆盖：重复加载只保留一个按钮、事件退订、PascalCase/camelCase API 兼容、Escape 关闭、焦点恢复与 focus trap。实际 Chrome、Firefox、Safari 的人工视觉回归尚需在部署环境完成，因此不能把 DOM 自动化等同于三款浏览器实测。
+插件 1.2.0 重构 Web 界面：入口按钮不再依赖 Material Icons ligature，而是使用内嵌 SVG；弹窗复用 Emby 的 dialog、form、button 和主题变量，播放器从并列启动按钮改为带固定选中状态的响应式单选列表，再由统一“打开”动作启动。Manifest 明确标记自定义播放器，窄屏取消播放器区的嵌套滚动，由整个内容区滚动。桌面与 390 px 窄屏已在隔离的本地视觉夹具中验证，未连接或修改本机 8096 Emby。
+
+Web 模块测试使用无依赖的假 DOM 覆盖：重复加载只保留一个按钮、事件退订、内嵌 SVG、不泄漏 `open_in_new` 文本、默认选择状态、自定义播放器标识、PascalCase/camelCase API 兼容、Escape 关闭、焦点恢复与 focus trap。实际 Chrome、Firefox、Safari 的人工视觉回归尚需在部署环境完成，因此不能把 DOM 自动化和隔离预览等同于三款浏览器实测。
 
 播放器 URL 适配器均有编码与能力测试。本机检测到 IINA 1.4.4 注册了 `iina` 协议，但遵循环境隔离要求未实际拉起；PotPlayer、VLC media player、Infuse 未安装，需按 [客户端说明](CLIENT_HANDLERS.md) 完成人工矩阵。
 

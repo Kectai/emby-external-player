@@ -10,8 +10,12 @@ public sealed class LocalizationTests
     public void WebStrings_FollowConfiguredLanguageAndFallBackToEnglish()
     {
         Assert.AreEqual("外部播放", PluginStrings.GetWebStrings("zh-CN")["ExternalPlay"]);
+        Assert.AreEqual("选择播放器", PluginStrings.GetWebStrings("zh-CN")["ChoosePlayer"]);
+        Assert.AreEqual("自定义播放器", PluginStrings.GetWebStrings("zh-CN")["CustomPlayer"]);
         Assert.AreEqual("外部播放", PluginStrings.GetWebStrings("zh-Hant")["ExternalPlay"]);
+        Assert.AreEqual("開啟", PluginStrings.GetWebStrings("zh-Hant")["Open"]);
         Assert.AreEqual("External play", PluginStrings.GetWebStrings("fr-FR")["ExternalPlay"]);
+        Assert.AreEqual("Built-in", PluginStrings.GetWebStrings("fr-FR")["BuiltInPlayer"]);
     }
 
     [TestMethod]

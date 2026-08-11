@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>External Player UI preview</title>
+    <style>
+        :root {
+            --background-hue: 0;
+            --background-saturation: 0%;
+            --background-lightness: 7%;
+            --theme-primary-color-hue: 116;
+            --theme-primary-color-saturation: 41.7%;
+            --theme-primary-color-lightness: 50.2%;
+            --theme-text-color-hue: 0;
+            --theme-text-color-saturation: 0%;
+            --theme-text-color-lightness: 100%;
+            --theme-text-color-alpha: 1;
+            --theme-secondary-text-color-alpha: .56;
+            --theme-accent-text-color: #6ccf65;
+            --button-background-hue: 240;
+            --button-background-saturation: 5.1%;
+            --button-background-lightness: 16.6%;
+            --button-background-alpha: .7;
+            --card-background-hue: 240;
+            --card-background-saturation: 5.1%;
+            --card-background-lightness: 16.6%;
+            --input-background-hue: 240;
+            --input-background-saturation: 5.1%;
+            --input-background-lightness: 16.6%;
+            --header-background: hsl(240, 3.4%, 21.4%);
+            --line-background: rgba(255, 255, 255, .195);
+            --line-size: 1px;
+            color: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        }
+
+        * { box-sizing: border-box; }
+        body {
+            background: radial-gradient(circle at 70% 0, #3a3a3a 0, #111 42rem);
+            margin: 0;
+            min-height: 100vh;
+        }
+        button, select { font: inherit; }
+        .preview-page { padding: 5rem 5vw; }
+        .preview-page h1 { font-size: clamp(2rem, 4vw, 4rem); margin: 0 0 1rem; }
+        .preview-page p { color: rgba(255,255,255,.65); max-width: 48rem; }
+        .detailButtons { align-items: center; display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 2rem; }
+        .emby-button { border: 0; cursor: pointer; }
+        .detailButton {
+            align-items: center;
+            background: rgba(255,255,255,.12);
+            border-radius: .4rem;
+            color: inherit;
+            display: inline-flex;
+            gap: .55rem;
+            min-height: 3rem;
+            padding: .7rem 1rem;
+        }
+        .detailButton-icon { fill: currentColor; font-size: 1.35rem; height: 1em; width: 1em; }
+        .paper-icon-button-light { color: inherit; }
+        .dialog {
+            --background-hue: 240;
+            --background-saturation: 3.4%;
+            --background-lightness: 11.4%;
+            --button-background-lightness: 26%;
+            --input-background-lightness: 26%;
+            background: hsl(var(--background-hue), var(--background-saturation), var(--background-lightness));
+            box-shadow: 0 .56rem 2.8rem rgba(0,0,0,.55);
+        }
+        .secondaryText, .fieldDescription { color: rgba(255,255,255,.56); }
+        .emby-select { background: rgba(255,255,255,.12); border: 1px solid transparent; }
+        .raised { background: rgba(255,255,255,.14); border-radius: .3rem; color: #fff; }
+        .button-submit { background: hsl(116, 41.7%, 50.2%); }
+        .formDialogFooterItem { text-transform: uppercase; }
+        #previewStatus { display: none; }
+    </style>
+</head>
+<body>
+    <main class="preview-page">
+        <h1>电影详情页</h1>
+        <p>隔离的 Emby Web 风格预览，用来检查入口按钮、主题适配、播放器列表和窄屏布局。</p>
+        <div class="mainDetailButtons detailButtons">
+            <button class="emby-button detailButton btnPlay" type="button">播放</button>
+            <button class="emby-button detailButton" type="button">预告片</button>
+        </div>
+    </main>
+    <script>
+        window.addEventListener("error", function (event) {
+            document.getElementById("previewStatus").textContent = "ERROR: " + event.message;
+        });
+        window.addEventListener("unhandledrejection", function (event) {
+            document.getElementById("previewStatus").textContent = "REJECTION: " + String(event.reason);
+        });
+        const manifest = {
+            Enabled: true,
+            ItemId: "preview-item",
+            ItemName: "银翼杀手 2049 · 4K UHD",
+            ButtonText: "外部播放",
+            ButtonPlacement: "AfterPrimaryPlay",
+            ResumeByDefault: true,
+            ResumePositionTicks: 18000000000,
+            MediaSources: [
+                { Id: "remux", Name: "4K UHD REMUX · Dolby Vision", IsDefault: true, Subtitles: [
+                    { Index: 3, DisplayTitle: "简体中文 · ASS", IsDefault: true },
+                    { Index: 4, DisplayTitle: "English · PGS" }
+                ] },
+                { Id: "web", Name: "1080p WEB-DL", Subtitles: [] }
+            ],
+            Players: [
+                { Id: "Iina", DisplayName: "IINA", IsCustom: false, LaunchSchemes: ["iina"] },
+                { Id: "Vlc", DisplayName: "VLC media player", IsCustom: false, LaunchSchemes: ["vlc"] },
+                { Id: "Mpv", DisplayName: "mpv", IsCustom: false, LaunchSchemes: ["mpv"] },
+                { Id: "custom-elmedia", DisplayName: "Elmedia Video Player", IsCustom: true, LaunchSchemes: ["elmedia"] },
+                { Id: "custom-pro", DisplayName: "myPLAYER pro", IsCustom: true, LaunchSchemes: ["myplayer"] },
+                { Id: "custom-long", DisplayName: "A Custom Application With A Very Long Official Name", IsCustom: true, LaunchSchemes: ["customplayer"] }
+            ],
+            Texts: {
+                ExternalPlay: "外部播放",
+                ChoosePlayer: "选择播放器",
+                Open: "打开",
+                BuiltInPlayer: "内置",
+                CustomPlayer: "自定义播放器",
+                CustomPlayerHint: "在插件中配置的自定义应用会显示在此处。",
+                NoCustomPlayerHint: "可在“外部播放器”插件设置中添加自定义应用。",
+                MediaVersion: "媒体版本",
+                VersionNumber: "版本 {0}",
+                Subtitle: "字幕",
+                NoExternalSubtitle: "不加载外挂字幕",
+                SubtitleNumber: "字幕 {0}",
+                ResumeFromLastPosition: "从上次位置继续",
+                RetryLaunch: "若播放器未自动打开，请点此重试",
+                Cancel: "取消",
+                ResolveError: "无法生成播放地址，请检查权限、媒体版本或服务器连接。",
+                InvalidLaunchUrl: "服务器未返回安全的应用启动地址。"
+            }
+        };
+        const events = { on() {}, off() {} };
+        const apiClient = {
+            getUrl(path) {
+                return path === "ExternalPlayer/Web/style.css"
+                    ? "../../src/Emby.ExternalPlayer/Resources/external-player.css"
+                    : path;
+            },
+            getJSON() {
+                document.documentElement.setAttribute("data-manifest-requested", "true");
+                return Promise.resolve(manifest);
+            },
+            ajax() { return Promise.resolve({ LaunchUrl: "iina://weblink?url=https%3A%2F%2Fexample.test" }); }
+        };
+        const connectionManager = { currentApiClient() { return apiClient; } };
+        window.define = function (_dependencies, factory) {
+            document.documentElement.setAttribute("data-module-defined", "true");
+            window.externalPlayerInitializer = factory(events, connectionManager);
+        };
+        window.location.hash = "#!/item?id=preview-item";
+    </script>
+    <output id="previewStatus"></output>
+    <script src="../../src/Emby.ExternalPlayer/Resources/external-player.js"></script>
+    <script>
+        window.externalPlayerInitializer();
+        document.documentElement.setAttribute("data-module-initialized", "true");
+        window.setTimeout(function () {
+            if (!document.getElementById("embyExternalPlayerButton")) {
+                document.getElementById("previewStatus").textContent = "Button was not injected";
+            }
+        }, 750);
+    </script>
+</body>
+</html>

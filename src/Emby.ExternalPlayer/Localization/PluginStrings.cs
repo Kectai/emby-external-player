@@ -71,6 +71,11 @@ public static class PluginStrings
             [nameof(Android)] = "Android",
             [nameof(Linux)] = "Linux",
             [nameof(ExternalPlay)] = "External play",
+            [nameof(ChoosePlayer)] = "Choose a player",
+            [nameof(Open)] = "Open",
+            [nameof(BuiltInPlayer)] = "Built-in",
+            [nameof(CustomPlayerHint)] = "Custom applications configured in the plugin are shown here.",
+            [nameof(NoCustomPlayerHint)] = "Custom applications can be added in the External Player plugin settings.",
             [nameof(MediaVersion)] = "Media version",
             [nameof(VersionNumber)] = "Version {0}",
             [nameof(Subtitle)] = "Subtitle",
@@ -149,6 +154,11 @@ public static class PluginStrings
             [nameof(Android)] = "Android",
             [nameof(Linux)] = "Linux",
             [nameof(ExternalPlay)] = "外部播放",
+            [nameof(ChoosePlayer)] = "选择播放器",
+            [nameof(Open)] = "打开",
+            [nameof(BuiltInPlayer)] = "内置",
+            [nameof(CustomPlayerHint)] = "在插件中配置的自定义应用会显示在此处。",
+            [nameof(NoCustomPlayerHint)] = "可在“外部播放器”插件设置中添加自定义应用。",
             [nameof(MediaVersion)] = "媒体版本",
             [nameof(VersionNumber)] = "版本 {0}",
             [nameof(Subtitle)] = "字幕",
@@ -189,6 +199,11 @@ public static class PluginStrings
             [nameof(ApplicationNameDescription)] = "完全按輸入顯示，不會自動調整大小寫。",
             [nameof(AnyPlatform)] = "所有平台",
             [nameof(ExternalPlay)] = "外部播放",
+            [nameof(ChoosePlayer)] = "選擇播放器",
+            [nameof(Open)] = "開啟",
+            [nameof(BuiltInPlayer)] = "內建",
+            [nameof(CustomPlayerHint)] = "在外掛中設定的自訂應用程式會顯示在此處。",
+            [nameof(NoCustomPlayerHint)] = "可在「外部播放器」外掛設定中加入自訂應用程式。",
             [nameof(MediaVersion)] = "媒體版本",
             [nameof(VersionNumber)] = "版本 {0}",
             [nameof(Subtitle)] = "字幕",
@@ -258,6 +273,11 @@ public static class PluginStrings
     public static string Android => Get(nameof(Android));
     public static string Linux => Get(nameof(Linux));
     public static string ExternalPlay => Get(nameof(ExternalPlay));
+    public static string ChoosePlayer => Get(nameof(ChoosePlayer));
+    public static string Open => Get(nameof(Open));
+    public static string BuiltInPlayer => Get(nameof(BuiltInPlayer));
+    public static string CustomPlayerHint => Get(nameof(CustomPlayerHint));
+    public static string NoCustomPlayerHint => Get(nameof(NoCustomPlayerHint));
     public static string MediaVersion => Get(nameof(MediaVersion));
     public static string VersionNumber => Get(nameof(VersionNumber));
     public static string Subtitle => Get(nameof(Subtitle));
@@ -286,7 +306,9 @@ public static class PluginStrings
         var catalog = GetCatalog(language);
         var keys = new[]
         {
-            nameof(ExternalPlay), nameof(MediaVersion), nameof(VersionNumber), nameof(Subtitle),
+            nameof(ExternalPlay), nameof(ChoosePlayer), nameof(Open), nameof(BuiltInPlayer),
+            nameof(CustomPlayer), nameof(CustomPlayerHint), nameof(NoCustomPlayerHint),
+            nameof(MediaVersion), nameof(VersionNumber), nameof(Subtitle),
             nameof(NoExternalSubtitle), nameof(SubtitleNumber), nameof(ResumeFromLastPosition),
             nameof(RetryLaunch), nameof(Cancel), nameof(ResolveError), nameof(InvalidLaunchUrl),
             nameof(ResumeUnsupportedWarning), nameof(SubtitleUnsupportedWarning),

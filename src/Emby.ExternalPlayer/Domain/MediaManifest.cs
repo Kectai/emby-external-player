@@ -61,6 +61,8 @@ public sealed class PlayerApiDescriptor
 
     public string DisplayName { get; set; } = string.Empty;
 
+    public bool IsCustom { get; set; }
+
     public bool SupportsStartPosition { get; set; }
 
     public bool SupportsExternalSubtitle { get; set; }

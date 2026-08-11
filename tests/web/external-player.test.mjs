@@ -141,6 +141,10 @@ class FakeDocument {
         return new FakeElement(tagName, this);
     }
 
+    createElementNS(_namespace, tagName) {
+        return new FakeElement(tagName, this);
+    }
+
     getElementById(id) {
         return [this.head, this.body, ...this.head.walk(), ...this.body.walk()]
             .find((item) => item.id === id) || null;
@@ -151,7 +155,7 @@ class FakeDocument {
             return this.actionRow;
         }
         if (selector === ".emby-external-player-overlay") {
-            return this.body.walk().find((item) => item.className === "emby-external-player-overlay") || null;
+            return this.body.walk().find((item) => item.className.split(/\s+/).includes("emby-external-player-overlay")) || null;
         }
         return null;
     }
@@ -189,11 +193,17 @@ const manifest = {
         Subtitles: [{ Index: 3, DisplayTitle: "简体中文 ASS", IsDefault: true }]
     }],
     Players: [
-        { Id: "Iina", DisplayName: "IINA", LaunchSchemes: ["iina"] },
-        { Id: "custom-1", DisplayName: "myPLAYER pro", LaunchSchemes: ["myplayer"] }
+        { Id: "Iina", DisplayName: "IINA", IsCustom: false, LaunchSchemes: ["iina"] },
+        { Id: "custom-1", DisplayName: "myPLAYER pro", IsCustom: true, LaunchSchemes: ["myplayer"] }
     ],
     Texts: {
         ExternalPlay: "外部播放",
+        ChoosePlayer: "选择播放器",
+        Open: "打开",
+        BuiltInPlayer: "内置",
+        CustomPlayer: "自定义播放器",
+        CustomPlayerHint: "在插件中配置的自定义应用会显示在此处。",
+        NoCustomPlayerHint: "可在“外部播放器”插件设置中添加自定义应用。",
         MediaVersion: "媒体版本",
         VersionNumber: "版本 {0}",
         Subtitle: "字幕",
@@ -214,6 +224,7 @@ const document = new FakeDocument();
 const eventSubscriptions = new Set();
 let ajaxResponse = { LaunchUrl: "iina://weblink?url=https%3A%2F%2Fexample.test" };
 let manifestQuery;
+let lastResolveBody;
 const events = {
     on(_source, name, handler) { eventSubscriptions.add(`${name}:${String(handler)}`); },
     off(_source, name, handler) { eventSubscriptions.delete(`${name}:${String(handler)}`); }
@@ -226,7 +237,8 @@ const apiClient = {
     getJSON() { return Promise.resolve(manifest); },
     ajax(options) {
         assert.equal(options.dataType, "json", "Emby ajax must parse the Resolve response as JSON");
-        assert.equal(JSON.parse(options.data).language, "zh-CN");
+        lastResolveBody = JSON.parse(options.data);
+        assert.equal(lastResolveBody.language, "zh-CN");
         return Promise.resolve(ajaxResponse);
     }
 };
@@ -264,6 +276,7 @@ await new Promise((resolve) => setTimeout(resolve, 0));
 assert.equal(document.body.walk().filter((item) => item.id === "embyExternalPlayerButton").length, 1);
 assert.equal(eventSubscriptions.size, 1);
 assert.equal(manifestQuery.language, "zh-CN");
+assert.equal(document.getElementById("embyExternalPlayerStyles").attributes.get("data-resource-version"), "1.2.0");
 
 evaluateAndStart();
 await new Promise((resolve) => setTimeout(resolve, 0));
@@ -271,14 +284,26 @@ assert.equal(document.body.walk().filter((item) => item.id === "embyExternalPlay
 assert.equal(eventSubscriptions.size, 1, "reloading must unsubscribe the prior connection event");
 
 const button = document.getElementById("embyExternalPlayerButton");
+assert.ok(button.className.includes("detailButton-autotext"));
+assert.ok(button.walk().some((item) => item.tagName === "SVG"), "the detail action must use an inline SVG icon");
+assert.ok(!button.walk().some((item) => item.textContent === "open_in_new"), "icon ligature text must never be visible");
 button.dispatch("click");
 const launchOverlay = document.querySelector(".emby-external-player-overlay");
 assert.ok(launchOverlay);
-const launchButton = launchOverlay.walk().find((item) => item.tagName === "BUTTON" && item.textContent === "IINA");
-assert.ok(launchButton);
-assert.ok(launchOverlay.walk().some((item) => item.tagName === "BUTTON" && item.textContent === "myPLAYER pro"));
+const iinaOption = launchOverlay.walk().find((item) => item.attributes.get("data-player-id") === "Iina");
+const customOption = launchOverlay.walk().find((item) => item.attributes.get("data-player-id") === "custom-1");
+const launchButton = launchOverlay.walk().find((item) => item.tagName === "BUTTON" && item.textContent === "打开");
+assert.ok(iinaOption);
+assert.ok(customOption, "enabled custom applications must be visible in the chooser");
+assert.equal(iinaOption.attributes.get("aria-checked"), "true");
+assert.ok(iinaOption.className.includes("emby-external-player-option-selected"), "the default player must have a persistent selected state");
+assert.ok(customOption.walk().some((item) => item.textContent === "自定义播放器"));
+customOption.dispatch("click");
+assert.equal(customOption.attributes.get("aria-checked"), "true");
+iinaOption.dispatch("click");
 launchButton.dispatch("click");
 await new Promise((resolve) => setTimeout(resolve, 0));
+assert.equal(lastResolveBody.playerId, "Iina");
 assert.equal(window.location.href, "iina://weblink?url=https%3A%2F%2Fexample.test");
 document.dispatch("keydown", { key: "Escape", preventDefault() {} });
 assert.equal(document.querySelector(".emby-external-player-overlay"), null);
@@ -287,7 +312,7 @@ window.location.href = "";
 ajaxResponse = { LaunchUrl: "javascript:alert(1)" };
 button.dispatch("click");
 const unsafeOverlay = document.querySelector(".emby-external-player-overlay");
-const unsafeLaunchButton = unsafeOverlay.walk().find((item) => item.tagName === "BUTTON" && item.textContent === "IINA");
+const unsafeLaunchButton = unsafeOverlay.walk().find((item) => item.tagName === "BUTTON" && item.textContent === "打开");
 unsafeLaunchButton.dispatch("click");
 await new Promise((resolve) => setTimeout(resolve, 0));
 assert.equal(window.location.href, "", "a scheme not declared by the selected player must be rejected");
@@ -297,7 +322,7 @@ window.location.href = "";
 ajaxResponse = {};
 button.dispatch("click");
 const invalidOverlay = document.querySelector(".emby-external-player-overlay");
-const invalidLaunchButton = invalidOverlay.walk().find((item) => item.tagName === "BUTTON" && item.textContent === "IINA");
+const invalidLaunchButton = invalidOverlay.walk().find((item) => item.tagName === "BUTTON" && item.textContent === "打开");
 invalidLaunchButton.dispatch("click");
 await new Promise((resolve) => setTimeout(resolve, 0));
 assert.equal(window.location.href, "", "an invalid Resolve response must never navigate to /undefined");
