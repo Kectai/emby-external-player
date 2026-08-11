@@ -3,10 +3,10 @@ define(["events", "connectionManager"], function (events, connectionManager) {
 
     var moduleKey = "__embyExternalPlayerModule";
     var buttonId = "embyExternalPlayerButton";
-    var resourceVersion = "1.2.2";
+    var configurationPageId = "f7e75c:Settings";
+    var resourceVersion = "1.3.0";
     var selectorProfile = {
         actionRow: ".mainDetailButtons, .detailPagePrimaryContainer .detailButtons",
-        playButton: "button.btnPlay, button.btnResume, .btnPlay, .btnResume",
         mediaSource: "select.selectSource",
         subtitle: "select.selectSubtitles"
     };
@@ -49,6 +49,45 @@ define(["events", "connectionManager"], function (events, connectionManager) {
     function detectLanguage() {
         var htmlLanguage = document.documentElement && document.documentElement.lang;
         return htmlLanguage || (navigator.languages && navigator.languages[0]) || navigator.language || "en-US";
+    }
+
+    function getConfigurationPageId() {
+        var match = (window.location.hash + window.location.search).match(/[?&]PageId=([^&]+)/i);
+        return match ? decodeURIComponent(match[1]) : null;
+    }
+
+    function configurationSaveText() {
+        var language = detectLanguage().toLowerCase();
+        if (language.indexOf("zh-hant") === 0 || language.indexOf("zh-tw") === 0 || language.indexOf("zh-hk") === 0) {
+            return "儲存";
+        }
+        if (language.indexOf("zh") === 0) {
+            return "保存";
+        }
+        return "Save";
+    }
+
+    function enhanceConfigurationPage() {
+        if (getConfigurationPageId() !== configurationPageId) {
+            return false;
+        }
+
+        var saveButtons = document.querySelectorAll(
+            'button[data-data1="PageSave"], input[data-data1="PageSave"], .btnSave.pagebutton');
+        if (!saveButtons.length) {
+            return false;
+        }
+
+        Array.prototype.forEach.call(saveButtons, function (button) {
+            var localizedText = configurationSaveText();
+            if (button.tagName === "INPUT") {
+                button.value = localizedText;
+            } else {
+                button.textContent = localizedText;
+            }
+            button.setAttribute("aria-label", localizedText);
+        });
+        return true;
     }
 
     function text(manifest, key, fallback) {
@@ -123,7 +162,8 @@ define(["events", "connectionManager"], function (events, connectionManager) {
     }
 
     function findPlayButton(row) {
-        return row.querySelector(selectorProfile.playButton);
+        return row.querySelector("button.btnResume, .btnResume") ||
+            row.querySelector("button.btnPlay, .btnPlay");
     }
 
     function makeSvgIcon(pathData, className) {
@@ -156,15 +196,15 @@ define(["events", "connectionManager"], function (events, connectionManager) {
         var button = document.createElement("button");
         button.id = buttonId;
         button.type = "button";
-        button.className = "emby-button detailButton detailButton-autotext emby-external-player-button";
+        button.className = "raised emby-button detailButton emby-external-player-button";
         button.setAttribute("aria-label", read(manifest, "ButtonText") || text(manifest, "ExternalPlay", "External play"));
 
         var icon = makeSvgIcon(
             "M19 19H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7h-2v7ZM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7Z",
-            "detailButton-icon detailButton-autotext-icon emby-external-player-button-icon");
+            "detailButton-icon emby-external-player-button-icon");
 
         var label = document.createElement("div");
-        label.className = "detailButton-text detailButton-autotext-text";
+        label.className = "detailButton-text emby-external-player-button-text";
         label.textContent = read(manifest, "ButtonText") || text(manifest, "ExternalPlay", "External play");
 
         button.appendChild(icon);
@@ -194,6 +234,11 @@ define(["events", "connectionManager"], function (events, connectionManager) {
 
         var button = makeButton(manifest);
         var playButton = findPlayButton(row);
+        if (playButton) {
+            var referenceClasses = String(playButton.className || "").split(/\s+/);
+            setClass(button, "detailButton-primary", referenceClasses.indexOf("detailButton-primary") >= 0);
+            setClass(button, "detailButton-stacked", referenceClasses.indexOf("detailButton-stacked") >= 0);
+        }
         if (read(manifest, "ButtonPlacement") === "AfterPrimaryPlay" && playButton && playButton.parentNode === row) {
             row.insertBefore(button, playButton.nextSibling);
         } else {
@@ -221,6 +266,20 @@ define(["events", "connectionManager"], function (events, connectionManager) {
         removeButton();
         state.currentItemId = itemId;
         state.manifest = null;
+
+        if (getConfigurationPageId() === configurationPageId) {
+            if (enhanceConfigurationPage()) {
+                return;
+            }
+            state.observer = new MutationObserver(function () {
+                if (enhanceConfigurationPage()) {
+                    stopObserver();
+                }
+            });
+            state.observer.observe(document.body, { childList: true, subtree: true });
+            state.timer = window.setTimeout(stopObserver, 10000);
+            return;
+        }
 
         var apiClient = getApiClient();
         if (!itemId || !apiClient || !apiClient.getUrl) {

@@ -16,6 +16,8 @@ public sealed class LocalizationTests
         Assert.AreEqual("開啟", PluginStrings.GetWebStrings("zh-Hant")["Open"]);
         Assert.AreEqual("External play", PluginStrings.GetWebStrings("fr-FR")["ExternalPlay"]);
         Assert.AreEqual("Built-in", PluginStrings.GetWebStrings("fr-FR")["BuiltInPlayer"]);
+        Assert.AreEqual("添加播放器", PluginStrings.Get(nameof(PluginStrings.CustomPlayerAdd), "zh-CN"));
+        Assert.AreEqual("儲存", PluginStrings.Get(nameof(PluginStrings.CustomPlayerSave), "zh-Hant"));
     }
 
     [TestMethod]

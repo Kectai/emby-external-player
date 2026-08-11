@@ -117,6 +117,7 @@ const localizedConfigurationView = await (await api(
     { headers: { ClientLocale: "zh-CN" } })).json();
 const localizedConfigurationJson = JSON.stringify(localizedConfigurationView);
 assert.match(localizedConfigurationJson, /外部播放器/);
+assert.match(localizedConfigurationJson, /添加播放器/);
 assert.match(localizedConfigurationJson, /IINA/);
 assert.match(localizedConfigurationJson, /VLC media player/);
 

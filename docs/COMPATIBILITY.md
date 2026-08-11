@@ -31,6 +31,8 @@
 
 插件 1.2.2 覆盖 Emby 桌面端隐藏 `detailButton-autotext-text` 的规则，使详情页入口始终显示图标和本地化文字；同时移除弹窗标题栏中与底部“取消”重复的关闭叉号，继续保留遮罩、Esc 和底部按钮三种关闭方式。
 
+插件 1.3.0 将详情页入口改为 Emby 原生圆角矩形 `raised` 动作按钮，并继承相邻播放/继续播放按钮的主色与响应式类；有续播记录时入口固定在继续播放右侧。选择器桌面最大宽度由 44rem 收窄到 36rem，底部“打开/取消”改为等宽两列。配置页的三个固定自定义播放器槽位改为 Generic UI 动态表格，支持新增、编辑和删除；旧空槽位自动清理，配置页保存命令按客户端语言显示“保存 / 儲存 / Save”。这些变化仍只使用 Emby SDK 和 Emby 自带 Generic UI，不增加插件运行时依赖。
+
 Web 模块测试使用无依赖的假 DOM 覆盖：重复加载只保留一个按钮、事件退订、内嵌 SVG、不泄漏 `open_in_new` 文本、默认选择状态、自定义播放器标识、PascalCase/camelCase API 兼容、Escape 关闭、焦点恢复与 focus trap。实际 Chrome、Firefox、Safari 的人工视觉回归尚需在部署环境完成，因此不能把 DOM 自动化和隔离预览等同于三款浏览器实测。
 
 播放器 URL 适配器均有编码与能力测试。本机检测到 IINA 1.4.4 注册了 `iina` 协议，但遵循环境隔离要求未实际拉起；PotPlayer、VLC media player、Infuse 未安装，需按 [客户端说明](CLIENT_HANDLERS.md) 完成人工矩阵。

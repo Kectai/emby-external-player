@@ -34,6 +34,18 @@ public sealed class Plugin : BasePluginSimpleUI<PluginOptions>
 
     public PluginOptions Options => GetOptions();
 
+    protected override PluginOptions OnBeforeShowUI(PluginOptions options)
+    {
+        options.PrepareForEditor();
+        return options;
+    }
+
+    protected override bool OnOptionsSaving(PluginOptions options)
+    {
+        options.NormalizeCustomPlayers();
+        return base.OnOptionsSaving(options);
+    }
+
     protected override void OnOptionsSaved(PluginOptions options)
     {
         logger.Info("External Player options were updated.");

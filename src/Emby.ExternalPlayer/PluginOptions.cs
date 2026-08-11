@@ -1,8 +1,12 @@
 using System;
+using System.ComponentModel;
+using System.Xml.Serialization;
 using Emby.ExternalPlayer.Domain;
 using Emby.ExternalPlayer.Localization;
 using Emby.ExternalPlayer.Services;
 using Emby.Web.GenericEdit;
+using Emby.Web.GenericEdit.Elements;
+using MediaBrowser.Model.Attributes;
 using Emby.Web.GenericEdit.Validation;
 using MediaBrowser.Model.LocalizationAttributes;
 
@@ -120,14 +124,18 @@ public sealed class PluginOptions : EditableOptionsBase
     [DisplayNameL(nameof(PluginStrings.DefaultPlayerAndroid), typeof(PluginStrings))]
     public PlayerId DefaultPlayerAndroid { get; set; } = PlayerId.Vlc;
 
-    [DisplayNameL(nameof(PluginStrings.CustomPlayers), typeof(PluginStrings))]
-    [DescriptionL(nameof(PluginStrings.CustomPlayersDescription), typeof(PluginStrings))]
-    public CustomPlayerOptionsCollection CustomPlayers { get; set; } = new()
-    {
-        new CustomPlayerOptions(),
-        new CustomPlayerOptions(),
-        new CustomPlayerOptions(),
-    };
+    [XmlIgnore]
+    public CaptionItem CustomPlayersCaption { get; set; } = CustomPlayerGridFactory.CreateCaption();
+
+    [XmlIgnore]
+    public LabelItem CustomPlayersHelp { get; set; } = CustomPlayerGridFactory.CreateDescription();
+
+    [GridDataSource(nameof(CustomPlayers))]
+    [XmlIgnore]
+    public DxDataGrid CustomPlayersEditor { get; set; } = CustomPlayerGridFactory.CreateGrid();
+
+    [Browsable(false)]
+    public CustomPlayerOptionsCollection CustomPlayers { get; set; } = new();
 
     [DisplayNameL(nameof(PluginStrings.DebugLogging), typeof(PluginStrings))]
     [DescriptionL(nameof(PluginStrings.DebugLoggingDescription), typeof(PluginStrings))]
@@ -221,6 +229,23 @@ public sealed class PluginOptions : EditableOptionsBase
             PlayerId.NPlayer => EnableNPlayer,
             _ => false,
         };
+    }
+
+    public void PrepareForEditor()
+    {
+        NormalizeCustomPlayers();
+        CustomPlayersCaption = CustomPlayerGridFactory.CreateCaption();
+        CustomPlayersHelp = CustomPlayerGridFactory.CreateDescription();
+        CustomPlayersEditor = CustomPlayerGridFactory.CreateGrid();
+    }
+
+    public void NormalizeCustomPlayers()
+    {
+        CustomPlayers ??= new CustomPlayerOptionsCollection();
+        CustomPlayers.RemoveAll(custom => custom is null ||
+            (!custom.Enabled &&
+             string.IsNullOrWhiteSpace(custom.ApplicationName) &&
+             string.IsNullOrWhiteSpace(custom.UrlTemplate)));
     }
 
     public PlayerId? GetDefaultPlayer(ClientPlatform platform)

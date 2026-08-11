@@ -76,8 +76,11 @@ class FakeElement {
     }
 
     querySelector(selector) {
-        if (selector === "button.btnPlay, button.btnResume, .btnPlay, .btnResume") {
-            return this.walk().find((item) => item.className.includes("btnPlay") || item.className.includes("btnResume")) || null;
+        if (selector.includes("btnResume")) {
+            return this.walk().find((item) => item.className.split(/\s+/).includes("btnResume")) || null;
+        }
+        if (selector.includes("btnPlay")) {
+            return this.walk().find((item) => item.className.split(/\s+/).includes("btnPlay")) || null;
         }
         if (selector === "button") {
             return this.walk().find((item) => item.tagName === "BUTTON") || null;
@@ -101,6 +104,12 @@ class FakeElement {
 
     get options() {
         return this.children.filter((child) => child.tagName === "OPTION");
+    }
+
+    get nextSibling() {
+        if (!this.parentNode) return null;
+        const index = this.parentNode.children.indexOf(this);
+        return this.parentNode.children[index + 1] || null;
     }
 
     get value() {
@@ -158,6 +167,16 @@ class FakeDocument {
             return this.body.walk().find((item) => item.className.split(/\s+/).includes("emby-external-player-overlay")) || null;
         }
         return null;
+    }
+
+    querySelectorAll(selector) {
+        if (selector.includes('data-data1="PageSave"') || selector.includes(".btnSave.pagebutton")) {
+            return this.body.walk().filter((item) =>
+                item.attributes.get("data-data1") === "PageSave" ||
+                (item.className.split(/\s+/).includes("btnSave") &&
+                 item.className.split(/\s+/).includes("pagebutton")));
+        }
+        return [];
     }
 
     addEventListener(name, handler) {
@@ -221,6 +240,10 @@ const source = fs.readFileSync(
     new URL("../../src/Emby.ExternalPlayer/Resources/external-player.js", import.meta.url),
     "utf8");
 const document = new FakeDocument();
+const resumeButton = document.createElement("button");
+resumeButton.className = "raised emby-button detailButton detailButton-primary detailButton-stacked btnResume";
+resumeButton.textContent = "继续播放";
+document.actionRow.appendChild(resumeButton);
 const eventSubscriptions = new Set();
 let ajaxResponse = { LaunchUrl: "iina://weblink?url=https%3A%2F%2Fexample.test" };
 let manifestQuery;
@@ -276,7 +299,7 @@ await new Promise((resolve) => setTimeout(resolve, 0));
 assert.equal(document.body.walk().filter((item) => item.id === "embyExternalPlayerButton").length, 1);
 assert.equal(eventSubscriptions.size, 1);
 assert.equal(manifestQuery.language, "zh-CN");
-assert.equal(document.getElementById("embyExternalPlayerStyles").attributes.get("data-resource-version"), "1.2.2");
+assert.equal(document.getElementById("embyExternalPlayerStyles").attributes.get("data-resource-version"), "1.3.0");
 
 evaluateAndStart();
 await new Promise((resolve) => setTimeout(resolve, 0));
@@ -284,7 +307,14 @@ assert.equal(document.body.walk().filter((item) => item.id === "embyExternalPlay
 assert.equal(eventSubscriptions.size, 1, "reloading must unsubscribe the prior connection event");
 
 const button = document.getElementById("embyExternalPlayerButton");
-assert.ok(button.className.includes("detailButton-autotext"));
+assert.ok(button.className.includes("raised"), "the detail action must use Emby's themed raised-button style");
+assert.ok(button.className.includes("detailButton-primary"), "the detail action must inherit the adjacent primary action theme");
+assert.ok(button.className.includes("detailButton-stacked"), "the detail action must inherit the adjacent responsive layout class");
+assert.ok(!button.className.includes("detailButton-autotext"));
+assert.equal(
+    document.actionRow.children.indexOf(button),
+    document.actionRow.children.indexOf(resumeButton) + 1,
+    "the external-play action must be placed immediately after Resume when Resume is present");
 assert.ok(button.walk().some((item) => item.tagName === "SVG"), "the detail action must use an inline SVG icon");
 assert.ok(button.walk().some((item) => item.textContent === "外部播放"), "the detail action must retain its visible label");
 assert.ok(!button.walk().some((item) => item.textContent === "open_in_new"), "icon ligature text must never be visible");
@@ -328,6 +358,17 @@ const invalidLaunchButton = invalidOverlay.walk().find((item) => item.tagName ==
 invalidLaunchButton.dispatch("click");
 await new Promise((resolve) => setTimeout(resolve, 0));
 assert.equal(window.location.href, "", "an invalid Resolve response must never navigate to /undefined");
+
+const saveButton = document.createElement("button");
+saveButton.className = "raised emby-button btnSave pagebutton";
+saveButton.setAttribute("data-data1", "PageSave");
+saveButton.textContent = "save";
+document.body.appendChild(saveButton);
+window.location.hash = "#!/genericui?PageId=f7e75c%3ASettings";
+evaluateAndStart();
+await new Promise((resolve) => setTimeout(resolve, 0));
+assert.equal(saveButton.textContent, "保存", "the plugin configuration Save command must follow the Emby client language");
+assert.equal(saveButton.attributes.get("aria-label"), "保存");
 assert.match(
     invalidOverlay.walk().find((item) => item.className === "emby-external-player-error").textContent,
     /无法生成播放地址/);

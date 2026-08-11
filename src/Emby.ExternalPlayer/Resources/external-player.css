@@ -1,5 +1,15 @@
 .emby-external-player-button {
+    align-items: center;
+    border-radius: .4rem;
+    display: inline-flex;
+    flex: 0 0 auto;
+    flex-direction: row;
+    gap: .55rem;
+    justify-content: center;
+    min-height: 3rem;
+    padding: .65rem 1rem;
     white-space: nowrap;
+    width: auto;
 }
 
 .emby-external-player-button-icon {
@@ -10,8 +20,9 @@
     width: 1em;
 }
 
-.emby-external-player-button .detailButton-autotext-text {
-    display: inline-block !important;
+.emby-external-player-button-text {
+    display: inline-block;
+    line-height: 1.2;
 }
 
 .emby-external-player-overlay {
@@ -33,7 +44,7 @@
     flex-direction: column;
     max-height: min(46rem, calc(100vh - 3rem));
     max-height: min(46rem, calc(100dvh - 3rem));
-    max-width: 44rem;
+    max-width: 36rem;
     overflow: hidden;
     padding: 0;
     width: 100%;
@@ -280,21 +291,20 @@
 
 .emby-external-player-actions {
     border-top: var(--line-size, 1px) solid var(--line-background, rgba(255, 255, 255, .18));
-    display: flex;
+    display: grid;
     flex: 0 0 auto;
-    flex-direction: row;
     gap: .75rem;
-    justify-content: flex-end;
-    padding: .9rem 1.25rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: .8rem 1rem;
     position: static;
 }
 
 .emby-external-player-actions .formDialogFooterItem {
-    flex: 0 1 auto;
-    margin: 0;
-    min-width: 7rem;
+    margin: 0 !important;
+    max-width: none !important;
+    min-width: 0;
     padding: .7rem 1.1rem;
-    width: auto;
+    width: 100% !important;
 }
 
 .emby-external-player-launch[aria-busy="true"] {
@@ -332,19 +342,10 @@
         overflow: visible;
         padding-right: .15rem;
     }
-
-    .emby-external-player-actions .formDialogFooterItem {
-        flex: 1 1 0;
-        min-width: 0;
-    }
 }
 
 @media (max-width: 24rem) {
     .emby-external-player-actions {
-        flex-direction: column;
-    }
-
-    .emby-external-player-actions .formDialogFooterItem {
-        width: 100%;
+        grid-template-columns: minmax(0, 1fr);
     }
 }
