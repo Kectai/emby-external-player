@@ -1,4 +1,5 @@
 using System;
+using Emby.ExternalPlayer.Localization;
 using Emby.ExternalPlayer.Services;
 using MediaBrowser.Common;
 using MediaBrowser.Controller.Plugins;
@@ -27,8 +28,7 @@ public sealed class Plugin : BasePluginSimpleUI<PluginOptions>
 
     public override string Name => "External Player";
 
-    public override string Description =>
-        "Adds a secure external-player chooser to Emby Web media detail pages.";
+    public override string Description => PluginStrings.EditorDescription;
 
     public override Guid Id => PluginId;
 

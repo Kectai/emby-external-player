@@ -5,21 +5,21 @@
 | 播放器 | 默认平台 | 生成形式 | 续播 | 外挂字幕 |
 |---|---|---|---:|---:|
 | PotPlayer | Windows | `potplayer://<URL> /current /seek=... /sub=...` | 是 | 是 |
-| IINA | macOS | `iina://weblink?url=...&mpv_start=...` | 是 | 否 |
-| VLC | 桌面/移动 | 桌面 `vlc://...`；iOS x-callback | 否 | iOS |
+| IINA | macOS | `iina://weblink?url=...&mpv_force-media-title=...&mpv_start=...` | 是 | 否 |
+| VLC media player | 桌面/移动 | 桌面 `vlc://...`；iOS x-callback | 否 | iOS |
 | Infuse | macOS/iOS/iPadOS | `infuse://x-callback-url/play?...` | 否 | 是 |
-| MPV | 桌面 | `mpv://play/...` | 否 | 否 |
+| mpv | 桌面 | `mpv://play/...` | 否 | 否 |
 | nPlayer | iOS/Android | `nplayer-http(s)://...` | 否 | 否 |
 
-MPV 与 nPlayer 默认关闭，因为不同第三方 handler 的实现差异较大。
+mpv 与 nPlayer 默认关闭，因为不同第三方 handler 的实现差异较大。
 
 ## IINA
 
-建议 IINA 1.4.3 或更高版本。本机只读检查确认 IINA 1.4.4 注册了 `iina` scheme；为了不写入现有应用的播放历史，自动化测试没有实际启动播放器。IINA 当前源码定义了 `open`/`weblink`、`url`、`new_window` 和 `mpv_*` 参数白名单，插件只使用其中的 `mpv_start`，不把字幕路径作为 mpv 参数注入。
+建议 IINA 1.4.3 或更高版本。本机只读检查确认 IINA 1.4.4 注册了 `iina` scheme；为了不写入现有应用的播放历史，自动化测试没有实际启动播放器。IINA 当前源码定义了 `open`/`weblink`、`url`、`new_window` 和 `mpv_*` 参数，插件使用 `mpv_force-media-title` 显示 Emby 媒体标题，并在需要时传递 `mpv_start`；不会把字幕路径作为 mpv 参数注入。
 
 来源：[IINA AppDelegate.swift](https://github.com/iina/iina/blob/develop/iina/AppDelegate.swift)。
 
-## VLC
+## VLC media player
 
 iOS 使用 `vlc-x-callback://x-callback-url/stream?url=...&sub=...`；这与 VLC iOS 官方源码的 URL handler 一致。桌面和 Android 的 `vlc://` 行为会受浏览器、安装包和系统关联影响，发布前应在目标设备点击验证。
 
@@ -36,6 +36,18 @@ iOS 使用 `vlc-x-callback://x-callback-url/stream?url=...&sub=...`；这与 VLC
 PotPlayer 没有稳定的公开英文 URL handler 规范。插件采用现有安装包 `CmdLine64.txt` 所描述、并已被社区 Emby 启动器采用的命令形式：媒体 URL 后追加 `/current`、`/seek=<秒>` 与 `/sub=<URL>`。传入的 HTTP(S) URL 会先被标准化，使 URL 自身的空格变成 `%20`，再以单个空格分隔命令参数。
 
 参考：[PotPlayer 更新记录（确认 `/seek`、`/sub` 可从视频快捷方式读取）](https://potplayer.org/en/update/history.html)、[社区 Emby PotPlayer 启动器实现](https://github.com/bpking1/embyExternalUrl/blob/main/embyWebAddExternalUrl/embyLaunchPotplayer.js)。由于缺少稳定的官方 URL scheme 契约，仍应在目标 Windows 版本验证纯 URL、中文路径、HTTPS、外挂字幕和续播。
+
+## 自定义播放器
+
+配置页提供三个轻量自定义入口。每个入口可设置启用状态、平台、官方应用名称和 URL Scheme 模板。应用名称完全按输入显示，不做首字母大写或其他品牌名转换。
+
+模板必须以非 Web 的自定义协议开头并包含 `{url}`，还可使用 `{title}`、`{subtitle}`、`{start}`。除秒数形式的 `{start}` 外，占位符都会进行百分号编码。例如：
+
+```text
+myplayer://open?url={url}&title={title}&sub={subtitle}&start={start}
+```
+
+插件不会扫描客户端已安装应用；只有管理员启用的内置或自定义入口会显示。浏览器仍会按照操作系统已注册的协议处理器打开应用。
 
 ## 证书与网络
 

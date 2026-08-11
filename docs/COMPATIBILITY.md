@@ -21,9 +21,11 @@
 
 插件 1.0.1 的 Web `Resolve` 调用未显式设置 `dataType: "json"`；Emby Web 4.9.1.80 因而完成 POST 却把未解析的结果交给回调，最终导航到 `/web/undefined`。1.0.2 显式请求 JSON、兼容 PascalCase/camelCase，并对无效 `LaunchUrl` 安全失败。Web 回归测试覆盖成功跳转和缺失地址不得跳转两条路径。
 
+插件 1.1.0 增加简体中文、繁体中文、英文语言目录、配置页本地化、自定义播放器模板及按播放器声明的协议白名单。隔离集成测试同时验证中文 Manifest、中文 Generic UI、官方应用名称、IINA 标题参数以及自定义播放器集合可被 Emby Generic UI 正常构建。
+
 Web 模块测试使用无依赖的假 DOM 覆盖：重复加载只保留一个按钮、事件退订、PascalCase/camelCase API 兼容、Escape 关闭、焦点恢复与 focus trap。实际 Chrome、Firefox、Safari 的人工视觉回归尚需在部署环境完成，因此不能把 DOM 自动化等同于三款浏览器实测。
 
-播放器 URL 适配器均有编码与能力测试。本机检测到 IINA 1.4.4 注册了 `iina` 协议，但遵循环境隔离要求未实际拉起；PotPlayer、VLC、Infuse 未安装，需按 [客户端说明](CLIENT_HANDLERS.md) 完成人工矩阵。
+播放器 URL 适配器均有编码与能力测试。本机检测到 IINA 1.4.4 注册了 `iina` 协议，但遵循环境隔离要求未实际拉起；PotPlayer、VLC media player、Infuse 未安装，需按 [客户端说明](CLIENT_HANDLERS.md) 完成人工矩阵。
 
 ## 支持与限制
 

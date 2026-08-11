@@ -45,6 +45,32 @@ define(["events", "connectionManager"], function (events, connectionManager) {
         return object[camelName];
     }
 
+    function detectLanguage() {
+        var htmlLanguage = document.documentElement && document.documentElement.lang;
+        return htmlLanguage || (navigator.languages && navigator.languages[0]) || navigator.language || "en-US";
+    }
+
+    function text(manifest, key, fallback) {
+        var texts = read(manifest, "Texts") || {};
+        var value = read(texts, key);
+        return typeof value === "string" && value ? value : fallback;
+    }
+
+    function format(value, argument) {
+        return String(value).replace("{0}", String(argument));
+    }
+
+    function isAllowedLaunchUrl(url, player) {
+        if (typeof url !== "string") {
+            return false;
+        }
+        var match = url.match(/^([A-Za-z][A-Za-z0-9+.-]{1,31}):/);
+        var schemes = read(player, "LaunchSchemes") || [];
+        return !!match && schemes.some(function (scheme) {
+            return String(scheme).toLowerCase() === match[1].toLowerCase();
+        });
+    }
+
     function getApiClient() {
         if (connectionManager && connectionManager.currentApiClient) {
             return connectionManager.currentApiClient();
@@ -105,7 +131,7 @@ define(["events", "connectionManager"], function (events, connectionManager) {
         button.id = buttonId;
         button.type = "button";
         button.className = "emby-button detailButton emby-external-player-button";
-        button.setAttribute("aria-label", read(manifest, "ButtonText") || "外部播放");
+        button.setAttribute("aria-label", read(manifest, "ButtonText") || text(manifest, "ExternalPlay", "External play"));
 
         var icon = document.createElement("span");
         icon.className = "material-icons detailButton-icon";
@@ -114,7 +140,7 @@ define(["events", "connectionManager"], function (events, connectionManager) {
 
         var label = document.createElement("div");
         label.className = "detailButton-text";
-        label.textContent = read(manifest, "ButtonText") || "外部播放";
+        label.textContent = read(manifest, "ButtonText") || text(manifest, "ExternalPlay", "External play");
 
         button.appendChild(icon);
         button.appendChild(label);
@@ -176,7 +202,11 @@ define(["events", "connectionManager"], function (events, connectionManager) {
             return;
         }
 
-        apiGet("ExternalPlayer/Manifest", { itemId: itemId, platform: detectPlatform() })
+        apiGet("ExternalPlayer/Manifest", {
+            itemId: itemId,
+            platform: detectPlatform(),
+            language: detectLanguage()
+        })
             .then(function (manifest) {
                 if (generation !== state.generation || itemId !== getItemId()) {
                     return;
@@ -264,7 +294,7 @@ define(["events", "connectionManager"], function (events, connectionManager) {
 
         var title = document.createElement("h2");
         title.id = "embyExternalPlayerDialogTitle";
-        title.textContent = read(manifest, "ItemName") || "外部播放";
+        title.textContent = read(manifest, "ItemName") || text(manifest, "ExternalPlay", "External play");
         dialog.setAttribute("aria-labelledby", title.id);
         dialog.appendChild(title);
 
@@ -274,7 +304,7 @@ define(["events", "connectionManager"], function (events, connectionManager) {
             appendOption(
                 sourceSelect,
                 read(source, "Id"),
-                read(source, "Name") || ("版本 " + (index + 1)),
+                read(source, "Name") || format(text(manifest, "VersionNumber", "Version {0}"), index + 1),
                 read(source, "IsDefault"));
         });
         var pageSourceSelect = document.querySelector(selectorProfile.mediaSource);
@@ -283,12 +313,12 @@ define(["events", "connectionManager"], function (events, connectionManager) {
         })) {
             sourceSelect.value = pageSourceSelect.value;
         }
-        dialog.appendChild(makeField("媒体版本", sourceSelect));
+        dialog.appendChild(makeField(text(manifest, "MediaVersion", "Media version"), sourceSelect));
 
         var subtitleSelect = document.createElement("select");
         function refreshSubtitles() {
             subtitleSelect.textContent = "";
-            appendOption(subtitleSelect, "", "不加载外挂字幕", true);
+            appendOption(subtitleSelect, "", text(manifest, "NoExternalSubtitle", "Do not load an external subtitle"), true);
             var selectedSource = mediaSources.find(function (source) {
                 return read(source, "Id") === sourceSelect.value;
             });
@@ -297,7 +327,8 @@ define(["events", "connectionManager"], function (events, connectionManager) {
                 appendOption(
                     subtitleSelect,
                     String(index),
-                    read(subtitle, "DisplayTitle") || read(subtitle, "Language") || ("字幕 " + index),
+                    read(subtitle, "DisplayTitle") || read(subtitle, "Language") ||
+                        format(text(manifest, "SubtitleNumber", "Subtitle {0}"), index),
                     read(subtitle, "IsDefault"));
             });
             var pageSubtitleSelect = document.querySelector(selectorProfile.subtitle);
@@ -309,13 +340,13 @@ define(["events", "connectionManager"], function (events, connectionManager) {
         }
         sourceSelect.addEventListener("change", refreshSubtitles);
         refreshSubtitles();
-        dialog.appendChild(makeField("字幕", subtitleSelect));
+        dialog.appendChild(makeField(text(manifest, "Subtitle", "Subtitle"), subtitleSelect));
 
         var resume = document.createElement("input");
         resume.type = "checkbox";
         resume.checked = !!read(manifest, "ResumeByDefault") && read(manifest, "ResumePositionTicks") > 0;
         resume.disabled = !(read(manifest, "ResumePositionTicks") > 0);
-        var resumeField = makeField("从上次位置继续", resume);
+        var resumeField = makeField(text(manifest, "ResumeFromLastPosition", "Resume from the last position"), resume);
         resumeField.insertBefore(resume, resumeField.firstChild);
         dialog.appendChild(resumeField);
 
@@ -327,7 +358,7 @@ define(["events", "connectionManager"], function (events, connectionManager) {
         var manual = document.createElement("a");
         manual.className = "emby-external-player-manual-link";
         manual.hidden = true;
-        manual.textContent = "若播放器未自动打开，请点此重试";
+        manual.textContent = text(manifest, "RetryLaunch", "If the player did not open, select here to retry");
         dialog.appendChild(manual);
 
         var actions = document.createElement("div");
@@ -346,13 +377,13 @@ define(["events", "connectionManager"], function (events, connectionManager) {
                     subtitleStreamIndex: subtitleSelect.value === "" ? null : Number(subtitleSelect.value),
                     resume: resume.checked,
                     playerId: read(player, "Id"),
-                    platform: detectPlatform()
+                    platform: detectPlatform(),
+                    language: detectLanguage()
                 }).then(function (resolution) {
                     launch.disabled = false;
                     var launchUrl = read(resolution, "LaunchUrl");
-                    if (typeof launchUrl !== "string" ||
-                        !/^(potplayer|iina|vlc|vlc-x-callback|infuse|mpv|nplayer-http|nplayer-https):\/\//i.test(launchUrl)) {
-                        throw new Error("Resolve response did not contain a valid launch URL.");
+                    if (!isAllowedLaunchUrl(launchUrl, player)) {
+                        throw new Error(text(manifest, "InvalidLaunchUrl", "The server did not return a safe application URL."));
                     }
                     var warnings = read(resolution, "Warnings") || [];
                     error.textContent = warnings.join(" ");
@@ -361,7 +392,10 @@ define(["events", "connectionManager"], function (events, connectionManager) {
                     window.location.href = launchUrl;
                 }).catch(function () {
                     launch.disabled = false;
-                    error.textContent = "无法生成播放地址，请检查权限、媒体版本或服务器连接。";
+                    error.textContent = text(
+                        manifest,
+                        "ResolveError",
+                        "Unable to create the playback address. Check permissions, the media version, and the server connection.");
                 });
             });
             actions.appendChild(launch);
@@ -370,7 +404,7 @@ define(["events", "connectionManager"], function (events, connectionManager) {
         var cancel = document.createElement("button");
         cancel.type = "button";
         cancel.className = "emby-button";
-        cancel.textContent = "取消";
+        cancel.textContent = text(manifest, "Cancel", "Cancel");
         cancel.addEventListener("click", function () { closeDialog(overlay); });
         actions.appendChild(cancel);
         dialog.appendChild(actions);

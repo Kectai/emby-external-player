@@ -23,6 +23,9 @@ public sealed class ExternalPlayerManifest
 
     public IReadOnlyCollection<PlayerApiDescriptor> Players { get; set; } =
         new List<PlayerApiDescriptor>();
+
+    public Dictionary<string, string> Texts { get; set; } =
+        new Dictionary<string, string>();
 }
 
 public sealed class MediaVersionDescriptor
@@ -61,6 +64,10 @@ public sealed class PlayerApiDescriptor
     public bool SupportsStartPosition { get; set; }
 
     public bool SupportsExternalSubtitle { get; set; }
+
+    public bool SupportsDisplayTitle { get; set; }
+
+    public IReadOnlyCollection<string> LaunchSchemes { get; set; } = new List<string>();
 }
 
 public sealed class LaunchResolution

@@ -188,7 +188,23 @@ const manifest = {
         IsDefault: true,
         Subtitles: [{ Index: 3, DisplayTitle: "简体中文 ASS", IsDefault: true }]
     }],
-    Players: [{ Id: "Iina", DisplayName: "IINA" }]
+    Players: [
+        { Id: "Iina", DisplayName: "IINA", LaunchSchemes: ["iina"] },
+        { Id: "custom-1", DisplayName: "myPLAYER pro", LaunchSchemes: ["myplayer"] }
+    ],
+    Texts: {
+        ExternalPlay: "外部播放",
+        MediaVersion: "媒体版本",
+        VersionNumber: "版本 {0}",
+        Subtitle: "字幕",
+        NoExternalSubtitle: "不加载外挂字幕",
+        SubtitleNumber: "字幕 {0}",
+        ResumeFromLastPosition: "从上次位置继续",
+        RetryLaunch: "若播放器未自动打开，请点此重试",
+        Cancel: "取消",
+        ResolveError: "无法生成播放地址，请检查权限、媒体版本或服务器连接。",
+        InvalidLaunchUrl: "服务器未返回安全的应用启动地址。"
+    }
 };
 
 const source = fs.readFileSync(
@@ -197,15 +213,20 @@ const source = fs.readFileSync(
 const document = new FakeDocument();
 const eventSubscriptions = new Set();
 let ajaxResponse = { LaunchUrl: "iina://weblink?url=https%3A%2F%2Fexample.test" };
+let manifestQuery;
 const events = {
     on(_source, name, handler) { eventSubscriptions.add(`${name}:${String(handler)}`); },
     off(_source, name, handler) { eventSubscriptions.delete(`${name}:${String(handler)}`); }
 };
 const apiClient = {
-    getUrl(path) { return `http://127.0.0.1:18095/${path}`; },
+    getUrl(path, query) {
+        if (path === "ExternalPlayer/Manifest") manifestQuery = query;
+        return `http://127.0.0.1:18095/${path}`;
+    },
     getJSON() { return Promise.resolve(manifest); },
     ajax(options) {
         assert.equal(options.dataType, "json", "Emby ajax must parse the Resolve response as JSON");
+        assert.equal(JSON.parse(options.data).language, "zh-CN");
         return Promise.resolve(ajaxResponse);
     }
 };
@@ -225,7 +246,7 @@ let initializer;
 const sandbox = {
     window,
     document,
-    navigator: { platform: "MacIntel", userAgent: "test" },
+    navigator: { platform: "MacIntel", userAgent: "test", language: "zh-CN" },
     MutationObserver: class { observe() {} disconnect() {} },
     define(_dependencies, factory) { initializer = factory(events, connectionManager); },
     setTimeout,
@@ -242,6 +263,7 @@ evaluateAndStart();
 await new Promise((resolve) => setTimeout(resolve, 0));
 assert.equal(document.body.walk().filter((item) => item.id === "embyExternalPlayerButton").length, 1);
 assert.equal(eventSubscriptions.size, 1);
+assert.equal(manifestQuery.language, "zh-CN");
 
 evaluateAndStart();
 await new Promise((resolve) => setTimeout(resolve, 0));
@@ -254,11 +276,22 @@ const launchOverlay = document.querySelector(".emby-external-player-overlay");
 assert.ok(launchOverlay);
 const launchButton = launchOverlay.walk().find((item) => item.tagName === "BUTTON" && item.textContent === "IINA");
 assert.ok(launchButton);
+assert.ok(launchOverlay.walk().some((item) => item.tagName === "BUTTON" && item.textContent === "myPLAYER pro"));
 launchButton.dispatch("click");
 await new Promise((resolve) => setTimeout(resolve, 0));
 assert.equal(window.location.href, "iina://weblink?url=https%3A%2F%2Fexample.test");
 document.dispatch("keydown", { key: "Escape", preventDefault() {} });
 assert.equal(document.querySelector(".emby-external-player-overlay"), null);
+
+window.location.href = "";
+ajaxResponse = { LaunchUrl: "javascript:alert(1)" };
+button.dispatch("click");
+const unsafeOverlay = document.querySelector(".emby-external-player-overlay");
+const unsafeLaunchButton = unsafeOverlay.walk().find((item) => item.tagName === "BUTTON" && item.textContent === "IINA");
+unsafeLaunchButton.dispatch("click");
+await new Promise((resolve) => setTimeout(resolve, 0));
+assert.equal(window.location.href, "", "a scheme not declared by the selected player must be rejected");
+document.dispatch("keydown", { key: "Escape", preventDefault() {} });
 
 window.location.href = "";
 ajaxResponse = {};

@@ -39,7 +39,7 @@ Emby 官方插件 API 可以提供服务器启动入口、自定义 API、配置
 1. 不回传开始、暂停、拖动、停止或播放进度。
 2. 不保证原生 Android TV、Apple TV、Roku 等客户端出现相同按钮。
 3. 不修改或重新打包任何 Emby 客户端。
-4. 不负责安装 PotPlayer、VLC、MPV handler 等客户端程序或协议处理器。
+4. 不负责安装 PotPlayer、VLC media player、mpv handler 等客户端程序或协议处理器。
 5. MVP 不支持 Live TV、录制中节目、ISO、蓝光菜单和需要 Emby 转码的场景。
 6. MVP 不实现远程脚本市场、任意 JavaScript 执行或在线脚本更新。
 7. 不绕过 Emby 的用户权限、媒体访问控制、授权机制或付费功能。
@@ -205,7 +205,8 @@ docs/
 |---|---:|---:|---|
 | `Enabled` | bool | true | 插件总开关 |
 | `EnableWebButton` | bool | true | 是否启用详情页按钮 |
-| `ButtonText` | string | 外部播放 | 按钮显示文本 |
+| `UseLocalizedButtonText` | bool | true | 按当前 Emby Web 语言显示按钮文字 |
+| `ButtonText` | string | 外部播放 | 关闭本地化按钮时使用的自定义文本 |
 | `ButtonPlacement` | enum | AfterPrimaryPlay | 播放按钮后或动作区末尾 |
 | `ShowOnlyPlatformPlayers` | bool | true | 默认隐藏明显不属于当前平台的播放器 |
 | `ResumeByDefault` | bool | true | 默认使用 Emby 续播位置 |
@@ -213,14 +214,15 @@ docs/
 | `TicketLifetimeMinutes` | int | 480 | 票据绝对有效期，限制在 30 至 720 分钟 |
 | `EnablePotPlayer` | bool | true | Windows PotPlayer |
 | `EnableIina` | bool | true | macOS IINA |
-| `EnableVlc` | bool | true | VLC |
+| `EnableVlc` | bool | true | VLC media player |
 | `EnableInfuse` | bool | true | Apple 平台 Infuse |
 | `EnableMpv` | bool | false | 需要相应 URL handler 时再开启 |
 | `EnableNPlayer` | bool | false | nPlayer |
 | `DefaultPlayerWindows` | enum | PotPlayer | Windows 默认播放器 |
 | `DefaultPlayerMacOS` | enum | IINA | macOS 默认播放器 |
 | `DefaultPlayerIOS` | enum | Infuse | iOS 默认播放器 |
-| `DefaultPlayerAndroid` | enum | VLC | Android 默认播放器 |
+| `DefaultPlayerAndroid` | enum | VLC media player | Android 默认播放器 |
+| `CustomPlayers` | collection | 3 个空槽位 | 自定义应用名、平台与受限 URL Scheme 模板 |
 | `DebugLogging` | bool | false | 不记录令牌和完整播放 URL |
 
 配置校验规则：
@@ -228,7 +230,10 @@ docs/
 - 票据有效期必须在允许范围内。
 - 默认播放器必须已启用，否则保存时自动回退或报校验错误。
 - `LegacyTokenUrl` 模式必须显示明确的令牌泄露风险提示。
-- 禁止管理员填写任意协议模板或 JavaScript；播放器适配器由代码内置。
+- 自定义模板必须以安全的非 Web Scheme 开头、包含 `{url}`，且只能使用 `{url}`、`{title}`、`{subtitle}`、`{start}`。
+- 应用名称原样保存和显示，不做大小写或首字母转换。
+
+Simple UI 使用 Emby 的本地化 `DisplayNameL`/`DescriptionL` 属性；媒体页由 Manifest 根据客户端提交的 Emby Web 语言返回固定键值的文案目录。当前提供简体中文、繁体中文和英文，其他语言回退英文。
 
 ## 7. Web 加载与注入设计
 
@@ -553,7 +558,7 @@ LastAccessAtUtc
 
 ## 11. 播放器适配器
 
-每个播放器由固定的 C# 适配器实现，不使用管理员自定义字符串模板。
+内置播放器由固定的 C# 适配器实现；自定义播放器使用受限的数据模板，不允许注入 JavaScript、Web URL 或未声明占位符。两者共享同一个启动上下文和 Manifest 描述模型。
 
 统一接口建议：
 
@@ -582,9 +587,9 @@ MVP 建议顺序：
 |---|---|---:|---|
 | PotPlayer | Windows | 是 | 协议参数和 Chrome 新版本行为需重点测试 |
 | IINA | macOS | 是 | 使用 `iina://` URL scheme |
-| VLC | Windows/macOS/iOS/Android | 是 | 不同平台协议格式不同 |
+| VLC media player | Windows/macOS/iOS/Android | 是 | 不同平台协议格式不同 |
 | Infuse | iOS/iPadOS/macOS | 是 | 使用 x-callback-url，字幕能力按版本测试 |
-| MPV | Windows/macOS/Linux | Phase 2 | 桌面端通常需要额外 handler |
+| mpv | Windows/macOS/Linux | Phase 2 | 桌面端通常需要额外 handler |
 | nPlayer | Apple/移动端 | Phase 2 | 不同平台 scheme 不同 |
 
 所有 URL 参数必须按播放器协议分别编码，不能对整个 URL 重复执行统一编码。
@@ -601,6 +606,8 @@ SupportsHttps
 ```
 
 前端只能根据能力显示提示，最终 URL 由服务端适配器生成。
+
+每个 Manifest 播放器描述还包含允许的 Scheme 列表。Web 模块解析 Resolve 返回地址后必须确认协议属于当前所选播放器；这使自定义播放器可扩展，同时不需要放宽到 `javascript:`、`data:` 或任意未知协议。
 
 ## 12. 媒体与续播处理
 
@@ -847,7 +854,7 @@ SelectorProfile
 
 - 用户不安装浏览器扩展或用户脚本。
 - 电影、单集和普通视频详情页显示一个外部播放按钮。
-- 弹窗至少支持 PotPlayer、IINA、VLC、Infuse。
+- 弹窗至少支持 PotPlayer、IINA、VLC media player、Infuse。
 - 支持媒体版本、外挂字幕和 Emby 续播位置。
 - 能通过至少一个 Windows 播放器和一个 macOS/iOS 播放器打开媒体。
 - 插件不写数据库、不运行进度回传任务。
@@ -879,7 +886,7 @@ SelectorProfile
 - Simple UI 配置。
 - Manifest/Resolve API。
 - 单按钮、选择弹窗和页面生命周期处理。
-- PotPlayer、IINA、VLC、Infuse 适配器。
+- PotPlayer、IINA、VLC media player、Infuse 适配器。
 - 多媒体版本、字幕、续播。
 - 受限的 `LegacyTokenUrl` 仅用于测试兼容性。
 
@@ -889,7 +896,7 @@ SelectorProfile
 - Stream/Subtitle relay。
 - HEAD、Range、取消和响应头处理。
 - 完整日志脱敏与安全测试。
-- MPV、nPlayer 可选支持。
+- mpv、nPlayer 可选支持。
 
 ### Phase 3：兼容扩展，约 2 至 5 天
 

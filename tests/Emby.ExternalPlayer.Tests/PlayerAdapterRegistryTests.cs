@@ -43,6 +43,7 @@ public sealed class PlayerAdapterRegistryTests
 
         Assert.AreEqual(
             "iina://weblink?url=https%3A%2F%2Femby.example%2FExternalPlayer%2FStream%2Fa_b-c" +
+            "&mpv_force-media-title=Movie%20%26%20One" +
             "&new_window=1&mpv_start=90",
             url);
     }
@@ -98,8 +99,58 @@ public sealed class PlayerAdapterRegistryTests
         var players = CreateRegistry().GetAvailable(options, ClientPlatform.Windows, true);
 
         CollectionAssert.AreEquivalent(
-            new[] { PlayerId.PotPlayer, PlayerId.Vlc },
+            new[] { "PotPlayer", "Vlc" },
             players.Select(player => player.Id).ToArray());
+    }
+
+    [TestMethod]
+    public void Availability_UsesOfficialApplicationNamesWithoutChangingCase()
+    {
+        var players = CreateRegistry().GetAvailable(new PluginOptions
+        {
+            EnablePotPlayer = true,
+            EnableIina = true,
+            EnableVlc = true,
+            EnableInfuse = true,
+            EnableMpv = true,
+            EnableNPlayer = true,
+            ShowOnlyPlatformPlayers = false,
+        }, ClientPlatform.Unknown, false);
+
+        CollectionAssert.AreEquivalent(
+            new[] { "PotPlayer", "IINA", "VLC media player", "Infuse", "mpv", "nPlayer" },
+            players.Where(player => player.BuiltInId.HasValue).Select(player => player.DisplayName).ToArray());
+    }
+
+    [TestMethod]
+    public void CustomPlayer_PreservesNameAndExpandsGenericContext()
+    {
+        var options = new PluginOptions
+        {
+            CustomPlayers = new CustomPlayerOptionsCollection
+            {
+                new()
+                {
+                    Enabled = true,
+                    ApplicationName = "myPLAYER pro",
+                    Platform = CustomPlayerPlatform.MacOS,
+                    UrlTemplate = "myplayer://open?url={url}&title={title}&sub={subtitle}&start={start}",
+                },
+            },
+        };
+
+        var descriptor = CreateRegistry().GetAvailable(options, ClientPlatform.MacOS, true)
+            .Single(player => player.Id == "custom-1");
+        var url = CreateRegistry().BuildLaunchUrl("custom-1", options, CreateContext());
+
+        Assert.AreEqual("myPLAYER pro", descriptor.DisplayName);
+        CollectionAssert.AreEqual(new[] { "myplayer" }, descriptor.LaunchSchemes.ToArray());
+        Assert.IsTrue(descriptor.Capabilities.HasFlag(PlayerCapabilities.DisplayTitle));
+        Assert.AreEqual(
+            "myplayer://open?url=https%3A%2F%2Femby.example%2FExternalPlayer%2FStream%2Fa_b-c" +
+            "&title=Movie%20%26%20One" +
+            "&sub=https%3A%2F%2Femby.example%2FExternalPlayer%2FSubtitle%2Fa_b-c%2F2.srt&start=90",
+            url);
     }
 
     [TestMethod]
@@ -129,6 +180,7 @@ public sealed class PlayerAdapterRegistryTests
         {
             StreamUrl = StreamUrl,
             SubtitleUrl = SubtitleUrl,
+            Title = "Movie & One",
             StartPositionTicks = TimeSpan.FromSeconds(90).Ticks,
         };
     }

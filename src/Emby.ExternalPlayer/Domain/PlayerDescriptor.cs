@@ -9,6 +9,7 @@ public enum PlayerCapabilities
     None = 0,
     StartPosition = 1,
     ExternalSubtitle = 2,
+    DisplayTitle = 4,
 }
 
 public sealed class PlayerDescriptor
@@ -17,19 +18,47 @@ public sealed class PlayerDescriptor
         PlayerId id,
         string displayName,
         IReadOnlyCollection<ClientPlatform> platforms,
-        PlayerCapabilities capabilities)
+        PlayerCapabilities capabilities,
+        IReadOnlyCollection<string> launchSchemes)
+        : this(id.ToString(), id, displayName, platforms, capabilities, launchSchemes)
+    {
+    }
+
+    public PlayerDescriptor(
+        string id,
+        string displayName,
+        IReadOnlyCollection<ClientPlatform> platforms,
+        PlayerCapabilities capabilities,
+        IReadOnlyCollection<string> launchSchemes)
+        : this(id, null, displayName, platforms, capabilities, launchSchemes)
+    {
+    }
+
+    private PlayerDescriptor(
+        string id,
+        PlayerId? builtInId,
+        string displayName,
+        IReadOnlyCollection<ClientPlatform> platforms,
+        PlayerCapabilities capabilities,
+        IReadOnlyCollection<string> launchSchemes)
     {
         Id = id;
+        BuiltInId = builtInId;
         DisplayName = displayName;
         Platforms = platforms;
         Capabilities = capabilities;
+        LaunchSchemes = launchSchemes;
     }
 
-    public PlayerId Id { get; }
+    public string Id { get; }
+
+    public PlayerId? BuiltInId { get; }
 
     public string DisplayName { get; }
 
     public IReadOnlyCollection<ClientPlatform> Platforms { get; }
 
     public PlayerCapabilities Capabilities { get; }
+
+    public IReadOnlyCollection<string> LaunchSchemes { get; }
 }

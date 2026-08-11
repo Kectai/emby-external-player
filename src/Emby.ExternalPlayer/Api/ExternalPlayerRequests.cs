@@ -10,6 +10,8 @@ public sealed class GetExternalPlayerManifest : IReturn<Domain.ExternalPlayerMan
     public string ItemId { get; set; } = string.Empty;
 
     public string Platform { get; set; } = string.Empty;
+
+    public string Language { get; set; } = string.Empty;
 }
 
 [Route("/ExternalPlayer/Resolve", "POST", Summary = "Creates a short-lived external-player launch URL")]
@@ -27,4 +29,6 @@ public sealed class ResolveExternalPlayer : IReturn<Domain.LaunchResolution>
     public string PlayerId { get; set; } = string.Empty;
 
     public string Platform { get; set; } = string.Empty;
+
+    public string Language { get; set; } = string.Empty;
 }

@@ -22,7 +22,7 @@ public sealed class PlayerAdapterRegistry
             new NPlayerAdapter(),
         };
 
-        adapters = builtIns.ToDictionary(adapter => adapter.Descriptor.Id);
+        adapters = builtIns.ToDictionary(adapter => adapter.Descriptor.BuiltInId!.Value);
     }
 
     public IReadOnlyCollection<PlayerDescriptor> GetAvailable(
@@ -30,24 +30,67 @@ public sealed class PlayerAdapterRegistry
         ClientPlatform platform,
         bool platformOnly)
     {
-        return adapters.Values
-            .Where(adapter => options.IsPlayerEnabled(adapter.Descriptor.Id))
+        var builtInPlayers = adapters.Values
+            .Where(adapter => options.IsPlayerEnabled(adapter.Descriptor.BuiltInId!.Value))
             .Where(adapter => !platformOnly ||
                               platform == ClientPlatform.Unknown ||
                               adapter.Descriptor.Platforms.Contains(platform))
-            .Select(adapter => adapter.Describe(platform))
-            .ToArray();
+            .Select(adapter => adapter.Describe(platform));
+
+        var customPlayers = ((IEnumerable<CustomPlayerOptions>)(options.CustomPlayers ?? new CustomPlayerOptionsCollection()))
+            .Select((custom, index) => CreateCustomDescriptor(custom, index))
+            .Where(descriptor => descriptor is not null)
+            .Select(descriptor => descriptor!)
+            .Where(descriptor => !platformOnly ||
+                                 platform == ClientPlatform.Unknown ||
+                                 descriptor.Platforms.Contains(platform));
+
+        return builtInPlayers.Concat(customPlayers).ToArray();
     }
 
     public string BuildLaunchUrl(PlayerId playerId, PlayerLaunchContext context)
     {
-        if (context is null)
+        return BuildBuiltInLaunchUrl(playerId, CanonicalizeContext(context));
+    }
+
+    public string BuildLaunchUrl(string playerId, PluginOptions options, PlayerLaunchContext context)
+    {
+        var canonicalContext = CanonicalizeContext(context);
+        if (Enum.TryParse(playerId, ignoreCase: true, out PlayerId builtInId) &&
+            Enum.IsDefined(typeof(PlayerId), builtInId))
         {
-            throw new ArgumentNullException(nameof(context));
+            return BuildBuiltInLaunchUrl(builtInId, canonicalContext);
         }
+
+        if (!TryGetCustomIndex(playerId, out var customIndex) ||
+            options.CustomPlayers is null ||
+            customIndex < 0 || customIndex >= options.CustomPlayers.Count)
+        {
+            throw new ArgumentOutOfRangeException(nameof(playerId));
+        }
+
+        var custom = options.CustomPlayers[customIndex];
+        if (custom is null || !custom.Enabled || !CustomPlayerTemplate.IsValid(custom.UrlTemplate))
+        {
+            throw new ArgumentOutOfRangeException(nameof(playerId));
+        }
+        return CustomPlayerTemplate.Render(custom.UrlTemplate, canonicalContext);
+    }
+
+    private string BuildBuiltInLaunchUrl(PlayerId playerId, PlayerLaunchContext context)
+    {
         if (!adapters.TryGetValue(playerId, out var adapter))
         {
             throw new ArgumentOutOfRangeException(nameof(playerId));
+        }
+        return adapter.BuildLaunchUrl(context);
+    }
+
+    private static PlayerLaunchContext CanonicalizeContext(PlayerLaunchContext context)
+    {
+        if (context is null)
+        {
+            throw new ArgumentNullException(nameof(context));
         }
 
         if (!Uri.TryCreate(context.StreamUrl, UriKind.Absolute, out var streamUri) ||
@@ -66,14 +109,70 @@ public sealed class PlayerAdapterRegistry
 
         // Pass canonical HTTP(S) URLs to adapters so a caller cannot smuggle literal
         // whitespace into command-like custom protocol arguments (notably PotPlayer).
-        return adapter.BuildLaunchUrl(new PlayerLaunchContext
+        return new PlayerLaunchContext
         {
             StreamUrl = streamUri.AbsoluteUri,
             SubtitleUrl = subtitleUri?.AbsoluteUri,
             Title = context.Title,
             StartPositionTicks = context.StartPositionTicks,
             Platform = context.Platform,
-        });
+        };
+    }
+
+    private static PlayerDescriptor? CreateCustomDescriptor(CustomPlayerOptions? custom, int index)
+    {
+        if (custom is null || !custom.Enabled || string.IsNullOrWhiteSpace(custom.ApplicationName) ||
+            custom.ApplicationName.Length > 80 || !CustomPlayerTemplate.IsValid(custom.UrlTemplate))
+        {
+            return null;
+        }
+
+        var capabilities = PlayerCapabilities.None;
+        if (custom.UrlTemplate.Contains("{start}", StringComparison.Ordinal))
+        {
+            capabilities |= PlayerCapabilities.StartPosition;
+        }
+        if (custom.UrlTemplate.Contains("{subtitle}", StringComparison.Ordinal))
+        {
+            capabilities |= PlayerCapabilities.ExternalSubtitle;
+        }
+        if (custom.UrlTemplate.Contains("{title}", StringComparison.Ordinal))
+        {
+            capabilities |= PlayerCapabilities.DisplayTitle;
+        }
+
+        return new PlayerDescriptor(
+            "custom-" + (index + 1).ToString(CultureInfo.InvariantCulture),
+            custom.ApplicationName,
+            GetCustomPlatforms(custom.Platform),
+            capabilities,
+            new[] { CustomPlayerTemplate.GetScheme(custom.UrlTemplate) });
+    }
+
+    private static IReadOnlyCollection<ClientPlatform> GetCustomPlatforms(CustomPlayerPlatform platform)
+    {
+        return platform switch
+        {
+            CustomPlayerPlatform.Windows => new[] { ClientPlatform.Windows },
+            CustomPlayerPlatform.MacOS => new[] { ClientPlatform.MacOS },
+            CustomPlayerPlatform.IOS => new[] { ClientPlatform.IOS },
+            CustomPlayerPlatform.Android => new[] { ClientPlatform.Android },
+            CustomPlayerPlatform.Linux => new[] { ClientPlatform.Linux },
+            _ => new[]
+            {
+                ClientPlatform.Windows, ClientPlatform.MacOS, ClientPlatform.IOS,
+                ClientPlatform.Android, ClientPlatform.Linux,
+            },
+        };
+    }
+
+    private static bool TryGetCustomIndex(string value, out int index)
+    {
+        const string prefix = "custom-";
+        index = -1;
+        return value.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) &&
+               int.TryParse(value.Substring(prefix.Length), NumberStyles.None, CultureInfo.InvariantCulture, out var oneBased) &&
+               oneBased > 0 && (index = oneBased - 1) >= 0;
     }
 
     private interface IPlayerAdapter
@@ -112,7 +211,8 @@ public sealed class PlayerAdapterRegistry
                 PlayerId.PotPlayer,
                 "PotPlayer",
                 new[] { ClientPlatform.Windows },
-                PlayerCapabilities.StartPosition | PlayerCapabilities.ExternalSubtitle))
+                PlayerCapabilities.StartPosition | PlayerCapabilities.ExternalSubtitle,
+                new[] { "potplayer" }))
         {
         }
 
@@ -144,13 +244,18 @@ public sealed class PlayerAdapterRegistry
                 PlayerId.Iina,
                 "IINA",
                 new[] { ClientPlatform.MacOS },
-                PlayerCapabilities.StartPosition))
+                PlayerCapabilities.StartPosition | PlayerCapabilities.DisplayTitle,
+                new[] { "iina" }))
         {
         }
 
         public override string BuildLaunchUrl(PlayerLaunchContext context)
         {
             var parameters = new List<string> { "url=" + Encode(context.StreamUrl) };
+            if (!string.IsNullOrWhiteSpace(context.Title))
+            {
+                parameters.Add("mpv_force-media-title=" + Encode(context.Title!));
+            }
             if (context.StartPositionTicks > 0)
             {
                 parameters.Add("new_window=1");
@@ -166,9 +271,10 @@ public sealed class PlayerAdapterRegistry
         public VlcAdapter()
             : base(new PlayerDescriptor(
                 PlayerId.Vlc,
-                "VLC",
+                "VLC media player",
                 new[] { ClientPlatform.Windows, ClientPlatform.MacOS, ClientPlatform.IOS, ClientPlatform.Android, ClientPlatform.Linux },
-                PlayerCapabilities.None))
+                PlayerCapabilities.None,
+                new[] { "vlc" }))
         {
         }
 
@@ -182,9 +288,10 @@ public sealed class PlayerAdapterRegistry
             return platform == ClientPlatform.IOS
                 ? new PlayerDescriptor(
                     PlayerId.Vlc,
-                    "VLC",
+                    "VLC media player",
                     Descriptor.Platforms,
-                    PlayerCapabilities.ExternalSubtitle)
+                    PlayerCapabilities.ExternalSubtitle,
+                    new[] { "vlc-x-callback" })
                 : Descriptor;
         }
 
@@ -207,7 +314,8 @@ public sealed class PlayerAdapterRegistry
                 PlayerId.Infuse,
                 "Infuse",
                 new[] { ClientPlatform.IOS, ClientPlatform.MacOS },
-                PlayerCapabilities.ExternalSubtitle))
+                PlayerCapabilities.ExternalSubtitle,
+                new[] { "infuse" }))
         {
         }
 
@@ -227,7 +335,8 @@ public sealed class PlayerAdapterRegistry
                 PlayerId.Mpv,
                 "mpv",
                 new[] { ClientPlatform.Windows, ClientPlatform.MacOS, ClientPlatform.Linux },
-                PlayerCapabilities.None))
+                PlayerCapabilities.None,
+                new[] { "mpv" }))
         {
         }
 
@@ -242,7 +351,8 @@ public sealed class PlayerAdapterRegistry
                 PlayerId.NPlayer,
                 "nPlayer",
                 new[] { ClientPlatform.IOS, ClientPlatform.Android },
-                PlayerCapabilities.None))
+                PlayerCapabilities.None,
+                new[] { "nplayer-http", "nplayer-https" }))
         {
         }
 

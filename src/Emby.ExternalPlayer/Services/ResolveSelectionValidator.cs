@@ -9,7 +9,7 @@ namespace Emby.ExternalPlayer.Services;
 
 public sealed class ResolveSelection
 {
-    public PlayerId PlayerId { get; set; }
+    public string PlayerId { get; set; } = string.Empty;
 
     public PlayerDescriptor Player { get; set; } = null!;
 
@@ -29,15 +29,17 @@ public static class ResolveSelectionValidator
         string mediaSourceId,
         int? subtitleStreamIndex)
     {
-        if (!Enum.TryParse(playerIdValue, ignoreCase: true, out PlayerId playerId) ||
-            !Enum.IsDefined(typeof(PlayerId), playerId))
+        if (string.IsNullOrWhiteSpace(playerIdValue))
         {
             throw new ArgumentException("Unknown player id.", nameof(playerIdValue));
         }
 
         var player = players
             .GetAvailable(options, platform, options.ShowOnlyPlatformPlayers)
-            .FirstOrDefault(candidate => candidate.Id == playerId);
+            .FirstOrDefault(candidate => string.Equals(
+                candidate.Id,
+                playerIdValue,
+                StringComparison.OrdinalIgnoreCase));
         if (player is null)
         {
             throw new ArgumentException(
@@ -75,7 +77,7 @@ public static class ResolveSelectionValidator
 
         return new ResolveSelection
         {
-            PlayerId = playerId,
+            PlayerId = player.Id,
             Player = player,
             MediaSource = mediaSource,
             Subtitle = subtitle,

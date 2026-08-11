@@ -23,10 +23,12 @@
 
 - `Enabled`：总开关；关闭后 API 停止工作并撤销 Web 加载片段。
 - `EnableWebButton`：只控制 Web UI 集成。
+- `UseLocalizedButtonText`：默认开启，按钮和弹窗根据当前 Emby Web 语言使用简体中文、繁体中文或英文；其他语言回退英文。
 - `StreamMode`：默认安全票据；只有 Secure 不支持的远程源才考虑 Legacy。
 - `TicketLifetimeMinutes`：30–720 分钟，默认 480。
 - `RestartNearEndMinutes`：距结尾小于该值时不再续播，默认 5 分钟。
 - 各平台默认播放器会排在弹窗按钮首位。
+- `CustomPlayers`：最多配置三个自定义 URL Scheme 入口；应用名称按输入原样显示，模板语法见客户端说明。
 
 ## 升级
 
@@ -50,6 +52,7 @@ Emby 自身升级会替换 `app.js`。插件下次启动会针对已知锚点重
 
 - 插件列表中不存在：先在服务器启动日志搜索 `Emby.ExternalPlayer`。若随后出现 `Could not load file or assembly ... Version=...`，说明 DLL 的 Emby SDK 编译版本高于服务器版本；1.0.1 已把最低编译基线固定为 4.9.1.80。
 - 点击播放器后访问 `/web/undefined`：这是 1.0.1 未要求 Emby Web AJAX 将 Resolve 响应解析为 JSON 所致；升级到 1.0.2。新版也会拒绝缺少有效 `LaunchUrl` 的响应，不再导航到 `undefined`。
+- 播放器显示 `stream.js`：它是安全中转路由名而非文件类型。1.1.0 为通用启动上下文加入标题，并让 IINA 通过 `mpv_force-media-title` 显示 Emby 媒体标题；其他播放器是否采用标题仍取决于其 URL Handler。
 - 没有按钮：检查插件设置、服务器日志中的锚点警告、浏览器是否强制刷新，以及当前条目是否有可播放媒体源。
 - 点击无反应：确认播放器协议已注册；浏览器第一次打开自定义协议通常需要用户确认。
 - Secure 返回“不支持本地文件”：媒体源是 STRM/HLS/远程 URL。优先保持安全模式；确有需要时才使用 Legacy。

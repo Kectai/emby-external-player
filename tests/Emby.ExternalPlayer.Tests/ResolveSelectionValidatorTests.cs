@@ -22,7 +22,7 @@ public sealed class ResolveSelectionValidatorTests
             "source-1",
             3);
 
-        Assert.AreEqual(PlayerId.PotPlayer, selection.PlayerId);
+        Assert.AreEqual("PotPlayer", selection.PlayerId);
         Assert.AreEqual("source-1", selection.MediaSource.Id);
         Assert.AreEqual(3, selection.Subtitle?.Index);
     }

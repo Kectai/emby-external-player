@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Emby.ExternalPlayer.Domain;
+using Emby.ExternalPlayer.Localization;
 using Emby.ExternalPlayer.Services;
 using MediaBrowser.Common.Extensions;
 using MediaBrowser.Controller.Library;
@@ -38,22 +39,26 @@ public sealed class ExternalPlayerApiService : IService, IRequiresRequest
         var context = manifestService.GetContext(request.ItemId, user);
         var platform = ParsePlatform(request.Platform);
         var defaultPlayer = options.GetDefaultPlayer(platform);
+        var texts = PluginStrings.GetWebStrings(request.Language);
 
         return new ExternalPlayerManifest
         {
             Enabled = options.EnableWebButton,
             ItemId = context.Item.Id.ToString("N"),
             ItemName = context.Item.Name ?? string.Empty,
-            ButtonText = options.ButtonText,
+            ButtonText = options.UseLocalizedButtonText
+                ? texts[nameof(PluginStrings.ExternalPlay)]
+                : options.ButtonText,
             ButtonPlacement = options.ButtonPlacement.ToString(),
             ResumeByDefault = options.ResumeByDefault,
             ResumePositionTicks = context.ResumePositionTicks,
             MediaSources = MediaManifestService.MapMediaSources(context),
             Players = GetRuntime().Players
                 .GetAvailable(options, platform, options.ShowOnlyPlatformPlayers)
-                .OrderBy(player => player.Id == defaultPlayer ? 0 : 1)
+                .OrderBy(player => player.BuiltInId == defaultPlayer ? 0 : 1)
                 .Select(ToApiDescriptor)
                 .ToArray(),
+            Texts = texts,
         };
     }
 
@@ -168,7 +173,7 @@ public sealed class ExternalPlayerApiService : IService, IRequiresRequest
                     selection.Subtitle.Codec);
         }
 
-        var launchUrl = runtime.Players.BuildLaunchUrl(selection.PlayerId, new PlayerLaunchContext
+        var launchUrl = runtime.Players.BuildLaunchUrl(selection.PlayerId, options, new PlayerLaunchContext
         {
             StreamUrl = streamUrl,
             SubtitleUrl = subtitleUrl,
@@ -177,17 +182,18 @@ public sealed class ExternalPlayerApiService : IService, IRequiresRequest
             Platform = platform,
         });
 
+        var texts = PluginStrings.GetWebStrings(request.Language);
         var warnings = new List<string>();
         if (request.Resume && context.ResumePositionTicks > 0 &&
             (selection.Player.Capabilities & PlayerCapabilities.StartPosition) == 0)
         {
-            warnings.Add("The selected player does not support a start position in its URL handler.");
+            warnings.Add(texts[nameof(PluginStrings.ResumeUnsupportedWarning)]);
         }
 
         if (selection.Subtitle is not null &&
             (selection.Player.Capabilities & PlayerCapabilities.ExternalSubtitle) == 0)
         {
-            warnings.Add("The selected player does not support an external subtitle in its URL handler.");
+            warnings.Add(texts[nameof(PluginStrings.SubtitleUnsupportedWarning)]);
         }
 
         return new LaunchResolution
@@ -238,6 +244,8 @@ public sealed class ExternalPlayerApiService : IService, IRequiresRequest
             DisplayName = descriptor.DisplayName,
             SupportsStartPosition = (descriptor.Capabilities & PlayerCapabilities.StartPosition) != 0,
             SupportsExternalSubtitle = (descriptor.Capabilities & PlayerCapabilities.ExternalSubtitle) != 0,
+            SupportsDisplayTitle = (descriptor.Capabilities & PlayerCapabilities.DisplayTitle) != 0,
+            LaunchSchemes = descriptor.LaunchSchemes,
         };
     }
 

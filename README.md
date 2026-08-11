@@ -6,7 +6,10 @@
 
 ## 功能
 
-- PotPlayer、IINA、VLC、Infuse；MPV 与 nPlayer 为默认关闭的实验适配器。
+- PotPlayer、IINA、VLC media player、Infuse；mpv 与 nPlayer 为默认关闭的实验适配器，应用名称保持官方大小写。
+- 可配置三个自定义播放器入口，名称原样显示，URL Scheme 模板支持 `{url}`、`{title}`、`{subtitle}`、`{start}`。
+- 界面和配置页根据 Emby 客户端语言适配简体中文、繁体中文和英文，其他语言回退英文。
+- 通用启动上下文携带媒体标题；IINA 会通过官方 `mpv_*` 参数显示影片名而不是 `stream.js`。
 - 多媒体版本、SRT/ASS 等 Emby 已识别的外挂字幕、服务端 UserData 续播位置。
 - 默认 `SecureTicketRelay`：播放器 URL 不包含 Emby token，支持 HEAD 和单 Range/206。
 - 短期 256 位随机票据，只在内存保存哈希索引，默认 8 小时、最多 2000 条，服务重启全部失效。
@@ -22,7 +25,7 @@
 
 ## 安装
 
-1. 从 `artifacts/Emby.ExternalPlayer-1.0.2.zip` 取出 `Emby.ExternalPlayer.dll`。
+1. 从 `artifacts/Emby.ExternalPlayer-1.1.0.zip` 取出 `Emby.ExternalPlayer.dll`。
 2. 停止 Emby Server，把 DLL 放入 Emby 程序数据目录的 `plugins` 文件夹。
 3. 启动 Emby，在插件设置中确认 `External Player` 已启用；默认安全模式无需额外配置。
 4. 强制刷新一次 Emby Web，然后进入有媒体源的视频详情页。

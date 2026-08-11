@@ -43,7 +43,9 @@ assert.equal(publicInfo.Version, expectedVersion);
 const webModule = await (await fetchChecked("dashboard-ui/modules/embyexternalplayer/plugin.js")).text();
 assert.match(webModule, /__embyExternalPlayerModule/);
 assert.match(webModule, /dataType:\s*"json"/);
-assert.match(webModule, /Resolve response did not contain a valid launch URL/);
+assert.match(webModule, /isAllowedLaunchUrl/);
+assert.match(webModule, /LaunchSchemes/);
+assert.match(webModule, /detectLanguage/);
 const webStylesheet = await (await fetchChecked("ExternalPlayer/Web/style.css")).text();
 assert.match(webStylesheet, /emby-external-player-dialog/);
 if (dashboardAppPath) {
@@ -108,6 +110,15 @@ const pluginConfiguration = configurationView.EditObjectContainer.Object;
 assert.equal(pluginConfiguration.Enabled, true);
 assert.equal(pluginConfiguration.StreamMode, "SecureTicketRelay");
 assert.equal(pluginConfiguration.EnableWebButton, true);
+assert.equal(pluginConfiguration.UseLocalizedButtonText, true);
+assert.ok(Array.isArray(pluginConfiguration.CustomPlayers));
+const localizedConfigurationView = await (await api(
+    `UI/View?PageId=${encodeURIComponent(configurationPageId)}&ClientLocale=zh-CN`,
+    { headers: { ClientLocale: "zh-CN" } })).json();
+const localizedConfigurationJson = JSON.stringify(localizedConfigurationView);
+assert.match(localizedConfigurationJson, /外部播放器/);
+assert.match(localizedConfigurationJson, /IINA/);
+assert.match(localizedConfigurationJson, /VLC media player/);
 
 const libraryName = "External Player Integration";
 const virtualFolders = await (await api("Library/VirtualFolders/Query")).json();
@@ -159,13 +170,20 @@ const invalidTicketResponse = await fetch(new URL(
     `ExternalPlayer/Stream/${"A".repeat(43)}/stream.js`, baseUrl));
 assert.equal(invalidTicketResponse.status, 401);
 
-const manifestResponse = await api(`ExternalPlayer/Manifest?itemId=${item.Id}&platform=MacOS`);
+const manifestResponse = await api(`ExternalPlayer/Manifest?itemId=${item.Id}&platform=MacOS&language=zh-CN`);
 const manifest = await manifestResponse.json();
 assert.equal(manifest.Enabled, true);
 assert.match(manifest.ItemName, /集成测试|Integration/);
 assert.equal(manifest.ResumePositionTicks, 1200000000);
+assert.equal(manifest.ButtonText, "外部播放");
+assert.equal(
+  manifest.Texts.Cancel || manifest.Texts.cancel,
+  "取消",
+  "Chinese Manifest strings must be selected from the requested client language",
+);
 assert.ok(manifest.MediaSources.length >= 2, "The multi-version movie must expose at least two media sources.");
-assert.ok(manifest.Players.some((player) => player.Id === "Iina"));
+assert.ok(manifest.Players.some((player) =>
+    player.Id === "Iina" && player.DisplayName === "IINA" && player.LaunchSchemes.includes("iina")));
 
 const source = manifest.MediaSources[0];
 const subtitles = source.Subtitles || [];
@@ -175,7 +193,7 @@ assert.ok(subtitles.some((subtitle) => subtitle.Format === "ass"));
 async function resolve(body, expected = [200]) {
     return api("ExternalPlayer/Resolve", {
         method: "POST",
-        body: JSON.stringify({ ItemId: item.Id, Platform: "MacOS", ...body })
+        body: JSON.stringify({ ItemId: item.Id, Platform: "MacOS", Language: "zh-CN", ...body })
     }, expected);
 }
 
@@ -190,6 +208,7 @@ const iinaResolution = await (await resolve({
 })).json();
 assert.match(iinaResolution.LaunchUrl, /^iina:\/\/weblink\?/);
 assert.match(iinaResolution.LaunchUrl, /mpv_start=120/);
+assert.match(iinaResolution.LaunchUrl, /mpv_force-media-title=/);
 assert.ok(iinaResolution.TicketExpiresAt);
 assert.ok(!iinaResolution.LaunchUrl.includes(token));
 assert.ok(!iinaResolution.LaunchUrl.includes("api_key"));

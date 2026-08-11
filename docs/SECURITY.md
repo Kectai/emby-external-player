@@ -4,6 +4,8 @@
 
 Manifest 和 Resolve 使用 Emby 的认证上下文确定用户，不接受浏览器提交的用户 ID。服务端重新验证条目可见性、播放权限、媒体源 ID、外挂字幕索引和播放器 ID。
 
+自定义播放器模板只能使用固定的 `{url}`、`{title}`、`{subtitle}`、`{start}` 占位符，变量会被百分号编码；`javascript:`、`data:`、`file:`、HTTP(S) 等危险或非应用协议会被拒绝。Manifest 为每个播放器声明允许的 Scheme，Web 模块在导航前再次核对，防止异常 Resolve 响应改变跳转协议。
+
 SecureTicketRelay 在 Resolve 时只接受 Emby 返回的本地 `File` 媒体源。物理路径不返回浏览器；票据中也不保存 Emby token。每次流请求仍会重新检查用户是否存在、条目是否可见以及是否仍有播放权限，权限撤销后立即废止票据。
 
 ## 播放票据
