@@ -60,6 +60,10 @@ class FakeElement {
         return this.attributes.get(name) ?? null;
     }
 
+    removeAttribute(name) {
+        this.attributes.delete(name);
+    }
+
     addEventListener(name, handler) {
         const listeners = this.listeners.get(name) || [];
         listeners.push(handler);
@@ -283,8 +287,11 @@ assert.match(stylesheet, /width:\s*min\(clamp\(28rem,\s*34vw,\s*32rem\),\s*calc\
 assert.match(stylesheet, /\.emby-external-player-actions \.formDialogFooterItem\s*\{[\s\S]*?justify-content:\s*center\s*!important;/);
 assert.match(stylesheet, /\.emby-external-player-config-section\s*\{[\s\S]*?width:\s*100%;/);
 assert.match(stylesheet, /\.emby-external-player-config-fields\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\);/);
-assert.match(stylesheet, /\.emby-external-player-config-fields\s*\{[\s\S]*?gap:\s*\.35rem;/);
+assert.match(stylesheet, /\.emby-external-player-config-fields\s*\{[\s\S]*?gap:\s*\.75rem 1rem;/);
+assert.match(stylesheet, /@media \(min-width:\s*48rem\)[\s\S]*?grid-template-columns:\s*minmax\(0, 2fr\) minmax\(11rem, 1fr\);/);
+assert.match(stylesheet, /\.emby-external-player-config-url-field\s*\{[\s\S]*?grid-column:\s*1 \/ -1;/);
 assert.match(stylesheet, /\.emby-external-player-config-card-actions \.emby-button\s*\{[\s\S]*?justify-content:\s*center\s*!important;/);
+assert.match(stylesheet, /\.emby-external-player-config-card-status\[data-state="dirty"\]\s*\{/);
 assert.match(stylesheet, /\.emby-external-player-config-input,[\s\S]*?\.emby-external-player-config-select\s*\{[\s\S]*?height:\s*3em\s*!important;/);
 const document = new FakeDocument();
 const resumeButton = document.createElement("button");
@@ -317,6 +324,10 @@ const apiClient = {
         return Promise.resolve(manifest);
     },
     ajax(options) {
+        if (String(options.url).includes("ExternalPlayer/CustomPlayers")) {
+            const value = JSON.parse(options.data);
+            return Promise.resolve({ ...value, Id: value.id || "saved-custom-player" });
+        }
         assert.equal(options.dataType, "json", "Emby ajax must parse the Resolve response as JSON");
         lastResolveBody = JSON.parse(options.data);
         assert.equal(lastResolveBody.language, "zh-CN");
@@ -375,7 +386,7 @@ await new Promise((resolve) => setTimeout(resolve, 0));
 assert.equal(document.body.walk().filter((item) => item.id === "embyExternalPlayerButton").length, 1);
 assert.equal(eventSubscriptions.size, 1);
 assert.equal(manifestQuery.language, "zh-CN");
-assert.equal(document.getElementById("embyExternalPlayerStyles").attributes.get("data-resource-version"), "1.4.5");
+assert.equal(document.getElementById("embyExternalPlayerStyles").attributes.get("data-resource-version"), "1.4.6");
 
 evaluateAndStart();
 await new Promise((resolve) => setTimeout(resolve, 0));
@@ -477,8 +488,8 @@ evaluateAndStart();
 await new Promise((resolve) => setTimeout(resolve, 0));
 const localizedSaveButton = document.getElementById("embyExternalPlayerConfigurationSave");
 assert.ok(localizedSaveButton, "the plugin configuration must render its own localized Save command");
-assert.equal(localizedSaveButton.textContent, "保存");
-assert.equal(localizedSaveButton.attributes.get("aria-label"), "保存");
+assert.equal(localizedSaveButton.textContent, "保存插件设置");
+assert.equal(localizedSaveButton.attributes.get("aria-label"), "保存插件设置");
 assert.equal(saveButton.textContent, "save", "the plugin must not translate Emby's command by mutation");
 assert.ok(saveButton.className.includes("emby-external-player-native-save-hidden"));
 let nativeSaveClicks = 0;
@@ -488,7 +499,7 @@ assert.equal(nativeSaveClicks, 1, "the localized command must delegate to Emby's
 saveButton.textContent = "Save";
 mutationObservers.at(-1).trigger();
 assert.equal(saveButton.textContent, "Save", "the lifecycle observer must not rewrite Emby's caption");
-assert.equal(localizedSaveButton.textContent, "保存", "the plugin-owned caption remains localized without translation watching");
+assert.equal(localizedSaveButton.textContent, "保存插件设置", "the plugin-owned caption remains localized without translation watching");
 saveButton.remove();
 const rebuiltSaveButton = document.createElement("button");
 rebuiltSaveButton.className = "raised emby-button btnSave pagebutton";
@@ -501,11 +512,28 @@ mutationObservers.at(-1).trigger();
 localizedSaveButton.click();
 assert.equal(rebuiltNativeSaveClicks, 1, "the localized command must rebind after Emby rebuilds the native command");
 assert.equal(nativeSaveClicks, 1, "the removed native command must no longer receive delegated clicks");
-assert.equal(rebuiltSaveButton.nextSibling, localizedSaveButton);
 const customConfigurationSection = document.getElementById("embyExternalPlayerCustomPlayers");
 assert.ok(customConfigurationSection, "the independent custom-player editor must be added to the plugin page");
 assert.equal(customConfigurationSection.parentNode, document.body, "the custom-player editor must be a full-width peer of Generic UI mainContent");
-assert.equal(customConfigurationSection.nextSibling, rebuiltSaveButton, "the full-width custom-player editor must stay immediately before the page Save command");
+assert.equal(configurationMain.nextSibling, localizedSaveButton, "plugin settings Save must stay immediately below the basic settings");
+assert.equal(localizedSaveButton.nextSibling, customConfigurationSection, "the independent custom-player editor must follow the basic-settings Save command");
+const loadedCustomPlayerCard = customConfigurationSection.walk().find((item) =>
+    item.className.split(/\s+/).includes("emby-external-player-config-card"));
+const loadedPlayerName = loadedCustomPlayerCard.walk().find((item) =>
+    item.attributes.get("data-field") === "applicationName");
+const loadedPlayerStatus = loadedCustomPlayerCard.walk().find((item) =>
+    item.className.split(/\s+/).includes("emby-external-player-config-card-status"));
+const loadedPlayerSave = loadedCustomPlayerCard.walk().find((item) =>
+    item.tagName === "BUTTON" && item.textContent === "保存此播放器");
+assert.equal(loadedPlayerStatus.textContent, "", "a loaded player starts without a false dirty state");
+loadedPlayerName.value = "IINA Nova Updated";
+loadedPlayerName.dispatch("input");
+assert.equal(loadedPlayerStatus.textContent, "有未保存的更改");
+assert.equal(loadedPlayerStatus.attributes.get("data-state"), "dirty");
+loadedPlayerSave.dispatch("click");
+await new Promise((resolve) => setTimeout(resolve, 0));
+assert.equal(loadedPlayerStatus.textContent, "已保存", "save feedback must stay with the player it applies to");
+assert.equal(loadedPlayerStatus.attributes.get("data-state"), "saved");
 const addCustomPlayerButton = customConfigurationSection.walk().find((item) =>
     item.tagName === "BUTTON" && item.textContent === "添加播放器");
 assert.ok(addCustomPlayerButton);

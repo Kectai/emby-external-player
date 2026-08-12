@@ -4,7 +4,7 @@ define(["events", "connectionManager"], function (events, connectionManager) {
     var moduleKey = "__embyExternalPlayerModule";
     var buttonId = "embyExternalPlayerButton";
     var configurationPageId = "f7e75c:Settings";
-    var resourceVersion = "1.4.5";
+    var resourceVersion = "1.4.6";
     var selectorProfile = {
         actionRow: ".mainDetailButtons, .detailPagePrimaryContainer .detailButtons",
         mediaSource: "select.selectSource",
@@ -60,9 +60,9 @@ define(["events", "connectionManager"], function (events, connectionManager) {
         var language = detectLanguage().toLowerCase();
         if (language.indexOf("zh-hant") === 0 || language.indexOf("zh-tw") === 0 || language.indexOf("zh-hk") === 0) {
             return {
-                pageSave: "儲存",
+                pageSave: "儲存外掛設定",
                 title: "自訂播放器",
-                description: "自訂播放器在此獨立儲存，不需要使用頁面底部的儲存按鈕。URL 範本支援 {url}、{title}、{subtitle}、{start} 和 {headers}。",
+                description: "自訂播放器逐項儲存；上方的「儲存外掛設定」只用於基本設定。URL 範本支援 {url}、{title}、{subtitle}、{start} 和 {headers}。",
                 add: "新增播放器",
                 enabled: "啟用",
                 applicationName: "官方應用程式名稱",
@@ -72,6 +72,7 @@ define(["events", "connectionManager"], function (events, connectionManager) {
                 save: "儲存此播放器",
                 remove: "刪除",
                 saved: "已儲存",
+                unsaved: "有未儲存的變更",
                 removed: "已刪除",
                 loadError: "無法載入自訂播放器設定。",
                 saveError: "無法儲存，請檢查應用程式名稱和 URL 範本。",
@@ -80,9 +81,9 @@ define(["events", "connectionManager"], function (events, connectionManager) {
         }
         if (language.indexOf("zh") === 0) {
             return {
-                pageSave: "保存",
+                pageSave: "保存插件设置",
                 title: "自定义播放器",
-                description: "自定义播放器在这里独立保存，不需要使用页面底部的保存按钮。URL 模板支持 {url}、{title}、{subtitle}、{start} 和 {headers}。",
+                description: "自定义播放器逐项保存；上方的“保存插件设置”只用于基础设置。URL 模板支持 {url}、{title}、{subtitle}、{start} 和 {headers}。",
                 add: "添加播放器",
                 enabled: "启用",
                 applicationName: "官方应用名称",
@@ -92,6 +93,7 @@ define(["events", "connectionManager"], function (events, connectionManager) {
                 save: "保存此播放器",
                 remove: "删除",
                 saved: "已保存",
+                unsaved: "有未保存的更改",
                 removed: "已删除",
                 loadError: "无法加载自定义播放器配置。",
                 saveError: "无法保存，请检查应用名称和 URL 模板。",
@@ -99,9 +101,9 @@ define(["events", "connectionManager"], function (events, connectionManager) {
             };
         }
         return {
-            pageSave: "Save",
+            pageSave: "Save plugin settings",
             title: "Custom players",
-            description: "Custom players are saved independently here; the page Save button is not required. Templates support {url}, {title}, {subtitle}, {start}, and {headers}.",
+            description: "Custom players are saved individually; Save plugin settings above applies only to basic settings. Templates support {url}, {title}, {subtitle}, {start}, and {headers}.",
             add: "Add player",
             enabled: "Enabled",
             applicationName: "Official application name",
@@ -111,6 +113,7 @@ define(["events", "connectionManager"], function (events, connectionManager) {
             save: "Save player",
             remove: "Delete",
             saved: "Saved",
+            unsaved: "Unsaved changes",
             removed: "Deleted",
             loadError: "Unable to load custom-player settings.",
             saveError: "Unable to save. Check the application name and URL template.",
@@ -228,8 +231,39 @@ define(["events", "connectionManager"], function (events, connectionManager) {
         return label;
     }
 
+    function positionCustomPlayerConfiguration(mainContent, section) {
+        var mainContentParent = mainContent.parentNode;
+        if (!mainContentParent) {
+            if (section.parentNode !== mainContent) {
+                mainContent.appendChild(section);
+            }
+            return;
+        }
+
+        var localizedSave = document.getElementById("embyExternalPlayerConfigurationSave");
+        var saveContainer = localizedSave;
+        if (localizedSave && localizedSave.parentNode && localizedSave.parentNode !== mainContentParent &&
+            localizedSave.parentNode.parentNode === mainContentParent) {
+            saveContainer = localizedSave.parentNode;
+        }
+        if (saveContainer && saveContainer.parentNode === mainContentParent) {
+            if (mainContent.nextSibling !== saveContainer) {
+                mainContentParent.insertBefore(saveContainer, mainContent.nextSibling);
+            }
+            if (saveContainer.nextSibling !== section) {
+                mainContentParent.insertBefore(section, saveContainer.nextSibling);
+            }
+            return;
+        }
+        if (mainContent.nextSibling !== section) {
+            mainContentParent.insertBefore(section, mainContent.nextSibling);
+        }
+    }
+
     function ensureCustomPlayerConfiguration(mainContent) {
-        if (document.getElementById("embyExternalPlayerCustomPlayers")) {
+        var existingSection = document.getElementById("embyExternalPlayerCustomPlayers");
+        if (existingSection) {
+            positionCustomPlayerConfiguration(mainContent, existingSection);
             return;
         }
 
@@ -266,24 +300,21 @@ define(["events", "connectionManager"], function (events, connectionManager) {
         status.setAttribute("role", "status");
         status.setAttribute("aria-live", "polite");
         section.appendChild(status);
-        var mainContentParent = mainContent.parentNode;
-        if (mainContentParent) {
-            mainContentParent.insertBefore(section, mainContent.nextSibling);
-        } else {
-            mainContent.appendChild(section);
-        }
+        positionCustomPlayerConfiguration(mainContent, section);
 
         function renderCard(player) {
             player = player || {};
             var card = document.createElement("div");
             card.className = "verticalSection emby-external-player-config-card";
             card.setAttribute("data-player-id", read(player, "Id") || "");
+            card.setAttribute("role", "group");
 
             var cardHeader = document.createElement("div");
             cardHeader.className = "emby-external-player-config-card-header";
             var cardTitle = document.createElement("h3");
             cardTitle.className = "emby-external-player-config-card-title";
             cardTitle.textContent = read(player, "ApplicationName") || strings.add;
+            card.setAttribute("aria-label", cardTitle.textContent);
             cardHeader.appendChild(cardTitle);
             card.appendChild(cardHeader);
 
@@ -328,11 +359,18 @@ define(["events", "connectionManager"], function (events, connectionManager) {
             urlTemplate.className = "emby-input emby-external-player-config-input";
             urlTemplate.value = read(player, "UrlTemplate") || "";
             urlTemplate.setAttribute("data-field", "urlTemplate");
-            fields.appendChild(makeConfigurationField(strings.urlTemplate, urlTemplate));
+            var urlTemplateField = makeConfigurationField(strings.urlTemplate, urlTemplate);
+            urlTemplateField.className += " emby-external-player-config-url-field";
+            fields.appendChild(urlTemplateField);
             card.appendChild(fields);
 
             var actions = document.createElement("div");
             actions.className = "emby-external-player-config-card-actions";
+            var cardStatus = document.createElement("span");
+            cardStatus.className = "fieldDescription emby-external-player-config-card-status";
+            cardStatus.setAttribute("role", "status");
+            cardStatus.setAttribute("aria-live", "polite");
+            actions.appendChild(cardStatus);
             var saveButton = document.createElement("button");
             saveButton.type = "button";
             saveButton.className = "raised button-submit emby-button";
@@ -351,12 +389,31 @@ define(["events", "connectionManager"], function (events, connectionManager) {
             actions.appendChild(deleteButton);
             card.appendChild(actions);
 
+            function setCardStatus(message, state) {
+                cardStatus.textContent = message || "";
+                if (state) {
+                    cardStatus.setAttribute("data-state", state);
+                } else {
+                    cardStatus.removeAttribute("data-state");
+                }
+            }
+
+            function markDirty() {
+                setCardStatus(strings.unsaved, "dirty");
+            }
+
             applicationName.addEventListener("input", function () {
                 cardTitle.textContent = applicationName.value || strings.add;
+                card.setAttribute("aria-label", cardTitle.textContent);
+                markDirty();
             });
+            enabled.addEventListener("change", markDirty);
+            platform.addEventListener("change", markDirty);
+            urlTemplate.addEventListener("input", markDirty);
             saveButton.addEventListener("click", function () {
                 saveButton.disabled = true;
                 status.textContent = "";
+                setCardStatus("", "saving");
                 apiPost("ExternalPlayer/CustomPlayers", {
                     id: card.getAttribute("data-player-id") || "",
                     enabled: enabled.checked,
@@ -365,9 +422,9 @@ define(["events", "connectionManager"], function (events, connectionManager) {
                     urlTemplate: urlTemplate.value
                 }).then(function (saved) {
                     card.setAttribute("data-player-id", read(saved, "Id") || "");
-                    status.textContent = strings.saved;
+                    setCardStatus(strings.saved, "saved");
                 }).catch(function () {
-                    status.textContent = strings.saveError;
+                    setCardStatus(strings.saveError, "error");
                 }).then(function () {
                     saveButton.disabled = false;
                 });
@@ -378,6 +435,7 @@ define(["events", "connectionManager"], function (events, connectionManager) {
                     return;
                 }
                 deleteButton.disabled = true;
+                status.textContent = "";
                 var deletion = id
                     ? apiDelete("ExternalPlayer/CustomPlayers/" + encodeURIComponent(id))
                     : Promise.resolve();
@@ -386,15 +444,19 @@ define(["events", "connectionManager"], function (events, connectionManager) {
                     status.textContent = strings.removed;
                 }).catch(function () {
                     deleteButton.disabled = false;
-                    status.textContent = strings.saveError;
+                    setCardStatus(strings.saveError, "error");
                 });
             });
 
             list.appendChild(card);
+            if (!read(player, "Id")) {
+                markDirty();
+            }
             return card;
         }
 
         addButton.addEventListener("click", function () {
+            status.textContent = "";
             var card = renderCard({ Enabled: true, Platform: "Any" });
             var nameInput = card.querySelector('[data-field="applicationName"]');
             if (nameInput && nameInput.focus) {

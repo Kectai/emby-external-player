@@ -345,7 +345,7 @@
 
 .emby-external-player-config-description {
     line-height: 1.45;
-    max-width: none;
+    max-width: 60ch;
 }
 
 .emby-external-player-config-add {
@@ -387,7 +387,7 @@
 
 .emby-external-player-config-fields {
     display: grid;
-    gap: .35rem;
+    gap: .75rem 1rem;
     grid-template-columns: minmax(0, 1fr);
     width: 100%;
 }
@@ -428,10 +428,26 @@
 }
 
 .emby-external-player-config-card-actions {
+    align-items: center;
     display: flex;
+    flex-wrap: wrap;
     gap: .65rem;
     justify-content: flex-end;
     margin-top: 1rem;
+}
+
+.emby-external-player-config-card-status {
+    flex: 1 1 12rem;
+    line-height: 1.35;
+    min-height: 1.35em;
+}
+
+.emby-external-player-config-card-status[data-state="dirty"] {
+    color: var(--theme-accent-text-color, #6ccf65);
+}
+
+.emby-external-player-config-card-status[data-state="error"] {
+    color: #ffb4ab;
 }
 
 .emby-external-player-config-card-actions .emby-button {
@@ -455,6 +471,16 @@
 
 .emby-external-player-config-status:not(:empty) {
     margin-top: .75rem;
+}
+
+@media (min-width: 48rem) {
+    .emby-external-player-config-fields {
+        grid-template-columns: minmax(0, 2fr) minmax(11rem, 1fr);
+    }
+
+    .emby-external-player-config-url-field {
+        grid-column: 1 / -1;
+    }
 }
 
 @media (max-width: 40rem) {
@@ -486,6 +512,10 @@
 
     .emby-external-player-config-add {
         align-self: flex-start;
+    }
+
+    .emby-external-player-config-card-actions .emby-button {
+        flex: 1 1 auto;
     }
 
     .emby-external-player-player-list {
