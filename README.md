@@ -27,7 +27,7 @@
 
 ## 安装
 
-1. 从 `artifacts/Emby.ExternalPlayer-1.4.2.zip` 取出 `Emby.ExternalPlayer.dll`。
+1. 从 `artifacts/Emby.ExternalPlayer-1.4.3.zip` 取出 `Emby.ExternalPlayer.dll`。
 2. 停止 Emby Server，把 DLL 放入 Emby 程序数据目录的 `plugins` 文件夹。
 3. 启动 Emby，在插件设置中确认 `External Player` 已启用；默认安全模式无需额外配置。
 4. 强制刷新一次 Emby Web，然后进入有媒体源的视频详情页。

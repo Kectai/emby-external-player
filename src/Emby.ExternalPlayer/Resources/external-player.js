@@ -4,7 +4,7 @@ define(["events", "connectionManager"], function (events, connectionManager) {
     var moduleKey = "__embyExternalPlayerModule";
     var buttonId = "embyExternalPlayerButton";
     var configurationPageId = "f7e75c:Settings";
-    var resourceVersion = "1.4.2";
+    var resourceVersion = "1.4.3";
     var selectorProfile = {
         actionRow: ".mainDetailButtons, .detailPagePrimaryContainer .detailButtons",
         mediaSource: "select.selectSource",
@@ -336,11 +336,17 @@ define(["events", "connectionManager"], function (events, connectionManager) {
             var saveButton = document.createElement("button");
             saveButton.type = "button";
             saveButton.className = "raised button-submit emby-button";
-            saveButton.textContent = strings.save;
+            var saveText = document.createElement("span");
+            saveText.className = "buttonText";
+            saveText.textContent = strings.save;
+            saveButton.appendChild(saveText);
             var deleteButton = document.createElement("button");
             deleteButton.type = "button";
             deleteButton.className = "raised emby-button";
-            deleteButton.textContent = strings.remove;
+            var deleteText = document.createElement("span");
+            deleteText.className = "buttonText";
+            deleteText.textContent = strings.remove;
+            deleteButton.appendChild(deleteText);
             actions.appendChild(saveButton);
             actions.appendChild(deleteButton);
             card.appendChild(actions);
