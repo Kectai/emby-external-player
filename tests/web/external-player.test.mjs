@@ -264,8 +264,8 @@ const manifest = {
         }
     ],
     Players: [
-        { Id: "Iina", DisplayName: "IINA", IsCustom: false, LaunchSchemes: ["iina"] },
-        { Id: "custom-1", DisplayName: "myPLAYER pro", IsCustom: true, LaunchSchemes: ["myplayer"] }
+        { Id: "Iina", DisplayName: "IINA", IsCustom: false, SupportsExternalSubtitle: false, LaunchSchemes: ["iina"] },
+        { Id: "custom-1", DisplayName: "myPLAYER pro", IsCustom: true, SupportsExternalSubtitle: true, LaunchSchemes: ["myplayer"] }
     ],
     Texts: {
         ExternalPlay: "外部播放",
@@ -280,8 +280,8 @@ const manifest = {
         Subtitle: "字幕",
         NoExternalSubtitle: "不加载外挂字幕",
         SubtitleNumber: "字幕 {0}",
+        SubtitleUnsupportedForPlayer: "{0} 无法通过应用链接接收外挂字幕，请选择支持字幕的播放器。",
         ResumeFromLastPosition: "从上次位置继续",
-        RetryLaunch: "若播放器未自动打开，请点此重试",
         Cancel: "取消",
         ResolveError: "无法生成播放地址，请检查权限、媒体版本或服务器连接。",
         InvalidLaunchUrl: "服务器未返回安全的应用启动地址。"
@@ -404,7 +404,7 @@ await new Promise((resolve) => setTimeout(resolve, 0));
 assert.equal(document.body.walk().filter((item) => item.id === "embyExternalPlayerButton").length, 1);
 assert.equal(eventSubscriptions.size, 1);
 assert.equal(manifestQuery.language, "zh-CN");
-assert.equal(document.getElementById("embyExternalPlayerStyles").attributes.get("data-resource-version"), "1.4.8");
+assert.equal(document.getElementById("embyExternalPlayerStyles").attributes.get("data-resource-version"), "1.4.9");
 
 evaluateAndStart();
 await new Promise((resolve) => setTimeout(resolve, 0));
@@ -463,8 +463,13 @@ const selectorButtons = launchOverlay.walk().filter((item) =>
     item.className.split(/\s+/).includes("emby-external-player-select-button"));
 const selectorLists = launchOverlay.walk().filter((item) =>
     item.className.split(/\s+/).includes("emby-external-player-select-list"));
+const subtitleHint = launchOverlay.walk().find((item) =>
+    item.className.split(/\s+/).includes("emby-external-player-subtitle-hint"));
 assert.ok(iinaOption);
 assert.ok(customOption, "enabled custom applications must be visible in the chooser");
+assert.ok(!launchOverlay.walk().some((item) =>
+    item.className.split(/\s+/).includes("emby-external-player-manual-link")),
+"the dialog must not duplicate Open with a retry link");
 assert.equal(iinaOption.attributes.get("aria-checked"), "true");
 assert.ok(iinaOption.className.includes("emby-external-player-option-selected"), "the default player must have a persistent selected state");
 assert.notEqual(document.activeElement, iinaOption, "opening the chooser must not apply Emby's white focus style to IINA");
@@ -473,6 +478,9 @@ assert.equal(nativeSelectors.length, 2);
 assert.ok(nativeSelectors.every((item) => item.hidden), "native selects must stay out of the visible and accessibility layout");
 assert.equal(selectorButtons.length, 2);
 assert.equal(selectorLists.length, 2);
+assert.equal(selectorButtons[1].disabled, true, "IINA's official application link cannot receive an external subtitle");
+assert.match(subtitleHint.textContent, /IINA/);
+assert.equal(subtitleHint.hidden, false);
 selectorButtons[0].dispatch("click");
 assert.equal(selectorButtons[0].attributes.get("aria-expanded"), "true");
 assert.equal(selectorLists[0].hidden, false);
@@ -488,10 +496,26 @@ assert.match(selectorButtons[1].textContent, /不加载外挂字幕/);
 assert.ok(customOption.walk().some((item) => item.textContent === "自定义播放器"));
 customOption.dispatch("click");
 assert.equal(customOption.attributes.get("aria-checked"), "true");
+assert.equal(selectorButtons[1].disabled, false);
+assert.equal(subtitleHint.hidden, true);
+selectorButtons[1].dispatch("click");
+const secondSubtitleOption = selectorLists[1].walk().find((item) => item.attributes.get("data-value") === "6");
+secondSubtitleOption.dispatch("click");
+assert.equal(nativeSelectors[1].value, "6");
+ajaxResponse = { LaunchUrl: "myplayer://open?url=https%3A%2F%2Fexample.test" };
+launchButton.dispatch("click");
+await new Promise((resolve) => setTimeout(resolve, 0));
+assert.equal(lastResolveBody.playerId, "custom-1");
+assert.equal(lastResolveBody.subtitleStreamIndex, 6, "a supported player must receive the selected subtitle index");
+assert.equal(window.location.href, "myplayer://open?url=https%3A%2F%2Fexample.test");
+ajaxResponse = { LaunchUrl: "iina://weblink?url=https%3A%2F%2Fexample.test" };
 iinaOption.dispatch("click");
+assert.equal(nativeSelectors[1].value, "", "switching to an unsupported player must not silently submit a subtitle");
+assert.equal(selectorButtons[1].disabled, true);
 launchButton.dispatch("click");
 await new Promise((resolve) => setTimeout(resolve, 0));
 assert.equal(lastResolveBody.playerId, "Iina");
+assert.equal(lastResolveBody.subtitleStreamIndex, null);
 assert.equal(window.location.href, "iina://weblink?url=https%3A%2F%2Fexample.test");
 document.dispatch("keydown", { key: "Escape", preventDefault() {} });
 assert.equal(document.querySelector(".emby-external-player-overlay"), null);

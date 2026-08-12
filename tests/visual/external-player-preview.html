@@ -140,12 +140,13 @@
                 { Id: "web", Name: "1080p WEB-DL", Subtitles: [] }
             ],
             Players: [
-                { Id: "Iina", DisplayName: "IINA", IsCustom: false, LaunchSchemes: ["iina"] },
-                { Id: "Vlc", DisplayName: "VLC media player", IsCustom: false, LaunchSchemes: ["vlc"] },
-                { Id: "Mpv", DisplayName: "mpv", IsCustom: false, LaunchSchemes: ["mpv"] },
-                { Id: "custom-elmedia", DisplayName: "Elmedia Video Player", IsCustom: true, LaunchSchemes: ["elmedia"] },
-                { Id: "custom-pro", DisplayName: "myPLAYER pro", IsCustom: true, LaunchSchemes: ["myplayer"] },
-                { Id: "custom-long", DisplayName: "A Custom Application With A Very Long Official Name", IsCustom: true, LaunchSchemes: ["customplayer"] }
+                { Id: "Iina", DisplayName: "IINA", IsCustom: false, SupportsExternalSubtitle: false, LaunchSchemes: ["iina"] },
+                { Id: "Vlc", DisplayName: "VLC media player", IsCustom: false, SupportsExternalSubtitle: false, LaunchSchemes: ["vlc"] },
+                { Id: "Infuse", DisplayName: "Infuse", IsCustom: false, SupportsExternalSubtitle: true, LaunchSchemes: ["infuse"] },
+                { Id: "Mpv", DisplayName: "mpv", IsCustom: false, SupportsExternalSubtitle: false, LaunchSchemes: ["mpv"] },
+                { Id: "custom-elmedia", DisplayName: "Elmedia Video Player", IsCustom: true, SupportsExternalSubtitle: true, LaunchSchemes: ["elmedia"] },
+                { Id: "custom-pro", DisplayName: "myPLAYER pro", IsCustom: true, SupportsExternalSubtitle: true, LaunchSchemes: ["myplayer"] },
+                { Id: "custom-long", DisplayName: "A Custom Application With A Very Long Official Name", IsCustom: true, SupportsExternalSubtitle: false, LaunchSchemes: ["customplayer"] }
             ],
             Texts: {
                 ExternalPlay: "外部播放",
@@ -160,8 +161,8 @@
                 Subtitle: "字幕",
                 NoExternalSubtitle: "不加载外挂字幕",
                 SubtitleNumber: "字幕 {0}",
+                SubtitleUnsupportedForPlayer: "{0} 无法通过应用链接接收外挂字幕，请选择支持字幕的播放器。",
                 ResumeFromLastPosition: "从上次位置继续",
-                RetryLaunch: "若播放器未自动打开，请点此重试",
                 Cancel: "取消",
                 ResolveError: "无法生成播放地址，请检查权限、媒体版本或服务器连接。",
                 InvalidLaunchUrl: "服务器未返回安全的应用启动地址。"
@@ -188,7 +189,7 @@
         window.location.hash = "#!/item?id=preview-item&preview=1";
     </script>
     <output id="previewStatus"></output>
-    <script src="../../src/Emby.ExternalPlayer/Resources/external-player.js?v=1.4.8"></script>
+    <script src="../../src/Emby.ExternalPlayer/Resources/external-player.js?v=1.4.9"></script>
     <script>
         window.externalPlayerInitializer();
         document.documentElement.setAttribute("data-module-initialized", "true");

@@ -4,7 +4,7 @@ define(["events", "connectionManager"], function (events, connectionManager) {
     var moduleKey = "__embyExternalPlayerModule";
     var buttonId = "embyExternalPlayerButton";
     var configurationPageId = "f7e75c:Settings";
-    var resourceVersion = "1.4.8";
+    var resourceVersion = "1.4.9";
     var fieldSequence = 0;
     var selectorProfile = {
         actionRow: ".mainDetailButtons, .detailPagePrimaryContainer .detailButtons",
@@ -878,10 +878,18 @@ define(["events", "connectionManager"], function (events, connectionManager) {
                 (document.documentElement && document.documentElement.clientHeight) || 0;
             if (buttonRect && viewportHeight) {
                 var listHeight = Math.min(list.scrollHeight || 240, 240);
+                var dialogNode = field.closest ? field.closest(".emby-external-player-dialog") : null;
+                var actionsNode = dialogNode
+                    ? dialogNode.querySelector(".emby-external-player-actions")
+                    : null;
+                var actionsRect = actionsNode && actionsNode.getBoundingClientRect
+                    ? actionsNode.getBoundingClientRect()
+                    : null;
+                var lowerBoundary = actionsRect ? Math.min(viewportHeight, actionsRect.top) : viewportHeight;
                 setClass(
                     field,
                     "emby-external-player-field-open-up",
-                    viewportHeight - buttonRect.bottom < listHeight && buttonRect.top > listHeight);
+                    lowerBoundary - buttonRect.bottom < listHeight && buttonRect.top > listHeight);
             }
             focusRendered(typeof focusIndex === "number" ? focusIndex : selectedIndex());
         }
@@ -1020,6 +1028,7 @@ define(["events", "connectionManager"], function (events, connectionManager) {
         playerList.setAttribute("aria-label", playerTitle.textContent);
         var playerOptions = [];
         var selectedPlayer = players[0] || null;
+        var syncSubtitleAvailability = function () {};
 
         function selectPlayer(player, option, moveFocus) {
             selectedPlayer = player;
@@ -1034,9 +1043,7 @@ define(["events", "connectionManager"], function (events, connectionManager) {
             if (typeof error !== "undefined" && error) {
                 error.textContent = "";
             }
-            if (typeof manual !== "undefined" && manual) {
-                manual.hidden = true;
-            }
+            syncSubtitleAvailability();
         }
 
         players.forEach(function (player, playerIndex) {
@@ -1131,10 +1138,39 @@ define(["events", "connectionManager"], function (events, connectionManager) {
             if (subtitleSelect._externalPlayerRefresh) {
                 subtitleSelect._externalPlayerRefresh();
             }
+            syncSubtitleAvailability();
         }
         sourceSelect.addEventListener("change", refreshSubtitles);
         refreshSubtitles();
-        fields.appendChild(makeField(text(manifest, "Subtitle", "Subtitle"), subtitleSelect, overlay));
+        var subtitleField = makeField(text(manifest, "Subtitle", "Subtitle"), subtitleSelect, overlay);
+        var subtitleHint = document.createElement("div");
+        subtitleHint.className = "fieldDescription emby-external-player-subtitle-hint";
+        subtitleHint.hidden = true;
+        subtitleField.appendChild(subtitleHint);
+        fields.appendChild(subtitleField);
+        syncSubtitleAvailability = function () {
+            var hasSubtitles = (subtitleSelect.options || []).length > 1;
+            var supportsSubtitles = !!selectedPlayer &&
+                read(selectedPlayer, "SupportsExternalSubtitle") === true;
+            var unavailable = !hasSubtitles || !supportsSubtitles;
+            if (!supportsSubtitles && subtitleSelect.value !== "") {
+                subtitleSelect.value = "";
+                subtitleSelect._externalPlayerRefresh();
+            }
+            subtitleSelect._externalPlayerUnavailable = unavailable;
+            subtitleSelect.disabled = unavailable;
+            subtitleSelect._externalPlayerSetDisabled(unavailable);
+            subtitleHint.hidden = !hasSubtitles || supportsSubtitles;
+            subtitleHint.textContent = supportsSubtitles || !selectedPlayer
+                ? ""
+                : format(
+                    text(
+                        manifest,
+                        "SubtitleUnsupportedForPlayer",
+                        "{0} cannot receive an external subtitle through its application link."),
+                    read(selectedPlayer, "DisplayName") || "");
+        };
+        syncSubtitleAvailability();
 
         var resume = document.createElement("input");
         resume.type = "checkbox";
@@ -1156,11 +1192,6 @@ define(["events", "connectionManager"], function (events, connectionManager) {
         error.setAttribute("aria-live", "polite");
         contentInner.appendChild(error);
 
-        var manual = document.createElement("a");
-        manual.className = "emby-external-player-manual-link";
-        manual.hidden = true;
-        manual.textContent = text(manifest, "RetryLaunch", "If the player did not open, select here to retry");
-        contentInner.appendChild(manual);
         content.appendChild(contentInner);
         dialog.appendChild(content);
 
@@ -1179,9 +1210,10 @@ define(["events", "connectionManager"], function (events, connectionManager) {
         function setBusy(busy) {
             launch.disabled = busy || !selectedPlayer;
             sourceSelect.disabled = busy;
-            subtitleSelect.disabled = busy;
+            subtitleSelect.disabled = busy || !!subtitleSelect._externalPlayerUnavailable;
             sourceSelect._externalPlayerSetDisabled(busy);
-            subtitleSelect._externalPlayerSetDisabled(busy);
+            subtitleSelect._externalPlayerSetDisabled(
+                busy || !!subtitleSelect._externalPlayerUnavailable);
             resume.disabled = busy || resumeUnavailable;
             playerOptions.forEach(function (candidate) {
                 candidate.option.disabled = busy;
@@ -1194,7 +1226,6 @@ define(["events", "connectionManager"], function (events, connectionManager) {
                 return;
             }
             error.textContent = "";
-            manual.hidden = true;
             setBusy(true);
             apiPost("ExternalPlayer/Resolve", {
                 itemId: read(manifest, "ItemId"),
@@ -1214,8 +1245,6 @@ define(["events", "connectionManager"], function (events, connectionManager) {
                 }
                 var warnings = read(resolution, "Warnings") || [];
                 error.textContent = warnings.join(" ");
-                manual.href = launchUrl;
-                manual.hidden = false;
                 window.location.href = launchUrl;
             }).catch(function () {
                 if (overlay._externalPlayerClosed) {

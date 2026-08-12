@@ -309,6 +309,7 @@ assert.ok(!infuseResolution.LaunchUrl.includes(token));
 const infuseUrl = new URL(infuseResolution.LaunchUrl);
 const subtitleUrl = infuseUrl.searchParams.get("sub");
 assert.ok(subtitleUrl);
+assert.match(new URL(subtitleUrl).pathname, /\/subtitle\.srt$/);
 const subtitleResponse = await fetch(subtitleUrl);
 assert.equal(subtitleResponse.status, 200);
 assert.match(subtitleResponse.headers.get("content-disposition") || "", /^inline; filename="[\x20-\x7E]+"$/);
@@ -323,6 +324,7 @@ const assResolution = await (await resolve({
 })).json();
 const assSubtitleUrl = new URL(assResolution.LaunchUrl).searchParams.get("sub");
 assert.ok(assSubtitleUrl);
+assert.match(new URL(assSubtitleUrl).pathname, /\/subtitle\.ass$/);
 const assSubtitleResponse = await fetch(assSubtitleUrl);
 assert.equal(assSubtitleResponse.status, 200);
 assert.match(await assSubtitleResponse.text(), /\[Script Info\]/);
@@ -334,8 +336,7 @@ if (programData) {
     const protectedUrls = [streamUrl, customStreamUrl, secondStreamUrl, subtitleUrl, assSubtitleUrl];
     const tickets = [iinaTicket, customTicket, secondTicket, ...[subtitleUrl, assSubtitleUrl].map((url) => {
         const parsed = new URL(url);
-        const segments = parsed.pathname.split("/");
-        return segments.at(-3);
+        return parsed.searchParams.get("api_key");
     })];
     assert.ok(!logText.includes(token), "The Emby access token must not appear in server logs.");
     for (const ticket of tickets) {

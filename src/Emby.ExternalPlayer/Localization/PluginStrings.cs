@@ -82,8 +82,8 @@ public static class PluginStrings
             [nameof(Subtitle)] = "Subtitle",
             [nameof(NoExternalSubtitle)] = "Do not load an external subtitle",
             [nameof(SubtitleNumber)] = "Subtitle {0}",
+            [nameof(SubtitleUnsupportedForPlayer)] = "{0} cannot receive an external subtitle through its application link.",
             [nameof(ResumeFromLastPosition)] = "Resume from the last position",
-            [nameof(RetryLaunch)] = "If the player did not open, select here to retry",
             [nameof(Cancel)] = "Cancel",
             [nameof(ResolveError)] = "Unable to create the playback address. Check permissions, the media version, and the server connection.",
             [nameof(InvalidLaunchUrl)] = "The server did not return a safe application URL.",
@@ -166,8 +166,8 @@ public static class PluginStrings
             [nameof(Subtitle)] = "字幕",
             [nameof(NoExternalSubtitle)] = "不加载外挂字幕",
             [nameof(SubtitleNumber)] = "字幕 {0}",
+            [nameof(SubtitleUnsupportedForPlayer)] = "{0} 无法通过应用链接接收外挂字幕，请选择支持字幕的播放器。",
             [nameof(ResumeFromLastPosition)] = "从上次位置继续",
-            [nameof(RetryLaunch)] = "若播放器未自动打开，请点此重试",
             [nameof(Cancel)] = "取消",
             [nameof(ResolveError)] = "无法生成播放地址，请检查权限、媒体版本或服务器连接。",
             [nameof(InvalidLaunchUrl)] = "服务器未返回安全的应用启动地址。",
@@ -216,8 +216,8 @@ public static class PluginStrings
             [nameof(Subtitle)] = "字幕",
             [nameof(NoExternalSubtitle)] = "不載入外掛字幕",
             [nameof(SubtitleNumber)] = "字幕 {0}",
+            [nameof(SubtitleUnsupportedForPlayer)] = "{0} 無法透過應用程式連結接收外掛字幕，請選擇支援字幕的播放器。",
             [nameof(ResumeFromLastPosition)] = "從上次位置繼續",
-            [nameof(RetryLaunch)] = "若播放器未自動開啟，請點此重試",
             [nameof(Cancel)] = "取消",
             [nameof(ResolveError)] = "無法產生播放網址，請檢查權限、媒體版本或伺服器連線。",
             [nameof(InvalidLaunchUrl)] = "伺服器未傳回安全的應用程式啟動網址。",
@@ -291,8 +291,8 @@ public static class PluginStrings
     public static string Subtitle => Get(nameof(Subtitle));
     public static string NoExternalSubtitle => Get(nameof(NoExternalSubtitle));
     public static string SubtitleNumber => Get(nameof(SubtitleNumber));
+    public static string SubtitleUnsupportedForPlayer => Get(nameof(SubtitleUnsupportedForPlayer));
     public static string ResumeFromLastPosition => Get(nameof(ResumeFromLastPosition));
-    public static string RetryLaunch => Get(nameof(RetryLaunch));
     public static string Cancel => Get(nameof(Cancel));
     public static string ResolveError => Get(nameof(ResolveError));
     public static string InvalidLaunchUrl => Get(nameof(InvalidLaunchUrl));
@@ -317,8 +317,8 @@ public static class PluginStrings
             nameof(ExternalPlay), nameof(ChoosePlayer), nameof(Open), nameof(BuiltInPlayer),
             nameof(CustomPlayer), nameof(CustomPlayerHint), nameof(NoCustomPlayerHint),
             nameof(MediaVersion), nameof(VersionNumber), nameof(Subtitle),
-            nameof(NoExternalSubtitle), nameof(SubtitleNumber), nameof(ResumeFromLastPosition),
-            nameof(RetryLaunch), nameof(Cancel), nameof(ResolveError), nameof(InvalidLaunchUrl),
+            nameof(NoExternalSubtitle), nameof(SubtitleNumber), nameof(SubtitleUnsupportedForPlayer),
+            nameof(ResumeFromLastPosition), nameof(Cancel), nameof(ResolveError), nameof(InvalidLaunchUrl),
             nameof(ResumeUnsupportedWarning), nameof(SubtitleUnsupportedWarning),
         };
         var result = new Dictionary<string, string>(StringComparer.Ordinal);

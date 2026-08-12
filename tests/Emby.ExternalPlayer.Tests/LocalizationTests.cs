@@ -12,6 +12,10 @@ public sealed class LocalizationTests
         Assert.AreEqual("外部播放", PluginStrings.GetWebStrings("zh-CN")["ExternalPlay"]);
         Assert.AreEqual("选择播放器", PluginStrings.GetWebStrings("zh-CN")["ChoosePlayer"]);
         Assert.AreEqual("自定义播放器", PluginStrings.GetWebStrings("zh-CN")["CustomPlayer"]);
+        Assert.AreEqual(
+            "{0} 无法通过应用链接接收外挂字幕，请选择支持字幕的播放器。",
+            PluginStrings.GetWebStrings("zh-CN")["SubtitleUnsupportedForPlayer"]);
+        Assert.IsFalse(PluginStrings.GetWebStrings("zh-CN").ContainsKey("RetryLaunch"));
         Assert.AreEqual("外部播放", PluginStrings.GetWebStrings("zh-Hant")["ExternalPlay"]);
         Assert.AreEqual("開啟", PluginStrings.GetWebStrings("zh-Hant")["Open"]);
         Assert.AreEqual("External play", PluginStrings.GetWebStrings("fr-FR")["ExternalPlay"]);

@@ -77,10 +77,11 @@ public static class ServerUrlBuilder
 
     public static string BuildTicketSubtitleUrl(string apiBase, string ticket, int index, string? format)
     {
+        var extension = NormalizeExtension(format, "srt");
         return Combine(
             apiBase,
-            "ExternalPlayer/Subtitle/" + Uri.EscapeDataString(ticket) + "/" + index +
-            "/subtitle.css");
+            "ExternalPlayer/Subtitle/" + index + "/subtitle." + extension +
+            "?api_key=" + Uri.EscapeDataString(ticket));
     }
 
     public static string AppendApiKey(string url, string accessToken)

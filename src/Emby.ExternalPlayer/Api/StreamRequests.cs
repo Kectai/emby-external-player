@@ -13,11 +13,14 @@ public sealed class GetExternalPlayerStream
     public string FileName { get; set; } = string.Empty;
 }
 
-[Route("/ExternalPlayer/Subtitle/{Ticket}/{Index}/subtitle.css", "GET,HEAD", Summary = "Relays an external subtitle using a short-lived playback ticket")]
+[Route("/ExternalPlayer/Subtitle/{Index}/{FileName}", "GET,HEAD", Summary = "Relays an external subtitle using a short-lived playback ticket")]
+[Route("/ExternalPlayer/Subtitle/{Ticket}/{Index}/subtitle.css", "GET,HEAD", Summary = "Relays an external subtitle using a legacy path ticket")]
 [Unauthenticated]
 public sealed class GetExternalPlayerSubtitle
 {
     public string Ticket { get; set; } = string.Empty;
 
     public int Index { get; set; }
+
+    public string FileName { get; set; } = string.Empty;
 }

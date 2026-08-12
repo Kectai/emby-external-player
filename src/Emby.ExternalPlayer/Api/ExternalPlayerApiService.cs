@@ -187,6 +187,9 @@ public sealed class ExternalPlayerApiService : IService, IRequiresRequest
                         ? "text/plain; charset=utf-8"
                         : MimeTypes.GetMimeType(
                             "subtitle." + ServerUrlBuilder.NormalizeExtension(selection.Subtitle.Codec, "srt")),
+                    SubtitleFormat = selection.Subtitle is null
+                        ? null
+                        : ServerUrlBuilder.NormalizeExtension(selection.Subtitle.Codec, "srt"),
                     SubtitleContentLength = subtitleFile?.Length,
                     SafeSubtitleFileName = selection.Subtitle is null
                         ? null

@@ -12,7 +12,7 @@
 - 详情页入口直接复用“从头开始”按钮的 Emby 类与原生图标结构，并持续跟随页面重建恢复在其右侧；播放器选择器跟随当前主题，并为内置/自定义应用提供清晰的选中状态和窄屏布局；媒体版本和字幕使用与字段精确等宽的可访问下拉列表。
 - 安全中转 URL 的末段使用 Emby 媒体标题，播放器不再把固定路由名 `stream.js` 当作标题；该修复不依赖某个播放器的私有参数。
 - IINA 及声明请求头能力的自定义播放器在安全中转地址中不再携带 `api_key` 查询串；短期票据通过受限 HTTP 请求头交付，标题栏只从干净的媒体路径读取名称。
-- 多媒体版本、SRT/ASS 等 Emby 已识别的外挂字幕、服务端 UserData 续播位置。
+- 多媒体版本、SRT/ASS 等 Emby 已识别的外挂字幕、服务端 UserData 续播位置；字幕只对声明支持该参数的播放器开放，避免选择后静默丢失。
 - 默认 `SecureTicketRelay`：播放器 URL 不包含 Emby token，支持 HEAD 和单 Range/206。
 - 短期 256 位随机票据，只在内存保存哈希索引，默认 8 小时、最多 2000 条，服务重启全部失效。
 - 启动时幂等加载 Web 模块；停止、禁用或正常卸载时精确移除自己的加载片段。
@@ -27,7 +27,7 @@
 
 ## 安装
 
-1. 从 `artifacts/Emby.ExternalPlayer-1.4.8.zip` 取出 `Emby.ExternalPlayer.dll`。
+1. 从 `artifacts/Emby.ExternalPlayer-1.4.9.zip` 取出 `Emby.ExternalPlayer.dll`。
 2. 停止 Emby Server，把 DLL 放入 Emby 程序数据目录的 `plugins` 文件夹。
 3. 启动 Emby，在插件设置中确认 `External Player` 已启用；默认安全模式无需额外配置。
 4. 强制刷新一次 Emby Web，然后进入有媒体源的视频详情页。

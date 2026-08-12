@@ -142,8 +142,7 @@
 }
 
 .emby-external-player-option:focus-visible,
-.emby-external-player-dialog select:focus-visible,
-.emby-external-player-manual-link:focus-visible {
+.emby-external-player-dialog select:focus-visible {
     box-shadow: 0 0 0 .2rem hsla(var(--theme-primary-color-hue, 116), var(--theme-primary-color-saturation, 42%), var(--theme-primary-color-lightness, 50%), .55);
     outline: 0;
 }
@@ -384,16 +383,10 @@
     margin-top: 1rem;
 }
 
-.emby-external-player-manual-link {
-    color: var(--theme-accent-text-color, #6ccf65);
-    display: inline-block;
-    font-size: .9rem;
-    margin-top: .7rem;
+.emby-external-player-subtitle-hint {
+    line-height: 1.35;
+    margin-top: .4rem;
     overflow-wrap: anywhere;
-}
-
-.emby-external-player-manual-link[hidden] {
-    display: none;
 }
 
 .emby-external-player-actions {

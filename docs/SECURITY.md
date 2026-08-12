@@ -27,7 +27,7 @@ SecureTicketRelay 在 Resolve 时只接受 Emby 返回的本地 `File` 媒体源
 
 视频路径标题经过长度、控制字符和路径分隔符清理。对声明支持 HTTP 请求头的适配器（当前为 IINA），媒体地址使用无查询串的 `/ExternalPlayer/Stream/{媒体标题}`，短期票据放在 `X-Emby-Playback-Ticket` 请求头中；IINA 启动参数使用其官方白名单允许的 `http-header-fields`，并强制新窗口以降低请求头影响其他播放会话的风险。其他适配器继续使用 `/ExternalPlayer/Stream/{媒体标题}?api_key={短期票据}`，Emby 4.9.x 会在写请求日志前隐藏该查询值。两种票据都是插件自己的短期随机值，不是 Emby access token。
 
-反向代理可能在请求到达 Emby 前记录完整查询字符串，部署时仍应在代理访问日志中隐藏 `api_key`，并必须转发 `X-Emby-Playback-Ticket`。旧的 `/ExternalPlayer/Stream/{ticket}/stream.js` 路由只为已签发地址的短期兼容保留，新 Resolve 不再生成它。
+反向代理可能在请求到达 Emby 前记录完整查询字符串，部署时仍应在代理访问日志中隐藏 `api_key`，并必须转发 `X-Emby-Playback-Ticket`。字幕地址使用真实的 `.srt`、`.ass` 等扩展名，并把短期票据放入 Emby 会脱敏的 `api_key` 查询参数；服务端同时核对字幕索引和扩展名。旧的 `/ExternalPlayer/Stream/{ticket}/stream.js` 与 `/ExternalPlayer/Subtitle/{ticket}/{index}/subtitle.css` 路由只为已签发地址的短期兼容保留，新 Resolve 不再生成它们。
 
 ## 日志和响应
 

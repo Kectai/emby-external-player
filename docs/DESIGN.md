@@ -498,10 +498,10 @@ IINA 的 `http-header-fields` 属于官方 URL Scheme 安全白名单，适配�
 ### 8.6 字幕票据入口
 
 ```http
-GET /ExternalPlayer/Subtitle/{ticket}/{subtitleIndex}/subtitle.css
+GET /ExternalPlayer/Subtitle/{subtitleIndex}/subtitle.{format}?api_key={ticket}
 ```
 
-字幕必须绑定在同一条播放票据上，不能仅凭条目 ID 下载。服务端重新确认字幕索引属于票据中的媒体源。
+字幕必须绑定在同一条播放票据上，不能仅凭条目 ID 下载。服务端重新确认字幕索引与扩展名属于票据中的媒体源。真实的 `.srt`、`.ass` 等扩展名用于让播放器正确识别字幕；票据放入 Emby 会脱敏的 `api_key` 查询参数。旧的 `{ticket}/{subtitleIndex}/subtitle.css` 路由只保留短期兼容。
 
 ## 9. 播放票据设计
 
@@ -666,7 +666,7 @@ MVP 只传递外挂字幕 URL。内封字幕由外部播放器从容器中自行
 3. 用户语言匹配的外挂字幕。
 4. 不加载字幕。
 
-字幕协议不支持或播放器能力未知时，前端应显示提示，而不是静默声称已加载。
+字幕协议不支持或播放器能力未知时，前端禁用字幕选择并显示具体播放器提示，而不是允许选择后静默丢弃。支持字幕的播放器收到带真实字幕扩展名的短期票据 URL。
 
 ### 12.4 续播
 

@@ -56,11 +56,26 @@ public sealed class StreamRelayService : IService, IRequiresRequest
 
     public Task<object> Get(GetExternalPlayerSubtitle request)
     {
-        var payload = GetTicket(request.Ticket);
+        var rawTicket = !string.IsNullOrWhiteSpace(request.Ticket)
+            ? request.Ticket
+            : Request.QueryString["api_key"] ?? string.Empty;
+        var payload = GetTicket(rawTicket);
         if (payload.SubtitleFilePath is null ||
             payload.SubtitleStreamIndex != request.Index)
         {
             throw new ResourceNotFoundException("The subtitle playback ticket is invalid.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Ticket))
+        {
+            var expectedFormat = ServerUrlBuilder.NormalizeExtension(payload.SubtitleFormat, "srt");
+            if (!string.Equals(
+                    request.FileName,
+                    "subtitle." + expectedFormat,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ResourceNotFoundException("The subtitle format does not match the ticket.");
+            }
         }
 
         var subtitleFile = LocalMediaFilePolicy.RequireExistingFile(payload.SubtitleFilePath);

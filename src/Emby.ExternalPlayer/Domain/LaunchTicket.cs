@@ -26,6 +26,8 @@ public sealed class LaunchTicketPayload
 
     public string SubtitleContentType { get; set; } = "text/plain; charset=utf-8";
 
+    public string? SubtitleFormat { get; set; }
+
     public long? SubtitleContentLength { get; set; }
 
     public string? SafeSubtitleFileName { get; set; }

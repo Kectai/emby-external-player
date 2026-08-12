@@ -69,12 +69,18 @@ public sealed class ServerUrlBuilderTests
     }
 
     [TestMethod]
-    public void TicketRoutes_UseEmbyLogRedactionOrQuietExtensions()
+    public void TicketRoutes_UseEmbyLogRedactionAndRealSubtitleExtensions()
     {
         StringAssert.Contains(
             ServerUrlBuilder.BuildTicketStreamUrl("https://media.example/", "ticket", "Movie"),
             "?api_key=ticket");
-        Assert.IsTrue(ServerUrlBuilder.BuildTicketSubtitleUrl(
-            "https://media.example/", "ticket", 3, "srt").EndsWith("/subtitle.css", StringComparison.Ordinal));
+        Assert.AreEqual(
+            "https://media.example/ExternalPlayer/Subtitle/3/subtitle.srt?api_key=ticket",
+            ServerUrlBuilder.BuildTicketSubtitleUrl(
+                "https://media.example/", "ticket", 3, "srt"));
+        Assert.AreEqual(
+            "https://media.example/ExternalPlayer/Subtitle/4/subtitle.ass?api_key=ticket",
+            ServerUrlBuilder.BuildTicketSubtitleUrl(
+                "https://media.example/", "ticket", 4, "ASS"));
     }
 }
