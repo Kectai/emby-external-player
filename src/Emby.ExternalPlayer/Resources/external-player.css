@@ -29,7 +29,7 @@
     flex-direction: column;
     max-height: min(46rem, calc(100vh - 3rem));
     max-height: min(46rem, calc(100dvh - 3rem));
-    max-width: 30rem;
+    max-width: 25rem;
     overflow: hidden;
     padding: 0;
     width: 100%;
@@ -291,12 +291,24 @@
 }
 
 .emby-external-player-actions .formDialogFooterItem {
+    align-items: center !important;
+    display: inline-flex !important;
     flex: 0 1 auto !important;
+    justify-content: center !important;
+    line-height: 1.25;
     margin: 0 !important;
     max-width: 10rem !important;
     min-width: 7.25rem;
     padding: .65rem 1.1rem;
+    text-align: center !important;
     width: auto !important;
+}
+
+.emby-external-player-actions .buttonText {
+    display: block;
+    line-height: inherit;
+    text-align: center;
+    width: 100%;
 }
 
 .emby-external-player-launch[aria-busy="true"] {
@@ -306,8 +318,11 @@
 
 .emby-external-player-config-section {
     border-top: var(--line-size, 1px) solid var(--line-background, rgba(255, 255, 255, .18));
-    margin-top: 2rem;
+    box-sizing: border-box;
+    margin: 2rem 0 1.5rem;
+    max-width: none;
     padding-top: 1.5rem;
+    width: 100%;
 }
 
 .emby-external-player-native-save-hidden {
@@ -331,7 +346,7 @@
 
 .emby-external-player-config-description {
     line-height: 1.45;
-    max-width: 58rem;
+    max-width: none;
 }
 
 .emby-external-player-config-add {
@@ -342,13 +357,21 @@
 
 .emby-external-player-config-list {
     display: grid;
-    gap: 1rem;
+    gap: 0;
     margin-top: 1rem;
+    width: 100%;
 }
 
 .emby-external-player-config-card {
-    border-radius: .5rem;
-    padding: 1rem;
+    border-top: var(--line-size, 1px) solid var(--line-background, rgba(255, 255, 255, .18));
+    box-sizing: border-box;
+    margin: 0;
+    padding: 1.25rem 0;
+    width: 100%;
+}
+
+.emby-external-player-config-card:last-child {
+    border-bottom: var(--line-size, 1px) solid var(--line-background, rgba(255, 255, 255, .18));
 }
 
 .emby-external-player-config-card-header {
@@ -365,8 +388,9 @@
 
 .emby-external-player-config-fields {
     display: grid;
-    gap: .85rem 1rem;
-    grid-template-columns: minmax(0, 1fr) minmax(9rem, .45fr);
+    gap: .9rem;
+    grid-template-columns: minmax(0, 1fr);
+    width: 100%;
 }
 
 .emby-external-player-config-enabled-label {
@@ -386,10 +410,6 @@
 .emby-external-player-config-field {
     margin: 0;
     min-width: 0;
-}
-
-.emby-external-player-config-field:last-child {
-    grid-column: 1 / -1;
 }
 
 .emby-external-player-config-input,
@@ -435,8 +455,7 @@
     }
 
     .emby-external-player-player-list,
-    .emby-external-player-fields,
-    .emby-external-player-config-fields {
+    .emby-external-player-fields {
         grid-template-columns: minmax(0, 1fr);
     }
 

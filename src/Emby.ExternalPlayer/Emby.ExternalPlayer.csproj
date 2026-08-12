@@ -6,7 +6,7 @@
     <ImplicitUsings>disable</ImplicitUsings>
     <AssemblyName>Emby.ExternalPlayer</AssemblyName>
     <RootNamespace>Emby.ExternalPlayer</RootNamespace>
-    <Version>1.4.1</Version>
+    <Version>1.4.2</Version>
     <Description>Lightweight external player launcher for Emby Web.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>

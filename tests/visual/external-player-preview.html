@@ -140,9 +140,9 @@
         };
         const events = { on() {}, off() {} };
         const apiClient = {
-            getUrl(path) {
+            getUrl(path, query) {
                 return path === "ExternalPlayer/Web/style.css"
-                    ? "../../src/Emby.ExternalPlayer/Resources/external-player.css"
+                    ? `../../src/Emby.ExternalPlayer/Resources/external-player.css?v=${query.v}`
                     : path;
             },
             getJSON() {
@@ -156,10 +156,10 @@
             document.documentElement.setAttribute("data-module-defined", "true");
             window.externalPlayerInitializer = factory(events, connectionManager);
         };
-        window.location.hash = "#!/item?id=preview-item";
+        window.location.hash = "#!/item?id=preview-item&preview=1";
     </script>
     <output id="previewStatus"></output>
-    <script src="../../src/Emby.ExternalPlayer/Resources/external-player.js"></script>
+    <script src="../../src/Emby.ExternalPlayer/Resources/external-player.js?v=1.4.2"></script>
     <script>
         window.externalPlayerInitializer();
         document.documentElement.setAttribute("data-module-initialized", "true");

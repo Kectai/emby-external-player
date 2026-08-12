@@ -25,11 +25,12 @@
         }
         * { box-sizing: border-box; }
         body { background:#111; color:#fff; font:16px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; margin:0; }
-        .settingsContainer { margin:0 auto; max-width:58rem; padding:2rem; }
+        .settingsContainer { padding:2rem; }
+        form, .readOnlyContent { max-width:80ch; }
+        .auto-center { margin-inline:auto; }
         .mainSubTitle { color:rgba(255,255,255,.62); margin-bottom:1.5rem; }
         .verticalSection { margin-bottom:1.5rem; }
         .fieldDescription { color:rgba(255,255,255,.62); }
-        .paperList { background:rgba(255,255,255,.075); }
         .emby-button, .raised { background:rgba(255,255,255,.14); border:0; border-radius:.35rem; color:#fff; padding:.7rem 1rem; }
         .button-submit { background:hsl(116,41.7%,50.2%); }
         .emby-input, .emby-select { background:rgba(255,255,255,.12); border:1px solid transparent; border-radius:.3rem; color:#fff; min-height:2.8rem; padding:.55rem .7rem; }
@@ -42,19 +43,21 @@
     <div class="settingsContainer">
         <h1>外部播放器</h1>
         <div class="mainSubTitle">隔离的插件配置页预览。</div>
-        <form>
-            <div class="mainContent">
-                <div class="verticalSection">
-                    <label><input type="checkbox" checked> 启用插件</label>
+        <form class="dashboardGeneralForm auto-center readOnlyContent">
+            <div class="mainContentParent">
+                <div class="mainContent">
+                    <div class="verticalSection">
+                        <label><input type="checkbox" checked> 启用插件</label>
+                    </div>
                 </div>
-            </div>
-            <div class="verticalSection">
-                <button type="submit" data-data1="PageSave" class="raised button-submit block btnSave pagebutton"><span>Save</span></button>
+                <div class="verticalSection">
+                    <button type="submit" data-data1="PageSave" class="raised button-submit block btnSave pagebutton"><span>Save</span></button>
+                </div>
             </div>
         </form>
     </div>
     <script>
-        window.location.hash = "#!/genericui?PageId=f7e75c%3ASettings";
+        window.location.hash = "#!/genericui?PageId=f7e75c%3ASettings&preview=1";
         const players = [{
             Id: "preview-iina-nova",
             Enabled: true,
@@ -64,9 +67,9 @@
         }];
         const events = { on() {}, off() {} };
         const apiClient = {
-            getUrl(path) {
+            getUrl(path, query) {
                 return path === "ExternalPlayer/Web/style.css"
-                    ? "../../src/Emby.ExternalPlayer/Resources/external-player.css"
+                    ? `../../src/Emby.ExternalPlayer/Resources/external-player.css?v=${query.v}`
                     : path;
             },
             getJSON() { return Promise.resolve(players); },
@@ -81,6 +84,6 @@
             factory(events, connectionManager)();
         };
     </script>
-    <script src="../../src/Emby.ExternalPlayer/Resources/external-player.js"></script>
+    <script src="../../src/Emby.ExternalPlayer/Resources/external-player.js?v=1.4.2"></script>
 </body>
 </html>

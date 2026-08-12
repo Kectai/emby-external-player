@@ -144,7 +144,7 @@ class FakeElement {
     }
 
     get textContent() {
-        return this._textContent;
+        return this._textContent + this.children.map((child) => child.textContent).join("");
     }
 
     set textContent(value) {
@@ -274,6 +274,13 @@ const manifest = {
 const source = fs.readFileSync(
     new URL("../../src/Emby.ExternalPlayer/Resources/external-player.js", import.meta.url),
     "utf8");
+const stylesheet = fs.readFileSync(
+    new URL("../../src/Emby.ExternalPlayer/Resources/external-player.css", import.meta.url),
+    "utf8");
+assert.match(stylesheet, /\.emby-external-player-dialog\s*\{[\s\S]*?max-width:\s*25rem;/);
+assert.match(stylesheet, /\.emby-external-player-actions \.formDialogFooterItem\s*\{[\s\S]*?justify-content:\s*center\s*!important;/);
+assert.match(stylesheet, /\.emby-external-player-config-section\s*\{[\s\S]*?width:\s*100%;/);
+assert.match(stylesheet, /\.emby-external-player-config-fields\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\);/);
 const document = new FakeDocument();
 const resumeButton = document.createElement("button");
 resumeButton.className = "raised emby-button detailButton detailButton-primary detailButton-stacked btnResume";
@@ -363,7 +370,7 @@ await new Promise((resolve) => setTimeout(resolve, 0));
 assert.equal(document.body.walk().filter((item) => item.id === "embyExternalPlayerButton").length, 1);
 assert.equal(eventSubscriptions.size, 1);
 assert.equal(manifestQuery.language, "zh-CN");
-assert.equal(document.getElementById("embyExternalPlayerStyles").attributes.get("data-resource-version"), "1.4.1");
+assert.equal(document.getElementById("embyExternalPlayerStyles").attributes.get("data-resource-version"), "1.4.2");
 
 evaluateAndStart();
 await new Promise((resolve) => setTimeout(resolve, 0));
@@ -492,6 +499,8 @@ assert.equal(nativeSaveClicks, 1, "the removed native command must no longer rec
 assert.equal(rebuiltSaveButton.nextSibling, localizedSaveButton);
 const customConfigurationSection = document.getElementById("embyExternalPlayerCustomPlayers");
 assert.ok(customConfigurationSection, "the independent custom-player editor must be added to the plugin page");
+assert.equal(customConfigurationSection.parentNode, document.body, "the custom-player editor must be a full-width peer of Generic UI mainContent");
+assert.equal(customConfigurationSection.nextSibling, rebuiltSaveButton, "the full-width custom-player editor must stay immediately before the page Save command");
 const addCustomPlayerButton = customConfigurationSection.walk().find((item) =>
     item.tagName === "BUTTON" && item.textContent === "添加播放器");
 assert.ok(addCustomPlayerButton);

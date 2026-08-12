@@ -4,7 +4,7 @@ define(["events", "connectionManager"], function (events, connectionManager) {
     var moduleKey = "__embyExternalPlayerModule";
     var buttonId = "embyExternalPlayerButton";
     var configurationPageId = "f7e75c:Settings";
-    var resourceVersion = "1.4.1";
+    var resourceVersion = "1.4.2";
     var selectorProfile = {
         actionRow: ".mainDetailButtons, .detailPagePrimaryContainer .detailButtons",
         mediaSource: "select.selectSource",
@@ -266,12 +266,17 @@ define(["events", "connectionManager"], function (events, connectionManager) {
         status.setAttribute("role", "status");
         status.setAttribute("aria-live", "polite");
         section.appendChild(status);
-        mainContent.appendChild(section);
+        var mainContentParent = mainContent.parentNode;
+        if (mainContentParent) {
+            mainContentParent.insertBefore(section, mainContent.nextSibling);
+        } else {
+            mainContent.appendChild(section);
+        }
 
         function renderCard(player) {
             player = player || {};
             var card = document.createElement("div");
-            card.className = "paperList emby-external-player-config-card";
+            card.className = "verticalSection emby-external-player-config-card";
             card.setAttribute("data-player-id", read(player, "Id") || "");
 
             var cardHeader = document.createElement("div");
@@ -901,7 +906,10 @@ define(["events", "connectionManager"], function (events, connectionManager) {
         var launch = document.createElement("button");
         launch.type = "button";
         launch.className = "raised button-submit emby-button formDialogFooterItem emby-external-player-launch";
-        launch.textContent = text(manifest, "Open", "Open");
+        var launchText = document.createElement("span");
+        launchText.className = "buttonText";
+        launchText.textContent = text(manifest, "Open", "Open");
+        launch.appendChild(launchText);
         launch.disabled = !selectedPlayer;
         var resumeUnavailable = resume.disabled;
         function setBusy(busy) {
@@ -960,7 +968,10 @@ define(["events", "connectionManager"], function (events, connectionManager) {
         var cancel = document.createElement("button");
         cancel.type = "button";
         cancel.className = "raised emby-button formDialogFooterItem emby-external-player-cancel";
-        cancel.textContent = text(manifest, "Cancel", "Cancel");
+        var cancelText = document.createElement("span");
+        cancelText.className = "buttonText";
+        cancelText.textContent = text(manifest, "Cancel", "Cancel");
+        cancel.appendChild(cancelText);
         cancel.addEventListener("click", function () { closeDialog(overlay); });
         actions.appendChild(cancel);
         dialog.appendChild(actions);
