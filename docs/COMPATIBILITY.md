@@ -45,6 +45,8 @@
 
 插件 1.4.4 针对正式 Emby Web 的延迟样式加载修正 1.4.3：使用更高优先级的组合选择器覆盖官方 `.formDialog` 的 `min-width` 和 `max-width`，因此弹窗在官方样式晚于插件加载时仍保持 20rem。自定义播放器表单为输入框和下拉框显式保留 3em 高度，避免官方 `.emby-select { height: 100% }` 在动态表单中造成行高塌陷、标签重叠；按钮内容使用双轴居中。
 
+插件 1.4.5 将 1.4.4 过于紧凑的固定 20rem 调整为内容驱动的响应式宽度 `clamp(28rem, 34vw, 32rem)`，同时受视口安全边距限制。该范围参考 Material 桌面对话框最大 560dp、Carbon small 模态框的响应式占比，以及 Emby 自身约 60ch 的表单对话框尺度；在常见桌面视口中实际宽度为 448–512px。
+
 Web 模块测试使用无依赖的假 DOM 覆盖：重复加载只保留一个按钮、事件退订、原生图标结构、不泄漏 `open_in_new` 文本、详情重建恢复、默认选择状态、自定义播放器标识、多个未保存草稿、独立保存、配置页本地化按钮委托、PascalCase/camelCase API 兼容、Escape 关闭、焦点恢复与 focus trap。实际 Chrome、Firefox、Safari 的人工视觉回归尚需在部署环境完成，因此不能把 DOM 自动化和隔离预览等同于三款浏览器实测。
 
 播放器 URL 适配器均有编码与能力测试。本机检测到 IINA 1.4.4 注册了 `iina` 协议，但遵循环境隔离要求未实际拉起；PotPlayer、VLC media player、Infuse 未安装，需按 [客户端说明](CLIENT_HANDLERS.md) 完成人工矩阵。

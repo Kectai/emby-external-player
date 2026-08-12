@@ -29,11 +29,11 @@
     flex-direction: column;
     max-height: min(46rem, calc(100vh - 3rem));
     max-height: min(46rem, calc(100dvh - 3rem));
-    max-width: 20rem !important;
+    max-width: 32rem !important;
     min-width: 0 !important;
     overflow: hidden;
     padding: 0;
-    width: min(20rem, calc(100vw - 3rem)) !important;
+    width: min(clamp(28rem, 34vw, 32rem), calc(100vw - 3rem)) !important;
 }
 
 .emby-external-player-dialog,
@@ -467,9 +467,9 @@
         border-radius: 1rem;
         max-height: calc(100vh - 1.5rem);
         max-height: calc(100dvh - 1.5rem);
-        max-width: 20rem !important;
+        max-width: 32rem !important;
         min-width: 0 !important;
-        width: min(20rem, calc(100vw - 1.5rem)) !important;
+        width: min(clamp(28rem, 34vw, 32rem), calc(100vw - 1.5rem)) !important;
     }
 
     .emby-external-player-header,
