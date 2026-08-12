@@ -76,7 +76,36 @@
         .button-submit { background: hsl(116, 41.7%, 50.2%); }
         .formDialogFooterItem { text-transform: uppercase; }
         #previewStatus { display: none; }
+        html.light-preview {
+            --background-lightness: 94%;
+            --button-background-lightness: 96%;
+            --header-background: #dedfdf;
+            --line-background: rgba(0, 0, 0, .13);
+            --theme-text-color-lightness: 12%;
+            color: #202020;
+        }
+        html.light-preview body { background: #d9dada; }
+        html.light-preview .dialog {
+            --background-hue: 180;
+            --background-saturation: 3%;
+            --background-lightness: 94%;
+            --button-background-hue: 180;
+            --button-background-saturation: 3%;
+            --button-background-lightness: 100%;
+            --input-background-lightness: 100%;
+            --theme-text-color-lightness: 12%;
+        }
+        html.light-preview .secondaryText,
+        html.light-preview .fieldDescription { color: rgba(0,0,0,.58); }
+        html.light-preview .emby-select { background: #fff; border-color: rgba(0,0,0,.13); }
+        html.light-preview .raised { color: #202020; }
+        html.light-preview .button-submit { color: #fff; }
     </style>
+    <script>
+        if (new URLSearchParams(window.location.search).get("theme") === "light") {
+            document.documentElement.className = "light-preview";
+        }
+    </script>
 </head>
 <body>
     <main class="preview-page">
@@ -159,12 +188,12 @@
         window.location.hash = "#!/item?id=preview-item&preview=1";
     </script>
     <output id="previewStatus"></output>
-    <script src="../../src/Emby.ExternalPlayer/Resources/external-player.js?v=1.4.6"></script>
+    <script src="../../src/Emby.ExternalPlayer/Resources/external-player.js?v=1.4.7"></script>
     <script>
         window.externalPlayerInitializer();
         document.documentElement.setAttribute("data-module-initialized", "true");
         const lazyFormDialogStyles = document.createElement("style");
-        lazyFormDialogStyles.textContent = ".formDialog{display:flex;flex-direction:column;position:relative;max-height:85%;min-width:clamp(20%,60ch,50%);max-width:90%}";
+        lazyFormDialogStyles.textContent = ".formDialog{display:flex;flex-direction:column;position:relative;max-height:85%;min-width:clamp(20%,60ch,50%);max-width:90%}.selectContainer{margin-bottom:1.5em;position:relative}.emby-select{display:block;height:100%;margin:0;margin-bottom:0!important;width:100%}";
         document.head.appendChild(lazyFormDialogStyles);
         window.setTimeout(function () {
             if (!document.getElementById("embyExternalPlayerButton")) {

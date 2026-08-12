@@ -204,16 +204,17 @@
 
 .emby-external-player-fields {
     border-top: var(--line-size, 1px) solid var(--line-background, rgba(255, 255, 255, .18));
+    box-sizing: border-box;
     display: grid;
-    gap: .75rem;
+    gap: .65rem;
     grid-template-columns: minmax(0, 1fr);
     margin-top: 1.2rem;
-    padding-top: 1.15rem;
+    padding: 1.15rem .15rem 0;
 }
 
-.emby-external-player-field {
+.emby-external-player-fields .selectContainer.emby-external-player-field {
     display: block;
-    margin: 0;
+    margin: 0 !important;
     min-width: 0;
 }
 
@@ -223,12 +224,15 @@
     margin-bottom: .4rem;
 }
 
-.emby-external-player-field select {
+.emby-external-player-field select.emby-select {
+    box-sizing: border-box;
     border-radius: .3rem;
     color: inherit;
     font-family: inherit;
-    min-height: 2.9rem;
-    padding: .55rem .75rem;
+    height: 3em !important;
+    min-height: 3em;
+    padding-bottom: 0;
+    padding-top: 0;
     width: 100%;
 }
 

@@ -285,6 +285,9 @@ assert.match(stylesheet, /\.dialog\.formDialog\.emby-external-player-dialog\s*\{
 assert.match(stylesheet, /\.dialog\.formDialog\.emby-external-player-dialog\s*\{[\s\S]*?min-width:\s*0\s*!important;/);
 assert.match(stylesheet, /width:\s*min\(clamp\(28rem,\s*34vw,\s*32rem\),\s*calc\(100vw\s*-\s*3rem\)\)\s*!important;/);
 assert.match(stylesheet, /\.emby-external-player-actions \.formDialogFooterItem\s*\{[\s\S]*?justify-content:\s*center\s*!important;/);
+assert.match(stylesheet, /\.emby-external-player-fields \.selectContainer\.emby-external-player-field\s*\{[\s\S]*?margin:\s*0\s*!important;/);
+assert.match(stylesheet, /\.emby-external-player-field select\.emby-select\s*\{[\s\S]*?height:\s*3em\s*!important;/);
+assert.match(stylesheet, /\.emby-external-player-fields\s*\{[\s\S]*?padding:\s*1\.15rem \.15rem 0;/);
 assert.match(stylesheet, /\.emby-external-player-config-section\s*\{[\s\S]*?width:\s*100%;/);
 assert.match(stylesheet, /\.emby-external-player-config-fields\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\);/);
 assert.match(stylesheet, /\.emby-external-player-config-fields\s*\{[\s\S]*?gap:\s*\.75rem 1rem;/);
@@ -386,7 +389,7 @@ await new Promise((resolve) => setTimeout(resolve, 0));
 assert.equal(document.body.walk().filter((item) => item.id === "embyExternalPlayerButton").length, 1);
 assert.equal(eventSubscriptions.size, 1);
 assert.equal(manifestQuery.language, "zh-CN");
-assert.equal(document.getElementById("embyExternalPlayerStyles").attributes.get("data-resource-version"), "1.4.6");
+assert.equal(document.getElementById("embyExternalPlayerStyles").attributes.get("data-resource-version"), "1.4.7");
 
 evaluateAndStart();
 await new Promise((resolve) => setTimeout(resolve, 0));
