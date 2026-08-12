@@ -277,12 +277,14 @@ const source = fs.readFileSync(
 const stylesheet = fs.readFileSync(
     new URL("../../src/Emby.ExternalPlayer/Resources/external-player.css", import.meta.url),
     "utf8");
-assert.match(stylesheet, /\.emby-external-player-dialog\s*\{[\s\S]*?max-width:\s*20rem;/);
+assert.match(stylesheet, /\.dialog\.formDialog\.emby-external-player-dialog\s*\{[\s\S]*?max-width:\s*20rem\s*!important;/);
+assert.match(stylesheet, /\.dialog\.formDialog\.emby-external-player-dialog\s*\{[\s\S]*?min-width:\s*0\s*!important;/);
 assert.match(stylesheet, /\.emby-external-player-actions \.formDialogFooterItem\s*\{[\s\S]*?justify-content:\s*center\s*!important;/);
 assert.match(stylesheet, /\.emby-external-player-config-section\s*\{[\s\S]*?width:\s*100%;/);
 assert.match(stylesheet, /\.emby-external-player-config-fields\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\);/);
 assert.match(stylesheet, /\.emby-external-player-config-fields\s*\{[\s\S]*?gap:\s*\.35rem;/);
-assert.match(stylesheet, /\.emby-external-player-config-card-actions \.emby-button\s*\{[\s\S]*?justify-content:\s*center;/);
+assert.match(stylesheet, /\.emby-external-player-config-card-actions \.emby-button\s*\{[\s\S]*?justify-content:\s*center\s*!important;/);
+assert.match(stylesheet, /\.emby-external-player-config-input,[\s\S]*?\.emby-external-player-config-select\s*\{[\s\S]*?height:\s*3em\s*!important;/);
 const document = new FakeDocument();
 const resumeButton = document.createElement("button");
 resumeButton.className = "raised emby-button detailButton detailButton-primary detailButton-stacked btnResume";
@@ -372,7 +374,7 @@ await new Promise((resolve) => setTimeout(resolve, 0));
 assert.equal(document.body.walk().filter((item) => item.id === "embyExternalPlayerButton").length, 1);
 assert.equal(eventSubscriptions.size, 1);
 assert.equal(manifestQuery.language, "zh-CN");
-assert.equal(document.getElementById("embyExternalPlayerStyles").attributes.get("data-resource-version"), "1.4.3");
+assert.equal(document.getElementById("embyExternalPlayerStyles").attributes.get("data-resource-version"), "1.4.4");
 
 evaluateAndStart();
 await new Promise((resolve) => setTimeout(resolve, 0));

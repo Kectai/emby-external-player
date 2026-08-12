@@ -159,10 +159,13 @@
         window.location.hash = "#!/item?id=preview-item&preview=1";
     </script>
     <output id="previewStatus"></output>
-    <script src="../../src/Emby.ExternalPlayer/Resources/external-player.js?v=1.4.3"></script>
+    <script src="../../src/Emby.ExternalPlayer/Resources/external-player.js?v=1.4.4"></script>
     <script>
         window.externalPlayerInitializer();
         document.documentElement.setAttribute("data-module-initialized", "true");
+        const lazyFormDialogStyles = document.createElement("style");
+        lazyFormDialogStyles.textContent = ".formDialog{display:flex;flex-direction:column;position:relative;max-height:85%;min-width:clamp(20%,60ch,50%);max-width:90%}";
+        document.head.appendChild(lazyFormDialogStyles);
         window.setTimeout(function () {
             if (!document.getElementById("embyExternalPlayerButton")) {
                 document.getElementById("previewStatus").textContent = "Button was not injected";

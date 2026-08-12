@@ -33,7 +33,9 @@
         .fieldDescription { color:rgba(255,255,255,.62); }
         .emby-button, .raised { background:rgba(255,255,255,.14); border:0; border-radius:.35rem; color:#fff; padding:.7rem 1rem; }
         .button-submit { background:hsl(116,41.7%,50.2%); }
-        .emby-input, .emby-select { background:rgba(255,255,255,.12); border:1px solid transparent; border-radius:.3rem; color:#fff; min-height:2.8rem; padding:.55rem .7rem; }
+        .emby-input { background:rgba(255,255,255,.12); border:1px solid transparent; border-radius:.3rem; color:#fff; display:block; height:3em; margin:0 0 0!important; padding:0 1ch; width:100%; }
+        .emby-select { appearance:none; background:rgba(255,255,255,.12); border:1px solid transparent; border-radius:.3rem; color:#fff; display:block; height:100%; margin:0 0 0!important; padding:0 1ch; width:100%; }
+        .inputContainer { margin-bottom:1.5em; }
         .emby-select option { color:#000; }
         .inputLabel { display:block; font-size:.86rem; margin-bottom:.35rem; }
         .genericeditbutton-hide { display:none; }
@@ -84,6 +86,6 @@
             factory(events, connectionManager)();
         };
     </script>
-    <script src="../../src/Emby.ExternalPlayer/Resources/external-player.js?v=1.4.3"></script>
+    <script src="../../src/Emby.ExternalPlayer/Resources/external-player.js?v=1.4.4"></script>
 </body>
 </html>
