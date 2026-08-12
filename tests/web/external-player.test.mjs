@@ -112,6 +112,11 @@ class FakeElement {
         if (selector === "button") {
             return this.walk().find((item) => item.tagName === "BUTTON") || null;
         }
+        if (selector === '.emby-external-player-select-button[aria-expanded="true"]') {
+            return this.walk().find((item) =>
+                item.className.split(/\s+/).includes("emby-external-player-select-button") &&
+                item.attributes.get("aria-expanded") === "true") || null;
+        }
         return null;
     }
 
@@ -244,12 +249,20 @@ const manifest = {
     ButtonPlacement: "AfterPrimaryPlay",
     ResumeByDefault: true,
     ResumePositionTicks: 900000000,
-    MediaSources: [{
-        Id: "source-1",
-        Name: "4K REMUX",
-        IsDefault: true,
-        Subtitles: [{ Index: 3, DisplayTitle: "简体中文 ASS", IsDefault: true }]
-    }],
+    MediaSources: [
+        {
+            Id: "source-1",
+            Name: "4K REMUX",
+            IsDefault: true,
+            Subtitles: [{ Index: 3, DisplayTitle: "简体中文 ASS", IsDefault: true }]
+        },
+        {
+            Id: "source-2",
+            Name: "1080p WEB-DL",
+            IsDefault: false,
+            Subtitles: [{ Index: 6, DisplayTitle: "English SRT", IsDefault: false }]
+        }
+    ],
     Players: [
         { Id: "Iina", DisplayName: "IINA", IsCustom: false, LaunchSchemes: ["iina"] },
         { Id: "custom-1", DisplayName: "myPLAYER pro", IsCustom: true, LaunchSchemes: ["myplayer"] }
@@ -286,7 +299,9 @@ assert.match(stylesheet, /\.dialog\.formDialog\.emby-external-player-dialog\s*\{
 assert.match(stylesheet, /width:\s*min\(clamp\(28rem,\s*34vw,\s*32rem\),\s*calc\(100vw\s*-\s*3rem\)\)\s*!important;/);
 assert.match(stylesheet, /\.emby-external-player-actions \.formDialogFooterItem\s*\{[\s\S]*?justify-content:\s*center\s*!important;/);
 assert.match(stylesheet, /\.emby-external-player-fields \.selectContainer\.emby-external-player-field\s*\{[\s\S]*?margin:\s*0\s*!important;/);
-assert.match(stylesheet, /\.emby-external-player-field select\.emby-select\s*\{[\s\S]*?height:\s*3em\s*!important;/);
+assert.match(stylesheet, /\.emby-external-player-select-button\s*\{[\s\S]*?height:\s*3em\s*!important;/);
+assert.match(stylesheet, /\.emby-external-player-select-list\s*\{[\s\S]*?left:\s*0;[\s\S]*?right:\s*0;[\s\S]*?width:\s*100%;/);
+assert.match(stylesheet, /\.emby-external-player-native-select\s*\{[\s\S]*?display:\s*none\s*!important;/);
 assert.match(stylesheet, /\.emby-external-player-fields\s*\{[\s\S]*?padding:\s*1\.15rem \.15rem 0;/);
 assert.match(stylesheet, /\.emby-external-player-config-section\s*\{[\s\S]*?width:\s*100%;/);
 assert.match(stylesheet, /\.emby-external-player-config-fields\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\);/);
@@ -389,7 +404,7 @@ await new Promise((resolve) => setTimeout(resolve, 0));
 assert.equal(document.body.walk().filter((item) => item.id === "embyExternalPlayerButton").length, 1);
 assert.equal(eventSubscriptions.size, 1);
 assert.equal(manifestQuery.language, "zh-CN");
-assert.equal(document.getElementById("embyExternalPlayerStyles").attributes.get("data-resource-version"), "1.4.7");
+assert.equal(document.getElementById("embyExternalPlayerStyles").attributes.get("data-resource-version"), "1.4.8");
 
 evaluateAndStart();
 await new Promise((resolve) => setTimeout(resolve, 0));
@@ -442,12 +457,34 @@ assert.ok(!launchOverlay.walk().some((item) => item.className.includes("emby-ext
 const iinaOption = launchOverlay.walk().find((item) => item.attributes.get("data-player-id") === "Iina");
 const customOption = launchOverlay.walk().find((item) => item.attributes.get("data-player-id") === "custom-1");
 const launchButton = launchOverlay.walk().find((item) => item.tagName === "BUTTON" && item.textContent === "打开");
+const nativeSelectors = launchOverlay.walk().filter((item) =>
+    item.className.split(/\s+/).includes("emby-external-player-native-select"));
+const selectorButtons = launchOverlay.walk().filter((item) =>
+    item.className.split(/\s+/).includes("emby-external-player-select-button"));
+const selectorLists = launchOverlay.walk().filter((item) =>
+    item.className.split(/\s+/).includes("emby-external-player-select-list"));
 assert.ok(iinaOption);
 assert.ok(customOption, "enabled custom applications must be visible in the chooser");
 assert.equal(iinaOption.attributes.get("aria-checked"), "true");
 assert.ok(iinaOption.className.includes("emby-external-player-option-selected"), "the default player must have a persistent selected state");
 assert.notEqual(document.activeElement, iinaOption, "opening the chooser must not apply Emby's white focus style to IINA");
 assert.equal(document.activeElement.attributes.get("role"), "dialog");
+assert.equal(nativeSelectors.length, 2);
+assert.ok(nativeSelectors.every((item) => item.hidden), "native selects must stay out of the visible and accessibility layout");
+assert.equal(selectorButtons.length, 2);
+assert.equal(selectorLists.length, 2);
+selectorButtons[0].dispatch("click");
+assert.equal(selectorButtons[0].attributes.get("aria-expanded"), "true");
+assert.equal(selectorLists[0].hidden, false);
+document.dispatch("keydown", { key: "Escape", preventDefault() {} });
+assert.equal(selectorButtons[0].attributes.get("aria-expanded"), "false", "Escape must close the selector before the dialog");
+assert.equal(document.querySelector(".emby-external-player-overlay"), launchOverlay);
+selectorButtons[0].dispatch("click");
+const secondSourceOption = selectorLists[0].walk().find((item) => item.attributes.get("data-value") === "source-2");
+secondSourceOption.dispatch("click");
+assert.equal(nativeSelectors[0].value, "source-2");
+assert.match(selectorButtons[0].textContent, /1080p WEB-DL/);
+assert.match(selectorButtons[1].textContent, /不加载外挂字幕/);
 assert.ok(customOption.walk().some((item) => item.textContent === "自定义播放器"));
 customOption.dispatch("click");
 assert.equal(customOption.attributes.get("aria-checked"), "true");

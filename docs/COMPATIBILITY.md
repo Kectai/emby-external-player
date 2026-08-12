@@ -51,7 +51,9 @@
 
 插件 1.4.7 修正外部播放弹窗中媒体版本和字幕下拉框受 Emby 官方 `.selectContainer` 与 `.emby-select` 延迟样式覆盖的问题：清除额外的 1.5em 底部外边距，将控件高度固定为 3em，并让字段内容与播放器列表使用相同的 .15rem 水平内缩。
 
-Web 模块测试使用无依赖的假 DOM 覆盖：重复加载只保留一个按钮、事件退订、原生图标结构、不泄漏 `open_in_new` 文本、详情重建恢复、默认选择状态、自定义播放器标识、多个未保存草稿、独立保存、配置页本地化按钮委托、PascalCase/camelCase API 兼容、Escape 关闭、焦点恢复与 focus trap。实际 Chrome、Firefox、Safari 的人工视觉回归尚需在部署环境完成，因此不能把 DOM 自动化和隔离预览等同于三款浏览器实测。
+插件 1.4.8 不再依赖 macOS、Windows 或 Linux 浏览器绘制的原生 `<select>` 弹出菜单。原生菜单的外框、阴影和屏幕边缘避让由操作系统控制，CSS 无法保证与网页字段精确对齐；新版改用插件自有的主题化组合框和列表框，弹层的左右边缘及宽度与字段完全一致，同时保留方向键、Home、End、Enter、Space、Tab 和 Escape 操作以及正确的可访问名称。隐藏的原生选择器仅保存提交值，不进入可见布局或可访问树。
+
+Web 模块测试使用无依赖的假 DOM 覆盖：重复加载只保留一个按钮、事件退订、原生图标结构、不泄漏 `open_in_new` 文本、详情重建恢复、默认选择状态、自定义播放器标识、自定义媒体选择器开关与联动、多个未保存草稿、独立保存、配置页本地化按钮委托、PascalCase/camelCase API 兼容、Escape 分层关闭、焦点恢复与 focus trap。实际 Chrome、Firefox、Safari 的人工视觉回归尚需在部署环境完成，因此不能把 DOM 自动化和隔离预览等同于三款浏览器实测。
 
 播放器 URL 适配器均有编码与能力测试。本机检测到 IINA 1.4.4 注册了 `iina` 协议，但遵循环境隔离要求未实际拉起；PotPlayer、VLC media player、Infuse 未安装，需按 [客户端说明](CLIENT_HANDLERS.md) 完成人工矩阵。
 

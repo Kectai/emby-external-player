@@ -4,7 +4,8 @@ define(["events", "connectionManager"], function (events, connectionManager) {
     var moduleKey = "__embyExternalPlayerModule";
     var buttonId = "embyExternalPlayerButton";
     var configurationPageId = "f7e75c:Settings";
-    var resourceVersion = "1.4.7";
+    var resourceVersion = "1.4.8";
+    var fieldSequence = 0;
     var selectorProfile = {
         actionRow: ".mainDetailButtons, .detailPagePrimaryContainer .detailButtons",
         mediaSource: "select.selectSource",
@@ -734,16 +735,206 @@ define(["events", "connectionManager"], function (events, connectionManager) {
         select.appendChild(option);
     }
 
-    function makeField(labelText, control) {
-        var label = document.createElement("label");
-        label.className = "selectContainer emby-external-player-field";
+    function makeField(labelText, control, overlay) {
+        var field = document.createElement("div");
+        field.className = "selectContainer emby-external-player-field";
+        var fieldId = "embyExternalPlayerField" + (++fieldSequence);
         var labelElement = document.createElement("span");
+        labelElement.id = fieldId + "Label";
         labelElement.className = "selectLabelText emby-external-player-field-label";
         labelElement.textContent = labelText;
-        control.className = (control.className ? control.className + " " : "") + "emby-select";
-        label.appendChild(labelElement);
-        label.appendChild(control);
-        return label;
+
+        control.className = (control.className ? control.className + " " : "") +
+            " emby-external-player-native-select";
+        control.hidden = true;
+        control.setAttribute("aria-hidden", "true");
+        control.setAttribute("tabindex", "-1");
+
+        var button = document.createElement("button");
+        button.type = "button";
+        button.className = "emby-button emby-external-player-select-button";
+        button.setAttribute("role", "combobox");
+        button.setAttribute("aria-haspopup", "listbox");
+        button.setAttribute("aria-expanded", "false");
+        button.setAttribute("aria-labelledby", labelElement.id + " " + fieldId + "Value");
+        var valueText = document.createElement("span");
+        valueText.id = fieldId + "Value";
+        valueText.className = "emby-external-player-select-value";
+        button.appendChild(valueText);
+        button.appendChild(makeSvgIcon("m7 10 5 5 5-5Z", "emby-external-player-select-arrow"));
+
+        var list = document.createElement("div");
+        list.id = fieldId + "List";
+        list.className = "emby-external-player-select-list";
+        list.setAttribute("role", "listbox");
+        list.setAttribute("aria-labelledby", labelElement.id);
+        list.hidden = true;
+        button.setAttribute("aria-controls", list.id);
+        var renderedOptions = [];
+
+        function nativeOptions() {
+            return Array.prototype.slice.call(control.options || []);
+        }
+
+        function selectedIndex() {
+            var options = nativeOptions();
+            var index = options.findIndex(function (option) { return option.value === control.value; });
+            return index < 0 ? 0 : index;
+        }
+
+        function closeList(restoreFocus) {
+            list.hidden = true;
+            button.setAttribute("aria-expanded", "false");
+            setClass(field, "emby-external-player-field-open", false);
+            setClass(field, "emby-external-player-field-open-up", false);
+            if (restoreFocus && button.focus) {
+                button.focus();
+            }
+        }
+
+        function refreshControl() {
+            var options = nativeOptions();
+            var selected = options[selectedIndex()];
+            valueText.textContent = selected ? selected.textContent : "";
+            renderList();
+        }
+
+        function selectOption(index, restoreFocus) {
+            var selected = nativeOptions()[index];
+            if (!selected) {
+                return;
+            }
+            control.value = selected.value;
+            refreshControl();
+            closeList(restoreFocus);
+            if (control.dispatchEvent && typeof Event === "function") {
+                control.dispatchEvent(new Event("change", { bubbles: true }));
+            } else if (control.dispatch) {
+                control.dispatch("change");
+            }
+        }
+
+        function focusRendered(index) {
+            var option = renderedOptions[index];
+            if (option && option.focus) {
+                option.focus();
+            }
+        }
+
+        function renderList() {
+            list.textContent = "";
+            renderedOptions = [];
+            var currentIndex = selectedIndex();
+            nativeOptions().forEach(function (nativeOption, index) {
+                var option = document.createElement("button");
+                option.type = "button";
+                option.className = "emby-button emby-external-player-select-option";
+                option.setAttribute("role", "option");
+                option.setAttribute("aria-selected", index === currentIndex ? "true" : "false");
+                option.setAttribute("data-value", nativeOption.value);
+                option.setAttribute("tabindex", "-1");
+                var optionText = document.createElement("span");
+                optionText.className = "emby-external-player-select-option-text";
+                optionText.textContent = nativeOption.textContent;
+                option.appendChild(optionText);
+                option.appendChild(makeSvgIcon(
+                    "m9 16.17-3.59-3.58L4 14l5 5 11-11-1.41-1.41Z",
+                    "emby-external-player-select-option-check"));
+                option.addEventListener("click", function () {
+                    selectOption(index, true);
+                });
+                option.addEventListener("keydown", function (event) {
+                    var next = event.key === "ArrowDown" ? Math.min(index + 1, renderedOptions.length - 1) :
+                        event.key === "ArrowUp" ? Math.max(index - 1, 0) :
+                        event.key === "Home" ? 0 :
+                        event.key === "End" ? renderedOptions.length - 1 : -1;
+                    if (next >= 0) {
+                        event.preventDefault();
+                        focusRendered(next);
+                        return;
+                    }
+                    if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        selectOption(index, true);
+                    } else if (event.key === "Tab") {
+                        closeList(false);
+                    }
+                });
+                renderedOptions.push(option);
+                list.appendChild(option);
+            });
+        }
+
+        function openList(focusIndex) {
+            if (button.disabled) {
+                return;
+            }
+            renderList();
+            list.hidden = false;
+            button.setAttribute("aria-expanded", "true");
+            setClass(field, "emby-external-player-field-open", true);
+            var buttonRect = button.getBoundingClientRect ? button.getBoundingClientRect() : null;
+            var viewportHeight = window.innerHeight ||
+                (document.documentElement && document.documentElement.clientHeight) || 0;
+            if (buttonRect && viewportHeight) {
+                var listHeight = Math.min(list.scrollHeight || 240, 240);
+                setClass(
+                    field,
+                    "emby-external-player-field-open-up",
+                    viewportHeight - buttonRect.bottom < listHeight && buttonRect.top > listHeight);
+            }
+            focusRendered(typeof focusIndex === "number" ? focusIndex : selectedIndex());
+        }
+
+        button.addEventListener("click", function () {
+            if (button.getAttribute("aria-expanded") === "true") {
+                closeList(false);
+            } else {
+                openList(selectedIndex());
+            }
+        });
+        button.addEventListener("keydown", function (event) {
+            if (event.key === "ArrowDown" || event.key === "ArrowUp" ||
+                event.key === "Home" || event.key === "End") {
+                event.preventDefault();
+                var current = selectedIndex();
+                var next = event.key === "ArrowDown" ? Math.min(current + 1, nativeOptions().length - 1) :
+                    event.key === "ArrowUp" ? Math.max(current - 1, 0) :
+                    event.key === "Home" ? 0 : nativeOptions().length - 1;
+                openList(next);
+            }
+        });
+
+        function documentClickHandler(event) {
+            var target = event.target;
+            while (target) {
+                if (target === field) {
+                    return;
+                }
+                target = target.parentNode;
+            }
+            closeList(false);
+        }
+        document.addEventListener("click", documentClickHandler, true);
+        overlay._externalPlayerFieldCleanups = overlay._externalPlayerFieldCleanups || [];
+        overlay._externalPlayerFieldCleanups.push(function () {
+            document.removeEventListener("click", documentClickHandler, true);
+        });
+
+        control._externalPlayerRefresh = refreshControl;
+        control._externalPlayerSetDisabled = function (disabled) {
+            button.disabled = !!disabled;
+            if (disabled) {
+                closeList(false);
+            }
+        };
+        button._externalPlayerCloseList = closeList;
+        field.appendChild(labelElement);
+        field.appendChild(control);
+        field.appendChild(button);
+        field.appendChild(list);
+        refreshControl();
+        return field;
     }
 
     function closeDialog(overlay) {
@@ -755,6 +946,8 @@ define(["events", "connectionManager"], function (events, connectionManager) {
         if (overlay._externalPlayerKeyHandler) {
             document.removeEventListener("keydown", overlay._externalPlayerKeyHandler, true);
         }
+        (overlay._externalPlayerFieldCleanups || []).forEach(function (cleanup) { cleanup(); });
+        overlay._externalPlayerFieldCleanups = [];
         if (overlay && overlay.parentNode) {
             overlay.parentNode.removeChild(overlay);
         }
@@ -911,7 +1104,7 @@ define(["events", "connectionManager"], function (events, connectionManager) {
         })) {
             sourceSelect.value = pageSourceSelect.value;
         }
-        fields.appendChild(makeField(text(manifest, "MediaVersion", "Media version"), sourceSelect));
+        fields.appendChild(makeField(text(manifest, "MediaVersion", "Media version"), sourceSelect, overlay));
 
         var subtitleSelect = document.createElement("select");
         function refreshSubtitles() {
@@ -935,10 +1128,13 @@ define(["events", "connectionManager"], function (events, connectionManager) {
             })) {
                 subtitleSelect.value = pageSubtitleSelect.value;
             }
+            if (subtitleSelect._externalPlayerRefresh) {
+                subtitleSelect._externalPlayerRefresh();
+            }
         }
         sourceSelect.addEventListener("change", refreshSubtitles);
         refreshSubtitles();
-        fields.appendChild(makeField(text(manifest, "Subtitle", "Subtitle"), subtitleSelect));
+        fields.appendChild(makeField(text(manifest, "Subtitle", "Subtitle"), subtitleSelect, overlay));
 
         var resume = document.createElement("input");
         resume.type = "checkbox";
@@ -984,6 +1180,8 @@ define(["events", "connectionManager"], function (events, connectionManager) {
             launch.disabled = busy || !selectedPlayer;
             sourceSelect.disabled = busy;
             subtitleSelect.disabled = busy;
+            sourceSelect._externalPlayerSetDisabled(busy);
+            subtitleSelect._externalPlayerSetDisabled(busy);
             resume.disabled = busy || resumeUnavailable;
             playerOptions.forEach(function (candidate) {
                 candidate.option.disabled = busy;
@@ -1052,6 +1250,13 @@ define(["events", "connectionManager"], function (events, connectionManager) {
         overlay._externalPlayerRestoreFocus = document.activeElement;
         overlay._externalPlayerKeyHandler = function (event) {
             if (event.key === "Escape") {
+                var expandedSelect = dialog.querySelector(
+                    '.emby-external-player-select-button[aria-expanded="true"]');
+                if (expandedSelect && expandedSelect._externalPlayerCloseList) {
+                    event.preventDefault();
+                    expandedSelect._externalPlayerCloseList(true);
+                    return;
+                }
                 event.preventDefault();
                 closeDialog(overlay);
                 return;
@@ -1061,7 +1266,7 @@ define(["events", "connectionManager"], function (events, connectionManager) {
                 return;
             }
 
-            var focusable = dialog.querySelectorAll("button:not([disabled]), select:not([disabled]), input:not([disabled]), a[href]");
+            var focusable = dialog.querySelectorAll("button:not([disabled]), input:not([disabled]), a[href]");
             if (!focusable.length) {
                 event.preventDefault();
                 return;

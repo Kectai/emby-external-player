@@ -216,6 +216,7 @@
     display: block;
     margin: 0 !important;
     min-width: 0;
+    position: relative;
 }
 
 .emby-external-player-field-label {
@@ -224,16 +225,129 @@
     margin-bottom: .4rem;
 }
 
-.emby-external-player-field select.emby-select {
+.emby-external-player-native-select {
+    display: none !important;
+}
+
+.emby-external-player-select-button {
+    align-items: center;
+    background: hsla(var(--input-background-hue, 240), var(--input-background-saturation, 5%), var(--input-background-lightness, 26%), var(--button-background-alpha, .7));
+    border: var(--line-size, 1px) solid var(--line-background, rgba(255, 255, 255, .18));
     box-sizing: border-box;
     border-radius: .3rem;
     color: inherit;
+    display: flex;
     font-family: inherit;
     height: 3em !important;
+    justify-content: space-between;
+    margin: 0;
     min-height: 3em;
-    padding-bottom: 0;
-    padding-top: 0;
+    padding: 0 .75rem;
+    text-align: start;
+    text-transform: none;
     width: 100%;
+}
+
+.emby-external-player-select-button[aria-expanded="true"] {
+    border-color: hsl(var(--theme-primary-color-hue, 116), var(--theme-primary-color-saturation, 42%), var(--theme-primary-color-lightness, 50%));
+    box-shadow: 0 0 0 .2rem hsla(var(--theme-primary-color-hue, 116), var(--theme-primary-color-saturation, 42%), var(--theme-primary-color-lightness, 50%), .35);
+}
+
+.emby-external-player-select-value {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.emby-external-player-select-arrow {
+    fill: currentColor;
+    flex: 0 0 auto;
+    height: 1.25rem;
+    margin-inline-start: .6rem;
+    transition: transform .12s ease-out;
+    width: 1.25rem;
+}
+
+.emby-external-player-field-open .emby-external-player-select-arrow {
+    transform: rotate(180deg);
+}
+
+.emby-external-player-select-list {
+    background: hsl(var(--background-hue, 240), var(--background-saturation, 3.4%), calc(var(--background-lightness, 11.4%) + 8%));
+    border: var(--line-size, 1px) solid var(--line-background, rgba(255, 255, 255, .18));
+    border-radius: .45rem;
+    box-shadow: 0 .6rem 1.8rem rgba(0, 0, 0, .28);
+    box-sizing: border-box;
+    left: 0;
+    max-height: 15rem;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding: .25rem;
+    position: absolute;
+    right: 0;
+    top: calc(100% + .25rem);
+    width: 100%;
+    z-index: 4;
+}
+
+.emby-external-player-select-list[hidden] {
+    display: none;
+}
+
+.emby-external-player-field-open-up .emby-external-player-select-list {
+    bottom: 3.25rem;
+    top: auto;
+}
+
+.emby-external-player-select-option {
+    align-items: center;
+    background: transparent;
+    border: 0;
+    border-radius: .3rem;
+    color: inherit;
+    display: flex;
+    font-family: inherit;
+    font-weight: inherit;
+    justify-content: space-between;
+    margin: 0;
+    min-height: 2.75rem;
+    padding: .55rem .65rem;
+    text-align: start;
+    text-transform: none;
+    width: 100%;
+}
+
+.emby-external-player-select-option:hover,
+.emby-external-player-select-option:focus-visible {
+    background: hsla(var(--theme-text-color-hue, 0), var(--theme-text-color-saturation, 0%), var(--theme-text-color-lightness, 100%), .12);
+    outline: 0;
+}
+
+.emby-external-player-select-option[aria-selected="true"] {
+    background: hsla(var(--theme-primary-color-hue, 116), var(--theme-primary-color-saturation, 42%), var(--theme-primary-color-lightness, 50%), .15);
+}
+
+.emby-external-player-select-option-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.emby-external-player-select-option-check {
+    fill: currentColor;
+    flex: 0 0 auto;
+    height: 1.2rem;
+    margin-inline-start: .6rem;
+    opacity: 0;
+    width: 1.2rem;
+}
+
+.emby-external-player-select-option[aria-selected="true"] .emby-external-player-select-option-check {
+    color: hsl(var(--theme-primary-color-hue, 116), var(--theme-primary-color-saturation, 42%), var(--theme-primary-color-lightness, 50%));
+    opacity: 1;
 }
 
 .emby-external-player-resume {
