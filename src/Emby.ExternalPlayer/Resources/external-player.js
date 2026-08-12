@@ -4,7 +4,7 @@ define(["events", "connectionManager"], function (events, connectionManager) {
     var moduleKey = "__embyExternalPlayerModule";
     var buttonId = "embyExternalPlayerButton";
     var configurationPageId = "f7e75c:Settings";
-    var resourceVersion = "1.4.0";
+    var resourceVersion = "1.4.1";
     var selectorProfile = {
         actionRow: ".mainDetailButtons, .detailPagePrimaryContainer .detailButtons",
         mediaSource: "select.selectSource",
@@ -414,14 +414,44 @@ define(["events", "connectionManager"], function (events, connectionManager) {
     }
 
     function removeButton() {
-        var existing = document.getElementById(buttonId);
-        if (existing) {
-            existing.remove();
+        var existing = document.querySelectorAll("#" + buttonId);
+        Array.prototype.forEach.call(existing, function (button) {
+            button.remove();
+        });
+    }
+
+    function isVisibleElement(element) {
+        if (!element) {
+            return false;
         }
+
+        var current = element;
+        while (current && current !== document) {
+            var classes = String(current.className || "").split(/\s+/);
+            if (current.hidden || current.getAttribute && current.getAttribute("aria-hidden") === "true" ||
+                classes.indexOf("hide") >= 0) {
+                return false;
+            }
+            if (window.getComputedStyle) {
+                var style = window.getComputedStyle(current);
+                if (style && (style.display === "none" || style.visibility === "hidden")) {
+                    return false;
+                }
+            }
+            current = current.parentNode;
+        }
+
+        return !element.getClientRects || element.getClientRects().length > 0;
     }
 
     function findActionRow() {
-        return document.querySelector(selectorProfile.actionRow);
+        var rows = document.querySelectorAll(selectorProfile.actionRow);
+        for (var index = rows.length - 1; index >= 0; index--) {
+            if (isVisibleElement(rows[index])) {
+                return rows[index];
+            }
+        }
+        return rows.length ? rows[rows.length - 1] : null;
     }
 
     function findPlayButton(row) {
@@ -523,7 +553,18 @@ define(["events", "connectionManager"], function (events, connectionManager) {
         }
 
         var playButton = findPlayButton(row);
-        var button = document.getElementById(buttonId);
+        var existingButtons = document.querySelectorAll("#" + buttonId);
+        var button = null;
+        Array.prototype.forEach.call(existingButtons, function (candidate) {
+            if (!button || candidate.parentNode === row) {
+                if (button && button !== candidate) {
+                    button.remove();
+                }
+                button = candidate;
+            } else {
+                candidate.remove();
+            }
+        });
         if (!button) {
             button = makeButton(manifest, playButton);
         } else {

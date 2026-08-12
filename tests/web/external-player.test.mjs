@@ -86,6 +86,18 @@ class FakeElement {
         this.ownerDocument.activeElement = this;
     }
 
+    getClientRects() {
+        let current = this;
+        while (current) {
+            if (current.hidden || current.attributes.get("aria-hidden") === "true" ||
+                current.className.split(/\s+/).includes("hide")) {
+                return [];
+            }
+            current = current.parentNode;
+        }
+        return [{}];
+    }
+
     querySelector(selector) {
         if (selector.includes("btnResume")) {
             return this.walk().find((item) => item.className.split(/\s+/).includes("btnResume")) || null;
@@ -173,7 +185,7 @@ class FakeDocument {
 
     querySelector(selector) {
         if (selector.startsWith(".mainDetailButtons")) {
-            return this.actionRow;
+            return this.querySelectorAll(selector)[0] || null;
         }
         if (selector === ".mainContent") {
             return this.body.walk().find((item) => item.className.split(/\s+/).includes("mainContent")) || null;
@@ -185,6 +197,14 @@ class FakeDocument {
     }
 
     querySelectorAll(selector) {
+        if (selector.startsWith(".mainDetailButtons")) {
+            return this.body.walk().filter((item) =>
+                item.className.split(/\s+/).includes("mainDetailButtons") ||
+                item.className.split(/\s+/).includes("detailButtons"));
+        }
+        if (selector === "#embyExternalPlayerButton") {
+            return this.body.walk().filter((item) => item.id === "embyExternalPlayerButton");
+        }
         if (selector.includes('data-data1="PageSave"') || selector.includes(".btnSave.pagebutton")) {
             return this.body.walk().filter((item) =>
                 item.attributes.get("data-data1") === "PageSave" ||
@@ -301,7 +321,13 @@ const window = {
         if (windowListeners.get(name) === handler) windowListeners.delete(name);
     },
     setTimeout,
-    clearTimeout
+    clearTimeout,
+    getComputedStyle(element) {
+        return {
+            display: element.hidden ? "none" : "block",
+            visibility: "visible"
+        };
+    }
 };
 const mutationObservers = [];
 class FakeMutationObserver {
@@ -337,7 +363,7 @@ await new Promise((resolve) => setTimeout(resolve, 0));
 assert.equal(document.body.walk().filter((item) => item.id === "embyExternalPlayerButton").length, 1);
 assert.equal(eventSubscriptions.size, 1);
 assert.equal(manifestQuery.language, "zh-CN");
-assert.equal(document.getElementById("embyExternalPlayerStyles").attributes.get("data-resource-version"), "1.4.0");
+assert.equal(document.getElementById("embyExternalPlayerStyles").attributes.get("data-resource-version"), "1.4.1");
 
 evaluateAndStart();
 await new Promise((resolve) => setTimeout(resolve, 0));
@@ -364,6 +390,25 @@ assert.equal(
     document.actionRow.children.indexOf(button),
     document.actionRow.children.indexOf(document.playButton) + 1,
     "the restored action must remain after From Beginning");
+
+document.actionRow.hidden = true;
+const secondVisitActionRow = document.createElement("div");
+secondVisitActionRow.className = "mainDetailButtons";
+const secondVisitPlayButton = document.createElement("button");
+secondVisitPlayButton.className = "raised emby-button detailButton btnPlay btnMainPlay";
+secondVisitPlayButton.textContent = "从头开始";
+secondVisitActionRow.appendChild(secondVisitPlayButton);
+document.body.appendChild(secondVisitActionRow);
+document.dispatch("viewshow", {});
+await new Promise((resolve) => setTimeout(resolve, 0));
+button = document.getElementById("embyExternalPlayerButton");
+assert.equal(button.parentNode, secondVisitActionRow, "the second visit must target the visible detail view instead of Emby's retained hidden view");
+assert.equal(
+    secondVisitActionRow.children.indexOf(button),
+    secondVisitActionRow.children.indexOf(secondVisitPlayButton) + 1,
+    "the second-visit action must remain after From Beginning");
+assert.equal(document.querySelectorAll("#embyExternalPlayerButton").length, 1);
+
 button.dispatch("click");
 const launchOverlay = document.querySelector(".emby-external-player-overlay");
 assert.ok(launchOverlay);
