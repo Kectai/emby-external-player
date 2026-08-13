@@ -71,7 +71,7 @@ public sealed class DashboardBootstrapInstaller
     {
         var directory = Path.GetDirectoryName(appJsPath)
             ?? throw new InvalidOperationException("The app.js path has no parent directory.");
-        var temporaryPath = Path.Combine(directory, ".emby-external-player-" + Guid.NewGuid().ToString("N") + ".tmp");
+        var temporaryPath = Path.Combine(directory, ".emby-ep-" + Guid.NewGuid().ToString("N") + ".tmp");
 
         try
         {

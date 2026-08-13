@@ -2,21 +2,29 @@ using System;
 
 namespace Emby.ExternalPlayer.Domain;
 
+public enum LaunchTicketScope
+{
+    Media,
+    Subtitle,
+}
+
 public sealed class LaunchTicketPayload
 {
+    public LaunchTicketScope Scope { get; set; }
+
     public Guid UserId { get; set; }
 
     public Guid ItemId { get; set; }
 
     public string MediaSourceId { get; set; } = string.Empty;
 
-    public string MediaFilePath { get; set; } = string.Empty;
-
-    public string? SubtitleFilePath { get; set; }
+    public string FilePath { get; set; } = string.Empty;
 
     public int? SubtitleStreamIndex { get; set; }
 
     public long ContentLength { get; set; }
+
+    public long LastWriteTimeUtcTicks { get; set; }
 
     public string ContentType { get; set; } = "application/octet-stream";
 
@@ -24,15 +32,7 @@ public sealed class LaunchTicketPayload
 
     public string UrlFileName { get; set; } = "media";
 
-    public string SubtitleContentType { get; set; } = "text/plain; charset=utf-8";
-
     public string? SubtitleFormat { get; set; }
-
-    public long? SubtitleContentLength { get; set; }
-
-    public string? SafeSubtitleFileName { get; set; }
-
-    public long StartPositionTicks { get; set; }
 }
 
 public sealed class LaunchTicket

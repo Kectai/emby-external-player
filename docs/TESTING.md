@@ -1,61 +1,42 @@
-# 测试说明
+# 测试
 
-## 环境隔离
-
-`scripts/dotnet-local.sh` 固定以下目录到仓库 `.local/`：
-
-- `DOTNET_CLI_HOME`
-- NuGet packages 与 HTTP cache
-- `TMPDIR`
-- 编译中间产物和输出
-- 测试结果与工作目录
-
-`.local/` 和 `artifacts/` 不进入 Git。集成脚本拒绝 8096、非回环地址或项目外的 Emby program data/dashboard 文件。
-
-## 单元与 Web 测试
+## 常用命令
 
 ```bash
 ./scripts/test.sh
-```
-
-覆盖加载器幂等与安全移除、未知锚点、播放器编码、内置及自定义 IINA 无查询串标题与票据请求头、请求头换行注入拒绝、官方应用名称、自定义 URL Scheme 模板与 `{headers}`、旧空槽位迁移、独立自定义播放器配置、Generic UI 保存快照合并、语言回退、URL base path、媒体/字幕/播放器选择校验、真实字幕扩展名与票据脱敏、续播边界、票据随机性/过期/容量/并发/重启失效、Range、路径与 header 注入，以及 Web 生命周期、详情重建恢复、隐藏旧详情页与第二次进入的可见详情页共存、入口去重、Emby 原生图标结构、“从头开始”右侧插入、首次打开焦点隔离、插件自有本地化保存按钮及原生处理委托、多个未保存草稿、默认选择、自定义播放器展示、播放器字幕能力联动、自定义媒体下拉框的联动与 Escape 分层关闭、可访问性、Resolve JSON 解析、协议白名单和无效地址安全失败行为。
-
-`tests/visual/` 提供隔离的 Emby 风格桌面与 390 px 窄屏预览页，加载生产 JS/CSS 和固定假 Manifest；它用于人工检查主题、间距、列表溢出和自定义播放器标识，不访问真实 Emby Server。
-
-三个官方 Emby `app.js` 全量夹具属于可选集成资源；项目 `.local/emby-hosts` 已清理时，这三项显示为跳过，其余单元和 Web 测试不需要下载完整 Emby Server。
-
-## 隔离 Emby 集成测试
-
-先在项目 `.local/emby-hosts/<version>/` 放置官方测试发行版，并使用 `.local/emby-programdata/version-<version>/` 启动到非 8096 回环端口。测试媒体应位于 `.local/test-media/`。
-
-示例：
-
-```bash
-EMBY_INTEGRATION_BASE='http://127.0.0.1:18095/' \
-EMBY_INTEGRATION_VERSION='4.9.5.0' \
-EMBY_INTEGRATION_USER='integration-admin' \
-EMBY_INTEGRATION_PASSWORD='local-test-only-4.9.5' \
-EMBY_INTEGRATION_PROGRAMDATA="$PWD/.local/emby-programdata/version-4.9.5.0" \
-EMBY_INTEGRATION_DASHBOARD_APP="$PWD/.local/emby-hosts/4.9.5.0/osx-arm64/EmbyServer.app/Contents/Resources/dashboard-ui/app.js" \
-./scripts/test-integration.sh
-```
-
-脚本验证官方版本号、插件加载、英文及中文 Generic UI 配置、中文 Manifest、官方应用名称、标题路径和票据查询脱敏、Web 资源、唯一注入标记、真实认证、权限拒绝、两个实际媒体版本、SRT/ASS 实际读取、续播、HEAD、四个 Range 和新增日志泄漏。
-
-## 发布检查
-
-```bash
 ./scripts/verify.sh
 ./scripts/package.sh
 ```
 
-`verify.sh` 要求所有自动化测试通过、DLL 小于 1 MiB、内嵌 JS+CSS 小于 80 KiB、SDK 最低编译基线保持 4.9.1.80，并扫描源代码中不应出现的硬编码测试凭据。`package.sh` 生成 ZIP 与 SHA-256。
+- `test.sh` 运行 .NET 单元测试和 Web 测试。
+- `verify.sh` 在测试基础上检查程序集与 Web 资源体积、目标框架、SDK 基线、测试凭据和 Git diff。
+- `package.sh` 生成版本化 ZIP 和 SHA-256 文件。
 
-## 人工检查
+所有 NuGet 缓存、编译输出、测试结果和临时文件都写入仓库忽略的 `.local/`，不会使用或修改本机 Emby Server 数据。
 
-发布到实际用户前还需完成：
+## 覆盖范围
 
-- Chrome、Firefox、Safari 的详情页、前进后退、窄屏和协议拦截提示。
-- 至少一个 Windows 播放器和一个 macOS/iOS 播放器的纯 URL、HTTPS、字幕与续播。
-- 实际反向代理 base path 和有效 HTTPS 证书。
-- Emby 升级后的未知锚点安全失败演练。
+自动化测试覆盖：
+
+- Dashboard UI 加载器的幂等安装、安全撤销和未知锚点处理。
+- Manifest、Resolve、管理员配置和用户默认播放器的认证、校验与并发行为。
+- 内置与自定义播放器平台范围、URL 模板、空参数裁剪和协议限制。
+- 媒体与字幕票据的作用域、容量、过期、格式、权限和文件状态复核。
+- HEAD、单 Range、文件名清理、请求头注入和日志敏感信息扫描。
+- Emby Web 路由重建、重复进入、配置自动保存、服务器或用户切换、弹窗焦点和窄屏布局。
+- 用户播放器偏好文件的迁移、原子写入、备份恢复、权限和卸载清理。
+
+`tests/visual/` 是不连接 Emby Server 的本地视觉夹具，用于人工检查主题、间距和响应式布局。
+
+## 隔离集成测试
+
+`scripts/test-integration.sh` 只接受：
+
+- 回环地址且不是默认 8096 端口的 Emby 测试实例。
+- 位于当前项目 `.local/` 下的 program data 和 `dashboard-ui/app.js`。
+
+脚本会验证真实插件加载、认证、配置、两种媒体版本、SRT/ASS、续播、HEAD、Range 和日志泄漏。测试宿主未准备时，依赖官方 `app.js` 的兼容性用例会跳过，其余测试仍可运行。
+
+## 人工验证
+
+当前发布前至少验证 macOS Emby Web、IINA、HTTPS、字幕、续播、前进后退和窄屏页面。Windows、iOS、Android 或 Linux 在标记为已验证之前，必须分别完成对应播放器的实际协议跳转和读取测试。

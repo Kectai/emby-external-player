@@ -1,59 +1,44 @@
 # Emby External Player
 
-一个轻量的 Emby Server 4.9.x 插件：只安装服务端 DLL，即可在 Emby Web 的电影、剧集和普通视频详情页增加“外部播放”按钮，并选择播放器、媒体版本、外挂字幕和续播位置。
+Emby External Player 是一个面向 Emby Server 4.9.x 的轻量服务端插件。它在服务器提供的 Emby Web 视频详情页加入“外部播放”入口，让用户选择播放器、媒体版本、外挂字幕和续播位置，再通过操作系统 URL Scheme 打开本地播放器。
 
-不需要浏览器扩展或用户脚本；不写 Emby 数据库，不做播放进度回传，不启动后台轮询任务。
+> 本项目最初只为个人使用而开发。目前仅在 macOS 上完成实际使用和验证；Windows、iOS、Android 与 Linux 的播放器适配依据公开协议实现，尚未在对应系统上进行端到端验证。
 
-## 功能
+## 主要功能
 
-- PotPlayer、IINA、VLC media player、Infuse；mpv 与 nPlayer 为默认关闭的实验适配器，应用名称保持官方大小写。
-- 配置页提供独立的自定义播放器编辑区，可一次新增多个草稿，每条配置单独保存或删除，不再与页面整体保存强耦合；名称原样显示，URL Scheme 模板支持 `{url}`、`{title}`、`{subtitle}`、`{start}`、`{headers}`。
-- 界面和配置页根据 Emby 客户端语言适配简体中文、繁体中文和英文，其他语言回退英文。
-- 详情页入口直接复用“从头开始”按钮的 Emby 类与原生图标结构，并持续跟随页面重建恢复在其右侧；播放器选择器跟随当前主题，并为内置/自定义应用提供清晰的选中状态和窄屏布局；媒体版本和字幕使用与字段精确等宽的可访问下拉列表。
-- 安全中转 URL 的末段使用 Emby 媒体标题，播放器不再把固定路由名 `stream.js` 当作标题；该修复不依赖某个播放器的私有参数。
-- IINA 及声明请求头能力的自定义播放器在安全中转地址中不再携带 `api_key` 查询串；短期票据通过受限 HTTP 请求头交付，标题栏只从干净的媒体路径读取名称。
-- 多媒体版本、SRT/ASS 等 Emby 已识别的外挂字幕、服务端 UserData 续播位置；字幕只对声明支持该参数的播放器开放，避免选择后静默丢失。
-- 默认 `SecureTicketRelay`：播放器 URL 不包含 Emby token，支持 HEAD 和单 Range/206。
-- 短期 256 位随机票据，只在内存保存哈希索引，默认 8 小时、最多 2000 条，服务重启全部失效。
-- 启动时幂等加载 Web 模块；停止、禁用或正常卸载时精确移除自己的加载片段。
-- Web 适配失败时保持 Emby 原生播放不受影响。
+- 内置 PotPlayer、IINA、VLC media player、Infuse、mpv 和 nPlayer 适配器。
+- 管理员可启用播放器、配置适用平台及各平台默认播放器。
+- 支持自定义播放器、多个适用平台和 URL Scheme 模板。
+- 每个 Emby 用户可按当前平台保存自己的默认播放器。
+- 支持媒体版本、Emby 已识别的外挂字幕和从上次位置继续。
+- 提供简体中文、繁体中文和英文界面。
+- 使用短期、分作用域的媒体与字幕票据，不把完整 Emby Token 交给播放器。
+- 支持 HEAD 和单 Range 请求，不启动常驻轮询，也不修改 Emby 数据库。
 
-## 支持范围
+## 使用范围
 
-- 已在隔离的 Emby Server 4.9.1.80、4.9.3.0 和 4.9.5.0（.NET 6 宿主）完成 DLL 加载、配置 UI、认证、两媒体版本、SRT/ASS、续播、HEAD、非连续 Range 和泄漏扫描。
-- 插件程序集目标框架为 `netstandard2.1`，SDK 编译基线固定为最低支持版本 4.9.1.80；与上述三个宿主实测无冲突。
-- 只支持由服务器提供的 Emby Web。原生电视/移动客户端若不加载服务器 Web UI，不会显示按钮。
-- Secure 模式当前只处理本地 `File` 媒体源。STRM、HLS 和远程 URL 需要显式启用 `LegacyTokenUrl`，并承担 token 暴露风险。
+- 仅支持服务器提供的 Emby Web；不改变原生电视或移动客户端。
+- 仅处理本地 `File` 媒体源和本地外挂字幕。
+- STRM、HLS、远程 URL 和虚拟媒体源不会降级为携带 Emby Token 的播放地址。
+- 当前只负责打开单个媒体，不回传播放进度，也不向播放器传递连续播放列表。
+- Web 入口依赖 Emby 4.9.x 的 Dashboard UI 结构；Emby 更新后可能需要调整适配。
 
 ## 安装
 
-1. 从 `artifacts/Emby.ExternalPlayer-1.4.9.zip` 取出 `Emby.ExternalPlayer.dll`。
+1. 从发布包中取出 `Emby.ExternalPlayer.dll`。
 2. 停止 Emby Server，把 DLL 放入 Emby 程序数据目录的 `plugins` 文件夹。
-3. 启动 Emby，在插件设置中确认 `External Player` 已启用；默认安全模式无需额外配置。
-4. 强制刷新一次 Emby Web，然后进入有媒体源的视频详情页。
+3. 启动 Emby，在插件设置中启用所需播放器。
+4. 强制刷新 Emby Web，再打开视频详情页。
 
-升级和卸载前应正常停止 Emby，让插件安全撤销 Web 加载片段。完整步骤见 [安装与运维](docs/INSTALL.md)。
-
-## 构建与验证
-
-要求 .NET SDK 10.0.203。仓库把 NuGet、临时文件、编译产物和测试结果全部定向到项目内 `.local/`：
-
-```bash
-./scripts/test.sh
-./scripts/build.sh
-./scripts/package.sh
-```
-
-生成的发布 ZIP 和 SHA-256 位于 `artifacts/`。隔离 Emby 集成测试的准备和命令见 [测试说明](docs/TESTING.md)。
+详细安装、升级和卸载步骤见 [安装说明](docs/INSTALL.md)。
 
 ## 文档
 
-- [详细设计](docs/DESIGN.md)
-- [安装与运维](docs/INSTALL.md)
-- [客户端 URL Handler](docs/CLIENT_HANDLERS.md)
+- [架构](docs/ARCHITECTURE.md)
+- [播放器与 URL 模板](docs/CLIENT_HANDLERS.md)
+- [兼容性](docs/COMPATIBILITY.md)
 - [安全模型](docs/SECURITY.md)
-- [兼容性矩阵](docs/COMPATIBILITY.md)
-- [测试说明](docs/TESTING.md)
+- [测试](docs/TESTING.md)
 
 ## 许可证
 

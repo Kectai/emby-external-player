@@ -65,16 +65,31 @@
             Enabled: true,
             ApplicationName: "IINA Nova",
             Platform: "MacOS",
-            UrlTemplate: "iina-nova://weblink?url={url}&new_window=1&mpv_start={start}"
+            Platforms: ["MacOS", "IOS"],
+            UrlTemplate: "iina-nova://weblink?url={url}&new_window=1&mpv_start={start}&mpv_sub-file={subtitle}&mpv_http-header-fields={headers}"
         }];
+        const builtInPlayers = [
+            { PlayerId: "PotPlayer", DisplayName: "PotPlayer", Platforms: ["Windows"] },
+            { PlayerId: "Iina", DisplayName: "IINA", Platforms: ["MacOS"] },
+            { PlayerId: "Vlc", DisplayName: "VLC media player", Platforms: ["Windows", "MacOS", "IOS", "Android", "Linux"] },
+            { PlayerId: "Infuse", DisplayName: "Infuse", Platforms: ["MacOS", "IOS"] },
+            { PlayerId: "Mpv", DisplayName: "mpv", Platforms: ["Windows", "MacOS", "Linux"] },
+            { PlayerId: "NPlayer", DisplayName: "nPlayer", Platforms: ["IOS", "Android"] }
+        ];
         const events = { on() {}, off() {} };
         const apiClient = {
+            getCurrentUserId() { return "visual-user"; },
+            serverId() { return "visual-server"; },
             getUrl(path, query) {
                 return path === "ExternalPlayer/Web/style.css"
-                    ? `../../src/Emby.ExternalPlayer/Resources/external-player.css?v=${query.v}`
+                    ? `../../src/Emby.ExternalPlayer/Resources/external-player.css?v=${query?.v || "1.6.11"}`
                     : path;
             },
-            getJSON() { return Promise.resolve(players); },
+            getJSON(url) {
+                return Promise.resolve(String(url).includes("BuiltInPlayerPlatforms")
+                    ? builtInPlayers
+                    : players);
+            },
             ajax(options) {
                 if (options.type === "DELETE") return Promise.resolve({ Deleted: true });
                 const value = JSON.parse(options.data);
@@ -86,6 +101,6 @@
             factory(events, connectionManager)();
         };
     </script>
-    <script src="../../src/Emby.ExternalPlayer/Resources/external-player.js?v=1.4.9"></script>
+    <script src="../../src/Emby.ExternalPlayer/Resources/external-player.js?v=1.6.11"></script>
 </body>
 </html>

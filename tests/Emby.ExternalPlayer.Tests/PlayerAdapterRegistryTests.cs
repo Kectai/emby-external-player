@@ -6,6 +6,8 @@ namespace Emby.ExternalPlayer.Tests;
 [TestClass]
 public sealed class PlayerAdapterRegistryTests
 {
+    private const string CustomId = "0123456789abcdef0123456789abcdef";
+    private const string CustomPlayerId = "custom-" + CustomId;
     private const string StreamUrl = "https://emby.example/ExternalPlayer/Stream/a_b-c";
     private const string SubtitleUrl = "https://emby.example/ExternalPlayer/Subtitle/a_b-c/2.srt";
 
@@ -162,6 +164,7 @@ public sealed class PlayerAdapterRegistryTests
             {
                 new()
                 {
+                    Id = CustomId,
                     Enabled = true,
                     ApplicationName = "myPLAYER pro",
                     Platform = CustomPlayerPlatform.MacOS,
@@ -171,17 +174,125 @@ public sealed class PlayerAdapterRegistryTests
         };
 
         var descriptor = CreateRegistry().GetAvailable(options, ClientPlatform.MacOS, true)
-            .Single(player => player.Id == "custom-1");
-        var url = CreateRegistry().BuildLaunchUrl("custom-1", options, CreateContext());
+            .Single(player => player.Id == CustomPlayerId);
+        var url = CreateRegistry().BuildLaunchUrl(CustomPlayerId, options, CreateContext());
 
         Assert.AreEqual("myPLAYER pro", descriptor.DisplayName);
+        Assert.IsTrue(descriptor.Capabilities.HasFlag(PlayerCapabilities.ExternalSubtitle));
         CollectionAssert.AreEqual(new[] { "myplayer" }, descriptor.LaunchSchemes.ToArray());
-        Assert.IsTrue(descriptor.Capabilities.HasFlag(PlayerCapabilities.DisplayTitle));
         Assert.AreEqual(
             "myplayer://open?url=https%3A%2F%2Femby.example%2FExternalPlayer%2FStream%2Fa_b-c" +
             "&title=Movie%20%26%20One" +
             "&sub=https%3A%2F%2Femby.example%2FExternalPlayer%2FSubtitle%2Fa_b-c%2F2.srt&start=90",
             url);
+    }
+
+    [TestMethod]
+    public void CustomPlayer_RemovesOnlyQueryParametersWhosePlaceholderValueIsEmpty()
+    {
+        var options = new PluginOptions
+        {
+            CustomPlayers = new CustomPlayerOptionsCollection
+            {
+                new()
+                {
+                    Id = CustomId,
+                    Enabled = true,
+                    ApplicationName = "Optional parameters",
+                    UrlTemplate = "optional://open?sub={subtitle}&url={url}&title={title}" +
+                        "&label=prefix-{title}&empty=#fragment",
+                },
+            },
+        };
+        var context = CreateContext();
+        context.SubtitleUrl = null;
+        context.Title = null;
+
+        var url = CreateRegistry().BuildLaunchUrl(CustomPlayerId, options, context);
+
+        Assert.AreEqual(
+            "optional://open?url=https%3A%2F%2Femby.example%2FExternalPlayer%2FStream%2Fa_b-c" +
+            "&label=prefix-&empty=#fragment",
+            url);
+        Assert.IsFalse(url.Contains("sub=", StringComparison.Ordinal));
+        Assert.IsFalse(url.Contains("title=", StringComparison.Ordinal));
+    }
+
+    [TestMethod]
+    public void CustomPlayer_RemovesEmptyHeaderParameterButKeepsZeroStart()
+    {
+        var options = new PluginOptions
+        {
+            CustomPlayers = new CustomPlayerOptionsCollection
+            {
+                new()
+                {
+                    Id = CustomId,
+                    Enabled = true,
+                    ApplicationName = "Optional headers",
+                    UrlTemplate = "optional://open?url={url}&headers={headers}&start={start}",
+                },
+            },
+        };
+        var context = CreateContext();
+        context.HttpRequestHeaders = Array.Empty<string>();
+        context.StartPositionTicks = 0;
+
+        var url = CreateRegistry().BuildLaunchUrl(CustomPlayerId, options, context);
+
+        Assert.IsFalse(url.Contains("headers=", StringComparison.Ordinal));
+        StringAssert.EndsWith(url, "&start=0");
+    }
+
+    [TestMethod]
+    public void CustomPlayer_CanBeAvailableOnMultipleSelectedPlatforms()
+    {
+        var options = new PluginOptions
+        {
+            CustomPlayers = new CustomPlayerOptionsCollection
+            {
+                new()
+                {
+                    Id = CustomId,
+                    Enabled = true,
+                    ApplicationName = "Cross-platform player",
+                    Platforms = PlayerPlatforms.Windows | PlayerPlatforms.MacOS,
+                    UrlTemplate = "cross-player://open?url={url}",
+                },
+            },
+        };
+
+        Assert.IsTrue(CreateRegistry().GetAvailable(options, ClientPlatform.Windows, true)
+            .Any(player => player.Id == CustomPlayerId));
+        Assert.IsTrue(CreateRegistry().GetAvailable(options, ClientPlatform.MacOS, true)
+            .Any(player => player.Id == CustomPlayerId));
+        Assert.IsFalse(CreateRegistry().GetAvailable(options, ClientPlatform.IOS, true)
+            .Any(player => player.Id == CustomPlayerId));
+    }
+
+    [TestMethod]
+    public void BuiltInPlayerAvailability_UsesAdministratorConfiguredPlatforms()
+    {
+        var options = new PluginOptions
+        {
+            EnablePotPlayer = true,
+            EnableIina = true,
+            EnableVlc = true,
+            EnableInfuse = true,
+            EnableMpv = true,
+            EnableNPlayer = true,
+        };
+        var registry = CreateRegistry();
+
+        options.IinaPlatformScope = PlayerPlatforms.MacOS | PlayerPlatforms.IOS;
+        options.VlcPlatformScope = PlayerPlatforms.Windows;
+
+        Assert.IsTrue(registry.GetAvailable(options, ClientPlatform.IOS, true)
+            .Any(player => player.BuiltInId == PlayerId.Iina));
+        Assert.IsFalse(registry.GetAvailable(options, ClientPlatform.Android, true)
+            .Any(player => player.BuiltInId == PlayerId.Vlc));
+        Assert.IsTrue(registry.GetAvailable(options, ClientPlatform.Windows, true)
+            .Any(player => player.BuiltInId == PlayerId.Vlc));
     }
 
     [TestMethod]
@@ -193,10 +304,11 @@ public sealed class PlayerAdapterRegistryTests
             {
                 new()
                 {
+                    Id = CustomId,
                     Enabled = true,
                     ApplicationName = "IINA Nova",
                     Platform = CustomPlayerPlatform.MacOS,
-                    UrlTemplate = "iina-nova://weblink?url={url}&new_window=1&mpv_start={start}",
+                    UrlTemplate = "iina-nova://weblink?url={url}&new_window=1&mpv_start={start}&mpv_http-header-fields={headers}",
                 },
             },
         };
@@ -204,8 +316,8 @@ public sealed class PlayerAdapterRegistryTests
         context.HttpRequestHeaders = new[] { "X-Emby-Playback-Ticket: short_ticket" };
 
         var descriptor = CreateRegistry().GetAvailable(options, ClientPlatform.MacOS, true)
-            .Single(player => player.Id == "custom-1");
-        var url = CreateRegistry().BuildLaunchUrl("custom-1", options, context);
+            .Single(player => player.Id == CustomPlayerId);
+        var url = CreateRegistry().BuildLaunchUrl(CustomPlayerId, options, context);
 
         Assert.IsTrue(descriptor.Capabilities.HasFlag(PlayerCapabilities.HttpRequestHeaders));
         Assert.AreEqual(
@@ -214,6 +326,88 @@ public sealed class PlayerAdapterRegistryTests
             "&mpv_http-header-fields=X-Emby-Playback-Ticket%3A%20short_ticket",
             url);
         Assert.IsFalse(url.Contains("api_key", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [TestMethod]
+    public void CustomIinaDerivedPlayer_UsesSeparateHeaderTicketsForCleanSubtitleUrl()
+    {
+        var options = new PluginOptions
+        {
+            CustomPlayers = new CustomPlayerOptionsCollection
+            {
+                new()
+                {
+                    Id = CustomId,
+                    Enabled = true,
+                    ApplicationName = "IINA Nova",
+                    Platform = CustomPlayerPlatform.MacOS,
+                    UrlTemplate = "iina-nova://weblink?url={url}&sub={subtitle}" +
+                        "&mpv_http-header-fields={headers}",
+                },
+            },
+        };
+        var context = CreateContext();
+        context.SubtitleUrl = "https://emby.example/ExternalPlayer/Subtitle/2/subtitle.ass";
+        context.HttpRequestHeaders = new[]
+        {
+            ServerUrlBuilder.PlaybackTicketHeaderName + ": media_ticket",
+            ServerUrlBuilder.SubtitleTicketHeaderName + ": subtitle_ticket",
+        };
+
+        var url = CreateRegistry().BuildLaunchUrl(CustomPlayerId, options, context);
+
+        var query = new Uri(url).Query;
+        Assert.IsFalse(query.Contains("api_key", StringComparison.OrdinalIgnoreCase));
+        StringAssert.Contains(query, "sub=https%3A%2F%2Femby.example%2FExternalPlayer%2FSubtitle%2F2%2Fsubtitle.ass");
+        StringAssert.Contains(query, "X-Emby-Playback-Ticket%3A%20media_ticket%2CX-Emby-Subtitle-Ticket%3A%20subtitle_ticket");
+    }
+
+    [TestMethod]
+    public void CustomPlayer_DoesNotInferHeaderSupportFromMpvLikeParameters()
+    {
+        var options = new PluginOptions
+        {
+            CustomPlayers = new CustomPlayerOptionsCollection
+            {
+                new()
+                {
+                    Id = CustomId,
+                    Enabled = true,
+                    ApplicationName = "Generic player",
+                    Platform = CustomPlayerPlatform.MacOS,
+                    UrlTemplate = "generic://weblink?url={url}&mpv_start={start}",
+                },
+            },
+        };
+
+        var descriptor = CreateRegistry().GetAvailable(options, ClientPlatform.MacOS, true)
+            .Single(player => player.Id == CustomPlayerId);
+
+        Assert.IsFalse(descriptor.Capabilities.HasFlag(PlayerCapabilities.HttpRequestHeaders));
+    }
+
+    [TestMethod]
+    public void CustomPlayer_RuntimeIdDoesNotChangeWhenAnotherPlayerIsRemoved()
+    {
+        const string otherId = "fedcba9876543210fedcba9876543210";
+        var options = new PluginOptions
+        {
+            CustomPlayers = new CustomPlayerOptionsCollection
+            {
+                new() { Id = otherId, Enabled = true, ApplicationName = "First", UrlTemplate = "first://open?url={url}" },
+                new() { Id = CustomId, Enabled = true, ApplicationName = "Stable", UrlTemplate = "stable://open?url={url}" },
+            },
+        };
+        var registry = CreateRegistry();
+        var before = registry.GetAvailable(options, ClientPlatform.Unknown, false)
+            .Single(player => player.DisplayName == "Stable").Id;
+
+        options.CustomPlayers.RemoveAt(0);
+        var after = registry.GetAvailable(options, ClientPlatform.Unknown, false)
+            .Single(player => player.DisplayName == "Stable").Id;
+
+        Assert.AreEqual(CustomPlayerId, before);
+        Assert.AreEqual(before, after);
     }
 
     [TestMethod]

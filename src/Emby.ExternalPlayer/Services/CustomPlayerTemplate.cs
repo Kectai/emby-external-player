@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Text.RegularExpressions;
 using Emby.ExternalPlayer.Domain;
 
@@ -25,7 +26,8 @@ public static class CustomPlayerTemplate
     private static readonly ISet<string> ProhibitedSchemes =
         new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "about", "blob", "data", "file", "http", "https", "javascript", "vbscript",
+            "about", "blob", "data", "facetime", "facetime-audio", "file", "ftp", "http",
+            "https", "intent", "javascript", "mailto", "shell", "sms", "ssh", "tel", "vbscript",
         };
 
     public static bool IsValid(string? template)
@@ -37,7 +39,9 @@ public static class CustomPlayerTemplate
         }
 
         var schemeMatch = SchemePattern.Match(template);
-        if (!schemeMatch.Success || ProhibitedSchemes.Contains(schemeMatch.Groups["scheme"].Value))
+        var scheme = schemeMatch.Success ? schemeMatch.Groups["scheme"].Value : string.Empty;
+        if (!schemeMatch.Success || ProhibitedSchemes.Contains(scheme) ||
+            scheme.StartsWith("ms-", StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
@@ -67,23 +71,19 @@ public static class CustomPlayerTemplate
             throw new ArgumentException("The custom player URL template is invalid.", nameof(template));
         }
 
-        var hasHeaderPlaceholder = template.Contains("{headers}", StringComparison.Ordinal);
-        var rendered = template
-            .Replace("{url}", Encode(context.StreamUrl), StringComparison.Ordinal)
-            .Replace("{title}", Encode(context.Title ?? string.Empty), StringComparison.Ordinal)
-            .Replace("{subtitle}", Encode(context.SubtitleUrl ?? string.Empty), StringComparison.Ordinal)
-            .Replace("{headers}", Encode(string.Join(",", context.HttpRequestHeaders)), StringComparison.Ordinal)
-            .Replace(
-                "{start}",
-                Math.Max(0, context.StartPositionTicks / TimeSpan.TicksPerSecond)
-                    .ToString(CultureInfo.InvariantCulture),
-                StringComparison.Ordinal);
-
-        if (!hasHeaderPlaceholder && context.HttpRequestHeaders.Count > 0 &&
-            SupportsHttpRequestHeaders(template))
+        var values = new Dictionary<string, string>(StringComparer.Ordinal)
         {
-            rendered += (rendered.Contains("?", StringComparison.Ordinal) ? "&" : "?") +
-                "mpv_http-header-fields=" + Encode(string.Join(",", context.HttpRequestHeaders));
+            ["{url}"] = context.StreamUrl,
+            ["{title}"] = context.Title ?? string.Empty,
+            ["{subtitle}"] = context.SubtitleUrl ?? string.Empty,
+            ["{headers}"] = string.Join(",", context.HttpRequestHeaders ?? Array.Empty<string>()),
+            ["{start}"] = Math.Max(0, context.StartPositionTicks / TimeSpan.TicksPerSecond)
+                .ToString(CultureInfo.InvariantCulture),
+        };
+        var rendered = RemoveEmptyQueryParameters(template, values);
+        foreach (var value in values)
+        {
+            rendered = rendered.Replace(value.Key, Encode(value.Value), StringComparison.Ordinal);
         }
 
         if (!Uri.TryCreate(rendered, UriKind.Absolute, out var uri) ||
@@ -95,10 +95,34 @@ public static class CustomPlayerTemplate
     }
 
     public static bool SupportsHttpRequestHeaders(string template) =>
-        template.Contains("{headers}", StringComparison.Ordinal) ||
-        (template.Contains("weblink?", StringComparison.OrdinalIgnoreCase) &&
-         template.Contains("mpv_", StringComparison.OrdinalIgnoreCase) &&
-         !template.Contains("mpv_http-header-fields=", StringComparison.OrdinalIgnoreCase));
+        template.Contains("{headers}", StringComparison.Ordinal);
+
+    private static string RemoveEmptyQueryParameters(
+        string template,
+        IReadOnlyDictionary<string, string> values)
+    {
+        var queryStart = template.IndexOf('?');
+        if (queryStart < 0)
+        {
+            return template;
+        }
+        var fragmentStart = template.IndexOf('#', queryStart + 1);
+        var queryEnd = fragmentStart >= 0 ? fragmentStart : template.Length;
+        var parameters = template.Substring(queryStart + 1, queryEnd - queryStart - 1)
+            .Split('&')
+            .Where(parameter =>
+            {
+                var separator = parameter.IndexOf('=');
+                return separator < 0 ||
+                    !values.TryGetValue(parameter.Substring(separator + 1), out var value) ||
+                    value.Length > 0;
+            })
+            .ToArray();
+        var fragment = fragmentStart >= 0 ? template.Substring(fragmentStart) : string.Empty;
+        return template.Substring(0, queryStart) +
+            (parameters.Length > 0 ? "?" + string.Join("&", parameters) : string.Empty) +
+            fragment;
+    }
 
     private static string Encode(string value) => Uri.EscapeDataString(value);
 }

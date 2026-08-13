@@ -6,6 +6,7 @@ namespace Emby.ExternalPlayer.Services;
 public static class ServerUrlBuilder
 {
     public const string PlaybackTicketHeaderName = "X-Emby-Playback-Ticket";
+    public const string SubtitleTicketHeaderName = "X-Emby-Subtitle-Ticket";
 
     private static readonly Regex SafeExtension = new("^[a-z0-9]{1,12}$", RegexOptions.Compiled);
 
@@ -33,33 +34,6 @@ public static class ServerUrlBuilder
         return builder.Uri.AbsoluteUri;
     }
 
-    public static string BuildDirectStreamUrl(
-        string apiBase,
-        Guid itemId,
-        string mediaSourceId,
-        string? container)
-    {
-        var extension = NormalizeExtension(container, "mkv");
-        return Combine(
-            apiBase,
-            "Videos/" + itemId.ToString("N") + "/stream." + extension +
-            "?Static=true&MediaSourceId=" + Uri.EscapeDataString(mediaSourceId));
-    }
-
-    public static string BuildSubtitleUrl(
-        string apiBase,
-        Guid itemId,
-        string mediaSourceId,
-        int streamIndex,
-        string? format)
-    {
-        var extension = NormalizeExtension(format, "srt");
-        return Combine(
-            apiBase,
-            "Videos/" + itemId.ToString("N") + "/" + Uri.EscapeDataString(mediaSourceId) +
-            "/Subtitles/" + streamIndex + "/Stream." + extension);
-    }
-
     public static string BuildTicketStreamUrl(string apiBase, string ticket, string urlFileName)
     {
         return Combine(
@@ -75,19 +49,32 @@ public static class ServerUrlBuilder
             "ExternalPlayer/Stream/" + Uri.EscapeDataString(urlFileName));
     }
 
-    public static string BuildTicketSubtitleUrl(string apiBase, string ticket, int index, string? format)
+    public static string BuildTicketSubtitleUrl(
+        string apiBase,
+        string ticket,
+        int index,
+        string? format,
+        string? fileName = null)
     {
         var extension = NormalizeExtension(format, "srt");
         return Combine(
             apiBase,
-            "ExternalPlayer/Subtitle/" + index + "/subtitle." + extension +
+            "ExternalPlayer/Subtitle/" + index + "/" +
+            Uri.EscapeDataString(fileName ?? "subtitle." + extension) +
             "?api_key=" + Uri.EscapeDataString(ticket));
     }
 
-    public static string AppendApiKey(string url, string accessToken)
+    public static string BuildHeaderTicketSubtitleUrl(
+        string apiBase,
+        int index,
+        string? format,
+        string? fileName = null)
     {
-        return url + (url.Contains("?", StringComparison.Ordinal) ? "&" : "?") +
-               "api_key=" + Uri.EscapeDataString(accessToken);
+        var extension = NormalizeExtension(format, "srt");
+        return Combine(
+            apiBase,
+            "ExternalPlayer/Subtitle/" + index + "/" +
+            Uri.EscapeDataString(fileName ?? "subtitle." + extension));
     }
 
     public static string NormalizeExtension(string? value, string fallback)

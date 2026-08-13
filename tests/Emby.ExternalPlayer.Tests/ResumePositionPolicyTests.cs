@@ -6,18 +6,30 @@ namespace Emby.ExternalPlayer.Tests;
 public sealed class ResumePositionPolicyTests
 {
     [TestMethod]
-    public void Normalize_DropsPositionsBelowTenSeconds()
+    public void FromEmbyUserData_PreservesAnyPositiveResumePosition()
     {
-        Assert.AreEqual(0, ResumePositionPolicy.Normalize(TimeSpan.FromSeconds(9).Ticks, null, 5));
-        Assert.AreEqual(TimeSpan.FromSeconds(10).Ticks, ResumePositionPolicy.Normalize(TimeSpan.FromSeconds(10).Ticks, null, 5));
+        Assert.AreEqual(1, ResumePositionPolicy.FromEmbyUserData(1));
+        Assert.AreEqual(
+            TimeSpan.FromSeconds(9).Ticks,
+            ResumePositionPolicy.FromEmbyUserData(TimeSpan.FromSeconds(9).Ticks));
     }
 
     [TestMethod]
-    public void Normalize_DropsPositionsNearMediaEnd()
+    public void FromEmbyUserData_DoesNotApplyAPluginSpecificNearEndThreshold()
     {
-        var runtime = TimeSpan.FromMinutes(60).Ticks;
+        var episodeRuntime = TimeSpan.FromMinutes(24).Ticks;
+        var embyResumePosition = TimeSpan.FromMinutes(23).Ticks;
 
-        Assert.AreEqual(0, ResumePositionPolicy.Normalize(TimeSpan.FromMinutes(56).Ticks, runtime, 5));
-        Assert.AreEqual(TimeSpan.FromMinutes(54).Ticks, ResumePositionPolicy.Normalize(TimeSpan.FromMinutes(54).Ticks, runtime, 5));
+        Assert.IsTrue(embyResumePosition < episodeRuntime);
+        Assert.AreEqual(
+            embyResumePosition,
+            ResumePositionPolicy.FromEmbyUserData(embyResumePosition));
+    }
+
+    [TestMethod]
+    public void FromEmbyUserData_RejectsOnlyMissingOrInvalidPositions()
+    {
+        Assert.AreEqual(0, ResumePositionPolicy.FromEmbyUserData(0));
+        Assert.AreEqual(0, ResumePositionPolicy.FromEmbyUserData(-1));
     }
 }

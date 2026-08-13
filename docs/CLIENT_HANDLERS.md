@@ -1,65 +1,71 @@
-# 客户端 URL Handler
+# 播放器与 URL 模板
 
-插件只生成 URL，不会安装应用或修改操作系统协议关联。浏览器第一次跳转到自定义协议时通常会弹出确认；弹窗只保留一个“打开”操作，不再用相同地址重复提供“点此重试”链接。
+插件只生成 URL Scheme，不安装应用，也不修改操作系统协议关联。除 IINA/macOS 外，下表表示当前实现和首次安装默认平台，不表示已经完成目标系统验证。
 
-| 播放器 | 默认平台 | 生成形式 | 续播 | 外挂字幕 |
-|---|---|---|---:|---:|
-| PotPlayer | Windows | `potplayer://<URL> /current /seek=... /sub=...` | 是 | 是 |
-| IINA | macOS | `iina://weblink?url=.../媒体标题&mpv_http-header-fields=...&mpv_start=...` | 是 | 否 |
-| VLC media player | 桌面/移动 | 桌面 `vlc://...`；iOS x-callback | 否 | iOS |
-| Infuse | macOS/iOS/iPadOS | `infuse://x-callback-url/play?...` | 否 | 是 |
-| mpv | 桌面 | `mpv://play/...` | 否 | 否 |
-| nPlayer | iOS/Android | `nplayer-http(s)://...` | 否 | 否 |
+| 播放器 | 初始适用平台 | 续播 | 外挂字幕 |
+|---|---|---:|---:|
+| PotPlayer | Windows | 是 | 是 |
+| IINA | macOS | 是 | 未确认自动挂载 |
+| VLC media player | Windows、macOS、iOS、Android、Linux | 否 | iOS 支持；其他平台未确认 |
+| Infuse | macOS、iOS | 否 | 是 |
+| mpv | Windows、macOS、Linux | 取决于本机 Handler | 取决于本机 Handler |
+| nPlayer | iOS、Android | 否 | 未确认 |
 
-mpv 与 nPlayer 默认关闭，因为不同第三方 handler 的实现差异较大。
+管理员可以修改内置播放器的适用平台。mpv 和 nPlayer 默认关闭，因为第三方 Handler 的实现并不统一。
 
 ## IINA
 
-建议 IINA 1.4.3 或更高版本。本机只读检查确认 IINA 1.4.4 注册了 `iina` scheme；为了不写入现有应用的播放历史，自动化测试没有实际启动播放器。IINA 当前源码虽然解析 `mpv_*`，但只接受内部 `safeMPVOptions` 白名单，`start` 与 `http-header-fields` 在白名单中，外部字幕所需的 `sub-file`/`sub-files` 不在其中。插件因此不能通过官方 `iina://weblink` 传入外挂字幕；选择 IINA 时字幕控件会禁用并明确提示。媒体地址继续使用无查询串的 `/ExternalPlayer/Stream/{媒体标题}`，通过 `mpv_http-header-fields` 传递插件自己的短期票据，并始终用新窗口隔离该请求头；IINA 标题不包含 `api_key`。
+IINA 使用：
 
-来源：[IINA AppDelegate.swift](https://github.com/iina/iina/blob/develop/iina/AppDelegate.swift)。
+```text
+iina://weblink?url=...&new_window=1&mpv_start=...&mpv_http-header-fields=...
+```
 
-## VLC media player
+媒体地址不携带查询票据，短期票据通过 IINA 允许的 `mpv_http-header-fields` 传递，因此标题不会包含 `api_key`。IINA 的 URL Scheme 安全白名单包含 `start` 与 `http-header-fields`，但不包含自动外挂字幕所需的 `sub-file`；选择字幕时插件会保留选择并给出非阻断说明，不会为内置 IINA 生成无法交付的字幕地址。
 
-iOS 使用 `vlc-x-callback://x-callback-url/stream?url=...&sub=...`；这与 VLC iOS 官方源码的 URL handler 一致。桌面和 Android 的 `vlc://` 行为会受浏览器、安装包和系统关联影响，发布前应在目标设备点击验证。
+实现依据：[IINA AppDelegate.swift](https://github.com/iina/iina/blob/develop/iina/AppDelegate.swift)。
 
-来源：[VLC iOS URLHandler.swift](https://github.com/videolan/vlc-ios/blob/master/Sources/Helpers/Network/URLHandler.swift)。
+## 其他内置播放器
 
-## Infuse
+- PotPlayer 使用媒体 URL 加 `/current`、`/seek=<秒>` 和 `/sub=<URL>`。
+- VLC iOS 使用 `vlc-x-callback://x-callback-url/stream?url=...&sub=...`，其他平台使用 `vlc://`。
+- Infuse 使用 `infuse://x-callback-url/play?url=...&sub=...`。
+- mpv 使用 `mpv://play/`，实际能力由本机注册该协议的 Handler 决定。
+- nPlayer 把 HTTP(S) 地址转换为 `nplayer-http(s)://`。
 
-使用官方 x-callback `play` API 的 `url`、`filename`（需要时）和 `sub` 参数。插件当前不声称 Infuse 支持续播 URL 参数。
-
-来源：[Firecore：API for Third-Party Apps & Services](https://support.firecore.com/hc/en-us/articles/215090997-API-for-Third-Party-Apps-Services)。
-
-## PotPlayer
-
-PotPlayer 没有稳定的公开英文 URL handler 规范。插件采用现有安装包 `CmdLine64.txt` 所描述、并已被社区 Emby 启动器采用的命令形式：媒体 URL 后追加 `/current`、`/seek=<秒>` 与 `/sub=<URL>`。传入的 HTTP(S) URL 会先被标准化，使 URL 自身的空格变成 `%20`，再以单个空格分隔命令参数。
-
-参考：[PotPlayer 更新记录（确认 `/seek`、`/sub` 可从视频快捷方式读取）](https://potplayer.org/en/update/history.html)、[社区 Emby PotPlayer 启动器实现](https://github.com/bpking1/embyExternalUrl/blob/main/embyWebAddExternalUrl/embyLaunchPotplayer.js)。由于缺少稳定的官方 URL scheme 契约，仍应在目标 Windows 版本验证纯 URL、中文路径、HTTPS、外挂字幕和续播。
+参考：[VLC iOS URL Handler](https://github.com/videolan/vlc-ios/blob/master/Sources/Helpers/Network/URLHandler.swift)、[Infuse x-callback API](https://support.firecore.com/hc/en-us/articles/215090997-API-for-Third-Party-Apps-Services)、[PotPlayer 参数参考](https://potplayer.org/en/update/history.html)。
 
 ## 自定义播放器
 
-配置页使用独立编辑区管理自定义入口，不再预置三个固定槽位，也不与页面整体保存强耦合。可以连续点击“添加播放器”创建多个草稿，每个入口单独保存或删除。每个入口可设置启用状态、平台、官方应用名称和 URL Scheme 模板。应用名称完全按输入显示，不做首字母大写或其他品牌名转换。
+模板必须以非 Web 自定义协议开头并包含 `{url}`，支持以下占位符：
 
-模板必须以非 Web 的自定义协议开头并包含 `{url}`，还可使用 `{title}`、`{subtitle}`、`{start}`、`{headers}`。除秒数形式的 `{start}` 外，占位符都会进行百分号编码。例如：
+| 占位符 | 内容 |
+|---|---|
+| `{url}` | 短期票据保护的媒体 URL |
+| `{title}` | Emby 媒体标题 |
+| `{subtitle}` | 所选外挂字幕 URL |
+| `{start}` | 续播秒数，没有续播位置时为 `0` |
+| `{headers}` | 播放器需要附加的短期票据请求头 |
+
+除 `{start}` 外，占位符都会百分号编码。如果一个 query 参数的值完全由空占位符构成，整个参数会被删除。例如没有字幕时：
 
 ```text
-myplayer://open?url={url}&title={title}&sub={subtitle}&start={start}
+myplayer://open?url={url}&sub={subtitle}
 ```
 
-支持 mpv 参数的 IINA 衍生应用可显式传递安全票据请求头：
+会省略 `sub`，而不是生成 `sub=`。组合值如 `label=prefix-{title}` 和静态空参数不会被删除。
+
+模板包含 `{subtitle}` 才声明外挂字幕能力并签发字幕票据；包含 `{headers}` 才声明请求头能力。支持 mpv 参数的 IINA 衍生应用可配置：
 
 ```text
-iina-nova://weblink?url={url}&new_window=1&mpv_start={start}&mpv_http-header-fields={headers}
+iina-nova://weblink?url={url}&new_window=1&mpv_start={start}&mpv_sub-file={subtitle}&mpv_http-header-fields={headers}
 ```
 
-若 `weblink` 模板已含其他 `mpv_*` 参数但没有写 `{headers}`，1.4.0 也会自动追加 `mpv_http-header-fields`。显式写出 `{headers}` 更清晰，也适用于其他声明相同请求头能力的 handler。这样安全中转媒体 URL 不需要 `api_key` 查询参数，应用标题不会把票据当成文件名的一部分。
+`{headers}` 只能放在播放器官方定义的 HTTP 请求头参数中。不要把它放入标题、文件名或会转交第三方的位置。媒体和字幕分别使用 `X-Emby-Playback-Ticket` 与 `X-Emby-Subtitle-Ticket`，播放器需要把对应请求头应用到各自请求。
 
-插件不会扫描客户端已安装应用；只有管理员启用的内置或自定义入口会显示。浏览器仍会按照操作系统已注册的协议处理器打开应用。
+## 网络要求
 
-## 证书与网络
-
-- 播放器必须能访问生成 URL 中的 Emby 公网地址；浏览器能播放不代表播放器网络路径相同。
+- 播放器必须能访问生成地址中的 Emby 主机和 base path。
 - HTTPS 证书必须被播放器信任。
-- 反向代理应正确传递外部协议、Host 和 base path。
-- 票据 URL 不含 Emby token，但仍是有效期内的 Bearer 凭证，不应分享。
+- 反向代理必须保留外部协议、Host、base path 和票据请求头。
+- 票据 URL 在有效期内仍是 Bearer 凭证，不应分享或发送到第三方服务。

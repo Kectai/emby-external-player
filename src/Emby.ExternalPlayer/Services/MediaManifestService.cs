@@ -71,10 +71,8 @@ public sealed class MediaManifestService
             Item = item,
             User = user,
             MediaSources = sources,
-            ResumePositionTicks = ResumePositionPolicy.Normalize(
-                userData?.PlaybackPositionTicks ?? 0,
-                item.RunTimeTicks,
-                Plugin.Instance?.Options.RestartNearEndMinutes ?? 5),
+            ResumePositionTicks = ResumePositionPolicy.FromEmbyUserData(
+                userData?.PlaybackPositionTicks ?? 0),
         };
     }
 
@@ -87,7 +85,6 @@ public sealed class MediaManifestService
             Name = string.IsNullOrWhiteSpace(source.Name)
                 ? "Version " + (index + 1)
                 : source.Name,
-            Container = ServerUrlBuilder.NormalizeExtension(source.Container, "mkv"),
             IsDefault = !string.IsNullOrWhiteSpace(defaultSourceId)
                 ? string.Equals(source.Id, defaultSourceId, StringComparison.Ordinal)
                 : index == 0,

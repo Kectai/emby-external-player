@@ -132,6 +132,7 @@
             ButtonPlacement: "AfterPrimaryPlay",
             ResumeByDefault: true,
             ResumePositionTicks: 18000000000,
+            DefaultPlayerId: "Iina",
             MediaSources: [
                 { Id: "remux", Name: "4K UHD REMUX · Dolby Vision", IsDefault: true, Subtitles: [
                     { Index: 3, DisplayTitle: "简体中文 · ASS", IsDefault: true },
@@ -161,7 +162,11 @@
                 Subtitle: "字幕",
                 NoExternalSubtitle: "不加载外挂字幕",
                 SubtitleNumber: "字幕 {0}",
-                SubtitleUnsupportedForPlayer: "{0} 无法通过应用链接接收外挂字幕，请选择支持字幕的播放器。",
+                SubtitleMayNotLoadForPlayer: "{0} 的应用跳转可能不会自动加载所选外挂字幕，但不会影响媒体打开。",
+                PlaybackPreferences: "播放偏好",
+                DefaultPlayer: "默认播放器",
+                DefaultPlayerSaved: "已保存默认播放器。",
+                DefaultPlayerSaveError: "无法保存默认播放器。",
                 ResumeFromLastPosition: "从上次位置继续",
                 Cancel: "取消",
                 ResolveError: "无法生成播放地址，请检查权限、媒体版本或服务器连接。",
@@ -170,16 +175,24 @@
         };
         const events = { on() {}, off() {} };
         const apiClient = {
+            getCurrentUserId() { return "visual-user"; },
+            serverId() { return "visual-server"; },
             getUrl(path, query) {
                 return path === "ExternalPlayer/Web/style.css"
-                    ? `../../src/Emby.ExternalPlayer/Resources/external-player.css?v=${query.v}`
+                    ? `../../src/Emby.ExternalPlayer/Resources/external-player.css?v=${query?.v || "1.6.11"}`
                     : path;
             },
             getJSON() {
                 document.documentElement.setAttribute("data-manifest-requested", "true");
                 return Promise.resolve(manifest);
             },
-            ajax() { return Promise.resolve({ LaunchUrl: "iina://weblink?url=https%3A%2F%2Fexample.test" }); }
+            ajax(options) {
+                if (String(options.url).includes("ExternalPlayer/UserDefaultPlayer")) {
+                    const value = JSON.parse(options.data);
+                    return Promise.resolve({ Platform: value.platform, PlayerId: value.playerId });
+                }
+                return Promise.resolve({ LaunchUrl: "iina://weblink?url=https%3A%2F%2Fexample.test" });
+            }
         };
         const connectionManager = { currentApiClient() { return apiClient; } };
         window.define = function (_dependencies, factory) {
@@ -189,7 +202,7 @@
         window.location.hash = "#!/item?id=preview-item&preview=1";
     </script>
     <output id="previewStatus"></output>
-    <script src="../../src/Emby.ExternalPlayer/Resources/external-player.js?v=1.4.9"></script>
+    <script src="../../src/Emby.ExternalPlayer/Resources/external-player.js?v=1.6.11"></script>
     <script>
         window.externalPlayerInitializer();
         document.documentElement.setAttribute("data-module-initialized", "true");

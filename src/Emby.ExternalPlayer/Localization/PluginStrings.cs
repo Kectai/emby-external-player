@@ -17,7 +17,7 @@ public static class PluginStrings
             [nameof(EditorTitle)] = "External Player",
             [nameof(EditorDescription)] = "Adds a lightweight external-player chooser to Emby Web. The secure relay keeps the Emby access token out of player URLs.",
             [nameof(Enabled)] = "Enabled",
-            [nameof(EnabledDescription)] = "Master switch for the plugin API and Web integration.",
+            [nameof(EnabledDescription)] = "Master switch for the plugin API and Web integration. Disabling it immediately revokes playback tickets.",
             [nameof(EnableWebButton)] = "Show Web button",
             [nameof(EnableWebButtonDescription)] = "Show the external-player button on supported Emby Web detail pages.",
             [nameof(UseLocalizedButtonText)] = "Use localized button text",
@@ -29,12 +29,6 @@ public static class PluginStrings
             [nameof(EndOfActionRow)] = "End of the action row",
             [nameof(ShowOnlyPlatformPlayers)] = "Show only platform players",
             [nameof(ResumeByDefault)] = "Resume by default",
-            [nameof(RestartNearEndMinutes)] = "Restart near end (minutes)",
-            [nameof(RestartNearEndMinutesDescription)] = "Treat a saved position this close to the end as completed. Allowed range: 0 to 30 minutes.",
-            [nameof(StreamMode)] = "Streaming mode",
-            [nameof(StreamModeDescription)] = "Secure relay hides Emby tokens and supports local files. Legacy mode exposes the token in the player URL.",
-            [nameof(SecureTicketRelay)] = "Secure ticket relay",
-            [nameof(LegacyTokenUrl)] = "Legacy token URL",
             [nameof(TicketLifetimeMinutes)] = "Ticket lifetime (minutes)",
             [nameof(TicketLifetimeMinutesDescription)] = "Absolute playback-ticket lifetime. Allowed range: 30 to 720 minutes.",
             [nameof(EnablePotPlayer)] = "Enable PotPlayer",
@@ -43,12 +37,16 @@ public static class PluginStrings
             [nameof(EnableInfuse)] = "Enable Infuse",
             [nameof(EnableMpv)] = "Enable mpv",
             [nameof(EnableNPlayer)] = "Enable nPlayer",
+            [nameof(PotPlayerPlatforms)] = "Configure its available client platforms under Built-in player platforms below.",
+            [nameof(IINAPlatforms)] = "Configure its available client platforms under Built-in player platforms below.",
+            [nameof(VLCPlatforms)] = "Configure its available client platforms under Built-in player platforms below.",
+            [nameof(InfusePlatforms)] = "Configure its available client platforms under Built-in player platforms below.",
+            [nameof(MpvPlatforms)] = "Configure its available client platforms under Built-in player platforms below; a compatible URL handler is required.",
+            [nameof(NPlayerPlatforms)] = "Configure its available client platforms under Built-in player platforms below.",
             [nameof(DefaultPlayerWindows)] = "Default player on Windows",
             [nameof(DefaultPlayerMacOS)] = "Default player on macOS",
             [nameof(DefaultPlayerIOS)] = "Default player on iOS",
             [nameof(DefaultPlayerAndroid)] = "Default player on Android",
-            [nameof(DebugLogging)] = "Diagnostic logging",
-            [nameof(DebugLoggingDescription)] = "Writes diagnostic event names only. Tokens and resolved URLs are never logged.",
             [nameof(CustomPlayers)] = "Custom players",
             [nameof(CustomPlayersDescription)] = "Custom players are managed independently below. Multiple drafts can be added at once, and each player has its own Save and Delete action. Application names are displayed exactly as entered. Templates support {url}, {title}, {subtitle}, {start}, and {headers}.",
             [nameof(CustomPlayerAdd)] = "Add player",
@@ -56,7 +54,7 @@ public static class PluginStrings
             [nameof(CustomPlayerEnabled)] = "Enabled",
             [nameof(ApplicationName)] = "Official application name",
             [nameof(ApplicationNameDescription)] = "Displayed exactly as entered; capitalization is never changed.",
-            [nameof(Platform)] = "Platform",
+            [nameof(Platform)] = "Available platforms",
             [nameof(AnyPlatform)] = "Any platform",
             [nameof(UrlTemplate)] = "URL scheme template",
             [nameof(UrlTemplateDescription)] = "Example: myplayer://open?url={url}&title={title}. Placeholder values are percent-encoded.",
@@ -82,17 +80,19 @@ public static class PluginStrings
             [nameof(Subtitle)] = "Subtitle",
             [nameof(NoExternalSubtitle)] = "Do not load an external subtitle",
             [nameof(SubtitleNumber)] = "Subtitle {0}",
-            [nameof(SubtitleUnsupportedForPlayer)] = "{0} cannot receive an external subtitle through its application link.",
+            [nameof(SubtitleMayNotLoadForPlayer)] = "{0} may not automatically load the selected external subtitle from its application link. The media will still open.",
+            [nameof(PlaybackPreferences)] = "Playback preferences",
+            [nameof(DefaultPlayer)] = "Default player",
+            [nameof(DefaultPlayerSaved)] = "Default player saved.",
+            [nameof(DefaultPlayerSaveError)] = "Unable to save the default player.",
             [nameof(ResumeFromLastPosition)] = "Resume from the last position",
             [nameof(Cancel)] = "Cancel",
             [nameof(ResolveError)] = "Unable to create the playback address. Check permissions, the media version, and the server connection.",
             [nameof(InvalidLaunchUrl)] = "The server did not return a safe application URL.",
             [nameof(ResumeUnsupportedWarning)] = "The selected player does not support a start position in its URL handler.",
-            [nameof(SubtitleUnsupportedWarning)] = "The selected player does not support an external subtitle in its URL handler.",
             [nameof(ButtonTextRequired)] = "Custom button text cannot be empty when localized button text is disabled.",
             [nameof(ButtonTextTooLong)] = "Custom button text cannot exceed 40 characters.",
             [nameof(TicketLifetimeInvalid)] = "Ticket lifetime must be between 30 and 720 minutes.",
-            [nameof(RestartNearEndInvalid)] = "Restart-near-end must be between 0 and 30 minutes.",
             [nameof(DefaultPlayerDisabled)] = "The selected default player is disabled.",
             [nameof(DefaultPlayerUnsupported)] = "The selected default player does not support this platform.",
             [nameof(CustomPlayerNameRequired)] = "An enabled custom player requires an application name.",
@@ -107,7 +107,7 @@ public static class PluginStrings
             [nameof(EditorTitle)] = "外部播放器",
             [nameof(EditorDescription)] = "在 Emby Web 中添加轻量的外部播放器选择器；安全中转模式不会把 Emby 访问令牌放入播放器地址。",
             [nameof(Enabled)] = "启用插件",
-            [nameof(EnabledDescription)] = "控制插件 API 和 Web 集成的总开关。",
+            [nameof(EnabledDescription)] = "控制插件 API 和 Web 集成的总开关；关闭后会立即撤销所有播放票据。",
             [nameof(EnableWebButton)] = "显示网页按钮",
             [nameof(EnableWebButtonDescription)] = "在支持的 Emby Web 媒体详情页显示外部播放按钮。",
             [nameof(UseLocalizedButtonText)] = "按钮文字跟随界面语言",
@@ -119,12 +119,6 @@ public static class PluginStrings
             [nameof(EndOfActionRow)] = "操作栏末尾",
             [nameof(ShowOnlyPlatformPlayers)] = "仅显示当前平台播放器",
             [nameof(ResumeByDefault)] = "默认继续播放",
-            [nameof(RestartNearEndMinutes)] = "接近结尾时重新播放（分钟）",
-            [nameof(RestartNearEndMinutesDescription)] = "保存位置距离结尾小于该值时视为已完成，允许范围为 0 到 30 分钟。",
-            [nameof(StreamMode)] = "串流模式",
-            [nameof(StreamModeDescription)] = "安全中转会隐藏 Emby 令牌并支持本地文件；旧版模式会在播放器地址中暴露令牌。",
-            [nameof(SecureTicketRelay)] = "安全票据中转",
-            [nameof(LegacyTokenUrl)] = "旧版令牌地址",
             [nameof(TicketLifetimeMinutes)] = "票据有效期（分钟）",
             [nameof(TicketLifetimeMinutesDescription)] = "播放票据的绝对有效期，允许范围为 30 到 720 分钟。",
             [nameof(EnablePotPlayer)] = "启用 PotPlayer",
@@ -133,12 +127,16 @@ public static class PluginStrings
             [nameof(EnableInfuse)] = "启用 Infuse",
             [nameof(EnableMpv)] = "启用 mpv",
             [nameof(EnableNPlayer)] = "启用 nPlayer",
+            [nameof(PotPlayerPlatforms)] = "可在下方“内置播放器适用平台”中配置。",
+            [nameof(IINAPlatforms)] = "可在下方“内置播放器适用平台”中配置。",
+            [nameof(VLCPlatforms)] = "可在下方“内置播放器适用平台”中配置。",
+            [nameof(InfusePlatforms)] = "可在下方“内置播放器适用平台”中配置。",
+            [nameof(MpvPlatforms)] = "可在下方“内置播放器适用平台”中配置；需要兼容的 URL 处理器。",
+            [nameof(NPlayerPlatforms)] = "可在下方“内置播放器适用平台”中配置。",
             [nameof(DefaultPlayerWindows)] = "Windows 默认播放器",
             [nameof(DefaultPlayerMacOS)] = "macOS 默认播放器",
             [nameof(DefaultPlayerIOS)] = "iOS 默认播放器",
             [nameof(DefaultPlayerAndroid)] = "Android 默认播放器",
-            [nameof(DebugLogging)] = "诊断日志",
-            [nameof(DebugLoggingDescription)] = "仅记录诊断事件名称，不记录令牌或解析后的地址。",
             [nameof(CustomPlayers)] = "自定义播放器",
             [nameof(CustomPlayersDescription)] = "自定义播放器在下方独立管理，可一次添加多个草稿，每个播放器都有自己的保存和删除操作。应用名称按输入原样显示；模板支持 {url}、{title}、{subtitle}、{start} 和 {headers}。",
             [nameof(CustomPlayerAdd)] = "添加播放器",
@@ -146,7 +144,7 @@ public static class PluginStrings
             [nameof(CustomPlayerEnabled)] = "启用",
             [nameof(ApplicationName)] = "官方应用名称",
             [nameof(ApplicationNameDescription)] = "完全按输入显示，不会自动调整大小写。",
-            [nameof(Platform)] = "平台",
+            [nameof(Platform)] = "适用平台",
             [nameof(AnyPlatform)] = "所有平台",
             [nameof(UrlTemplate)] = "URL Scheme 模板",
             [nameof(UrlTemplateDescription)] = "例如：myplayer://open?url={url}&title={title}。占位符值会进行 URL 编码。",
@@ -166,17 +164,19 @@ public static class PluginStrings
             [nameof(Subtitle)] = "字幕",
             [nameof(NoExternalSubtitle)] = "不加载外挂字幕",
             [nameof(SubtitleNumber)] = "字幕 {0}",
-            [nameof(SubtitleUnsupportedForPlayer)] = "{0} 无法通过应用链接接收外挂字幕，请选择支持字幕的播放器。",
+            [nameof(SubtitleMayNotLoadForPlayer)] = "{0} 的应用跳转可能不会自动加载所选外挂字幕，但不会影响媒体打开。",
+            [nameof(PlaybackPreferences)] = "播放偏好",
+            [nameof(DefaultPlayer)] = "默认播放器",
+            [nameof(DefaultPlayerSaved)] = "已保存默认播放器。",
+            [nameof(DefaultPlayerSaveError)] = "无法保存默认播放器。",
             [nameof(ResumeFromLastPosition)] = "从上次位置继续",
             [nameof(Cancel)] = "取消",
             [nameof(ResolveError)] = "无法生成播放地址，请检查权限、媒体版本或服务器连接。",
             [nameof(InvalidLaunchUrl)] = "服务器未返回安全的应用启动地址。",
             [nameof(ResumeUnsupportedWarning)] = "所选播放器的 URL 处理器不支持指定起始位置。",
-            [nameof(SubtitleUnsupportedWarning)] = "所选播放器的 URL 处理器不支持外挂字幕。",
             [nameof(ButtonTextRequired)] = "关闭本地化按钮文字时，自定义按钮文字不能为空。",
             [nameof(ButtonTextTooLong)] = "自定义按钮文字不能超过 40 个字符。",
             [nameof(TicketLifetimeInvalid)] = "票据有效期必须在 30 到 720 分钟之间。",
-            [nameof(RestartNearEndInvalid)] = "接近结尾重新播放的时间必须在 0 到 30 分钟之间。",
             [nameof(DefaultPlayerDisabled)] = "所选默认播放器已被禁用。",
             [nameof(DefaultPlayerUnsupported)] = "所选默认播放器不支持此平台。",
             [nameof(CustomPlayerNameRequired)] = "已启用的自定义播放器必须填写应用名称。",
@@ -186,17 +186,41 @@ public static class PluginStrings
         };
 
     private static readonly IReadOnlyDictionary<string, string> TraditionalChinese =
-        new Dictionary<string, string>(SimplifiedChinese, StringComparer.Ordinal)
+        new Dictionary<string, string>(StringComparer.Ordinal)
         {
             [nameof(EditorTitle)] = "外部播放器",
             [nameof(EditorDescription)] = "在 Emby Web 中加入輕量的外部播放器選擇器；安全中轉模式不會把 Emby 存取權杖放入播放器網址。",
             [nameof(Enabled)] = "啟用外掛",
+            [nameof(EnabledDescription)] = "控制外掛 API 和 Web 整合的總開關；關閉後會立即撤銷所有播放票據。",
             [nameof(EnableWebButton)] = "顯示網頁按鈕",
+            [nameof(EnableWebButtonDescription)] = "在支援的 Emby Web 媒體詳細資料頁顯示外部播放按鈕。",
             [nameof(UseLocalizedButtonText)] = "按鈕文字跟隨介面語言",
+            [nameof(UseLocalizedButtonTextDescription)] = "使用目前 Emby Web 用戶端設定的語言。",
             [nameof(ButtonText)] = "自訂按鈕文字",
+            [nameof(ButtonTextDescription)] = "僅在關閉「按鈕文字跟隨介面語言」時使用。",
             [nameof(ButtonPlacement)] = "按鈕位置",
             [nameof(AfterPrimaryPlay)] = "播放/從頭開始按鈕之後",
             [nameof(EndOfActionRow)] = "操作列末尾",
+            [nameof(ShowOnlyPlatformPlayers)] = "僅顯示目前平台的播放器",
+            [nameof(ResumeByDefault)] = "預設繼續播放",
+            [nameof(TicketLifetimeMinutes)] = "票據有效期（分鐘）",
+            [nameof(TicketLifetimeMinutesDescription)] = "播放票據的絕對有效期，允許範圍為 30 到 720 分鐘。",
+            [nameof(EnablePotPlayer)] = "啟用 PotPlayer",
+            [nameof(EnableIINA)] = "啟用 IINA",
+            [nameof(EnableVLC)] = "啟用 VLC media player",
+            [nameof(EnableInfuse)] = "啟用 Infuse",
+            [nameof(EnableMpv)] = "啟用 mpv",
+            [nameof(EnableNPlayer)] = "啟用 nPlayer",
+            [nameof(PotPlayerPlatforms)] = "可在下方「內建播放器適用平台」中設定。",
+            [nameof(IINAPlatforms)] = "可在下方「內建播放器適用平台」中設定。",
+            [nameof(VLCPlatforms)] = "可在下方「內建播放器適用平台」中設定。",
+            [nameof(InfusePlatforms)] = "可在下方「內建播放器適用平台」中設定。",
+            [nameof(MpvPlatforms)] = "可在下方「內建播放器適用平台」中設定；需要相容的 URL 處理器。",
+            [nameof(NPlayerPlatforms)] = "可在下方「內建播放器適用平台」中設定。",
+            [nameof(DefaultPlayerWindows)] = "Windows 預設播放器",
+            [nameof(DefaultPlayerMacOS)] = "macOS 預設播放器",
+            [nameof(DefaultPlayerIOS)] = "iOS 預設播放器",
+            [nameof(DefaultPlayerAndroid)] = "Android 預設播放器",
             [nameof(CustomPlayers)] = "自訂播放器",
             [nameof(CustomPlayersDescription)] = "自訂播放器在下方獨立管理，可一次加入多個草稿，每個播放器都有自己的儲存和刪除操作。應用程式名稱按輸入原樣顯示；範本支援 {url}、{title}、{subtitle}、{start} 和 {headers}。",
             [nameof(CustomPlayerAdd)] = "新增播放器",
@@ -204,7 +228,10 @@ public static class PluginStrings
             [nameof(CustomPlayerEnabled)] = "啟用",
             [nameof(ApplicationName)] = "官方應用程式名稱",
             [nameof(ApplicationNameDescription)] = "完全按輸入顯示，不會自動調整大小寫。",
+            [nameof(Platform)] = "適用平台",
             [nameof(AnyPlatform)] = "所有平台",
+            [nameof(UrlTemplate)] = "URL Scheme 範本",
+            [nameof(UrlTemplateDescription)] = "例如：myplayer://open?url={url}&title={title}。預留位置值會進行 URL 編碼。",
             [nameof(ExternalPlay)] = "外部播放",
             [nameof(ChoosePlayer)] = "選擇播放器",
             [nameof(Open)] = "開啟",
@@ -216,11 +243,25 @@ public static class PluginStrings
             [nameof(Subtitle)] = "字幕",
             [nameof(NoExternalSubtitle)] = "不載入外掛字幕",
             [nameof(SubtitleNumber)] = "字幕 {0}",
-            [nameof(SubtitleUnsupportedForPlayer)] = "{0} 無法透過應用程式連結接收外掛字幕，請選擇支援字幕的播放器。",
+            [nameof(SubtitleMayNotLoadForPlayer)] = "{0} 的應用程式跳轉可能不會自動載入所選外掛字幕，但不影響媒體開啟。",
+            [nameof(PlaybackPreferences)] = "播放偏好",
+            [nameof(DefaultPlayer)] = "預設播放器",
+            [nameof(DefaultPlayerSaved)] = "已儲存預設播放器。",
+            [nameof(DefaultPlayerSaveError)] = "無法儲存預設播放器。",
             [nameof(ResumeFromLastPosition)] = "從上次位置繼續",
             [nameof(Cancel)] = "取消",
             [nameof(ResolveError)] = "無法產生播放網址，請檢查權限、媒體版本或伺服器連線。",
             [nameof(InvalidLaunchUrl)] = "伺服器未傳回安全的應用程式啟動網址。",
+            [nameof(ResumeUnsupportedWarning)] = "所選播放器的 URL 處理器不支援指定開始位置。",
+            [nameof(ButtonTextRequired)] = "關閉本地化按鈕文字時，自訂按鈕文字不能為空。",
+            [nameof(ButtonTextTooLong)] = "自訂按鈕文字不能超過 40 個字元。",
+            [nameof(TicketLifetimeInvalid)] = "票據有效期必須在 30 到 720 分鐘之間。",
+            [nameof(DefaultPlayerDisabled)] = "所選預設播放器已停用。",
+            [nameof(DefaultPlayerUnsupported)] = "所選預設播放器不支援此平台。",
+            [nameof(CustomPlayerNameRequired)] = "已啟用的自訂播放器必須填寫應用程式名稱。",
+            [nameof(CustomPlayerNameTooLong)] = "應用程式名稱不能超過 80 個字元。",
+            [nameof(CustomPlayerTemplateRequired)] = "已啟用的自訂播放器必須填寫 URL Scheme 範本。",
+            [nameof(CustomPlayerTemplateInvalid)] = "URL Scheme 範本必須以安全的自訂通訊協定開頭，且只能使用 {url}、{title}、{subtitle}、{start} 和 {headers}。",
         };
 
     public static string EditorTitle => Get(nameof(EditorTitle));
@@ -238,12 +279,6 @@ public static class PluginStrings
     public static string EndOfActionRow => Get(nameof(EndOfActionRow));
     public static string ShowOnlyPlatformPlayers => Get(nameof(ShowOnlyPlatformPlayers));
     public static string ResumeByDefault => Get(nameof(ResumeByDefault));
-    public static string RestartNearEndMinutes => Get(nameof(RestartNearEndMinutes));
-    public static string RestartNearEndMinutesDescription => Get(nameof(RestartNearEndMinutesDescription));
-    public static string StreamMode => Get(nameof(StreamMode));
-    public static string StreamModeDescription => Get(nameof(StreamModeDescription));
-    public static string SecureTicketRelay => Get(nameof(SecureTicketRelay));
-    public static string LegacyTokenUrl => Get(nameof(LegacyTokenUrl));
     public static string TicketLifetimeMinutes => Get(nameof(TicketLifetimeMinutes));
     public static string TicketLifetimeMinutesDescription => Get(nameof(TicketLifetimeMinutesDescription));
     public static string EnablePotPlayer => Get(nameof(EnablePotPlayer));
@@ -252,12 +287,16 @@ public static class PluginStrings
     public static string EnableInfuse => Get(nameof(EnableInfuse));
     public static string EnableMpv => Get(nameof(EnableMpv));
     public static string EnableNPlayer => Get(nameof(EnableNPlayer));
+    public static string PotPlayerPlatforms => Get(nameof(PotPlayerPlatforms));
+    public static string IINAPlatforms => Get(nameof(IINAPlatforms));
+    public static string VLCPlatforms => Get(nameof(VLCPlatforms));
+    public static string InfusePlatforms => Get(nameof(InfusePlatforms));
+    public static string MpvPlatforms => Get(nameof(MpvPlatforms));
+    public static string NPlayerPlatforms => Get(nameof(NPlayerPlatforms));
     public static string DefaultPlayerWindows => Get(nameof(DefaultPlayerWindows));
     public static string DefaultPlayerMacOS => Get(nameof(DefaultPlayerMacOS));
     public static string DefaultPlayerIOS => Get(nameof(DefaultPlayerIOS));
     public static string DefaultPlayerAndroid => Get(nameof(DefaultPlayerAndroid));
-    public static string DebugLogging => Get(nameof(DebugLogging));
-    public static string DebugLoggingDescription => Get(nameof(DebugLoggingDescription));
     public static string CustomPlayers => Get(nameof(CustomPlayers));
     public static string CustomPlayersDescription => Get(nameof(CustomPlayersDescription));
     public static string CustomPlayerAdd => Get(nameof(CustomPlayerAdd));
@@ -291,17 +330,19 @@ public static class PluginStrings
     public static string Subtitle => Get(nameof(Subtitle));
     public static string NoExternalSubtitle => Get(nameof(NoExternalSubtitle));
     public static string SubtitleNumber => Get(nameof(SubtitleNumber));
-    public static string SubtitleUnsupportedForPlayer => Get(nameof(SubtitleUnsupportedForPlayer));
+    public static string SubtitleMayNotLoadForPlayer => Get(nameof(SubtitleMayNotLoadForPlayer));
+    public static string PlaybackPreferences => Get(nameof(PlaybackPreferences));
+    public static string DefaultPlayer => Get(nameof(DefaultPlayer));
+    public static string DefaultPlayerSaved => Get(nameof(DefaultPlayerSaved));
+    public static string DefaultPlayerSaveError => Get(nameof(DefaultPlayerSaveError));
     public static string ResumeFromLastPosition => Get(nameof(ResumeFromLastPosition));
     public static string Cancel => Get(nameof(Cancel));
     public static string ResolveError => Get(nameof(ResolveError));
     public static string InvalidLaunchUrl => Get(nameof(InvalidLaunchUrl));
     public static string ResumeUnsupportedWarning => Get(nameof(ResumeUnsupportedWarning));
-    public static string SubtitleUnsupportedWarning => Get(nameof(SubtitleUnsupportedWarning));
     public static string ButtonTextRequired => Get(nameof(ButtonTextRequired));
     public static string ButtonTextTooLong => Get(nameof(ButtonTextTooLong));
     public static string TicketLifetimeInvalid => Get(nameof(TicketLifetimeInvalid));
-    public static string RestartNearEndInvalid => Get(nameof(RestartNearEndInvalid));
     public static string DefaultPlayerDisabled => Get(nameof(DefaultPlayerDisabled));
     public static string DefaultPlayerUnsupported => Get(nameof(DefaultPlayerUnsupported));
     public static string CustomPlayerNameRequired => Get(nameof(CustomPlayerNameRequired));
@@ -317,9 +358,11 @@ public static class PluginStrings
             nameof(ExternalPlay), nameof(ChoosePlayer), nameof(Open), nameof(BuiltInPlayer),
             nameof(CustomPlayer), nameof(CustomPlayerHint), nameof(NoCustomPlayerHint),
             nameof(MediaVersion), nameof(VersionNumber), nameof(Subtitle),
-            nameof(NoExternalSubtitle), nameof(SubtitleNumber), nameof(SubtitleUnsupportedForPlayer),
+            nameof(NoExternalSubtitle), nameof(SubtitleNumber), nameof(SubtitleMayNotLoadForPlayer),
+            nameof(PlaybackPreferences), nameof(DefaultPlayer), nameof(DefaultPlayerSaved),
+            nameof(DefaultPlayerSaveError),
             nameof(ResumeFromLastPosition), nameof(Cancel), nameof(ResolveError), nameof(InvalidLaunchUrl),
-            nameof(ResumeUnsupportedWarning), nameof(SubtitleUnsupportedWarning),
+            nameof(ResumeUnsupportedWarning),
         };
         var result = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var key in keys)

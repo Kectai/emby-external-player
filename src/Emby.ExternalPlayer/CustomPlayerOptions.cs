@@ -29,6 +29,18 @@ public enum CustomPlayerPlatform
     Linux,
 }
 
+[Flags]
+public enum PlayerPlatforms
+{
+    None = 0,
+    Windows = 1,
+    MacOS = 2,
+    IOS = 4,
+    Android = 8,
+    Linux = 16,
+    All = Windows | MacOS | IOS | Android | Linux,
+}
+
 public sealed class CustomPlayerOptions : EditableOptionsBase
 {
     public override string EditorTitle => string.IsNullOrWhiteSpace(ApplicationName)
@@ -45,8 +57,25 @@ public sealed class CustomPlayerOptions : EditableOptionsBase
     [DescriptionL(nameof(PluginStrings.ApplicationNameDescription), typeof(PluginStrings))]
     public string ApplicationName { get; set; } = string.Empty;
 
-    [DisplayNameL(nameof(PluginStrings.Platform), typeof(PluginStrings))]
+    [System.ComponentModel.Browsable(false)]
     public CustomPlayerPlatform Platform { get; set; } = CustomPlayerPlatform.Any;
+
+    [System.ComponentModel.Browsable(false)]
+    public PlayerPlatforms Platforms { get; set; }
+
+    public bool ShouldSerializePlatform() => false;
+
+    public PlayerPlatforms GetEffectivePlatforms() => Platforms != PlayerPlatforms.None
+        ? Platforms
+        : Platform switch
+        {
+            CustomPlayerPlatform.Windows => PlayerPlatforms.Windows,
+            CustomPlayerPlatform.MacOS => PlayerPlatforms.MacOS,
+            CustomPlayerPlatform.IOS => PlayerPlatforms.IOS,
+            CustomPlayerPlatform.Android => PlayerPlatforms.Android,
+            CustomPlayerPlatform.Linux => PlayerPlatforms.Linux,
+            _ => PlayerPlatforms.All,
+        };
 
     [DisplayNameL(nameof(PluginStrings.UrlTemplate), typeof(PluginStrings))]
     [DescriptionL(nameof(PluginStrings.UrlTemplateDescription), typeof(PluginStrings))]

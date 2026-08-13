@@ -3,9 +3,16 @@ set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 project_root="$(cd "${script_dir}/.." && pwd)"
-version="1.4.9"
+version="$(sed -n 's:.*<Version>\([^<]*\)</Version>.*:\1:p' "${project_root}/src/Emby.ExternalPlayer/Emby.ExternalPlayer.csproj" | head -n 1)"
+if [[ -z "${version}" ]]; then
+    echo "Unable to read the package version from Emby.ExternalPlayer.csproj." >&2
+    exit 1
+fi
 package_name="Emby.ExternalPlayer-${version}"
-staging_parent="${project_root}/.local/package"
+local_root="${project_root}/.local"
+mkdir -p "${local_root}"
+staging_parent="$(mktemp -d "${local_root}/package.XXXXXX")"
+trap 'rm -rf -- "${staging_parent}"' EXIT
 staging_dir="${staging_parent}/${package_name}"
 artifacts_dir="${project_root}/artifacts"
 archive="${artifacts_dir}/${package_name}.zip"
@@ -20,7 +27,7 @@ cp "${project_root}/docs/INSTALL.md" \
    "${project_root}/docs/SECURITY.md" \
    "${project_root}/docs/COMPATIBILITY.md" \
    "${project_root}/docs/TESTING.md" \
-   "${project_root}/docs/DESIGN.md" \
+   "${project_root}/docs/ARCHITECTURE.md" \
    "${staging_dir}/docs/"
 
 (cd "${staging_parent}" && zip -q -r -FS "${archive}" "${package_name}")

@@ -52,6 +52,22 @@ public sealed class ResolveSelectionValidatorTests
             options, players, context, "PotPlayer", ClientPlatform.Windows, "source-1", 4));
     }
 
+    [TestMethod]
+    public void Validate_AcceptsSubtitleSelectionForPlayerWithoutAutomaticSubtitleCapability()
+    {
+        var selection = ResolveSelectionValidator.Validate(
+            new PluginOptions(),
+            new PlayerAdapterRegistry(),
+            CreateContext(),
+            "Iina",
+            ClientPlatform.MacOS,
+            "source-1",
+            3);
+
+        Assert.AreEqual(3, selection.Subtitle?.Index);
+        Assert.IsFalse(selection.Player.Capabilities.HasFlag(PlayerCapabilities.ExternalSubtitle));
+    }
+
     private static MediaManifestContext CreateContext()
     {
         return new MediaManifestContext

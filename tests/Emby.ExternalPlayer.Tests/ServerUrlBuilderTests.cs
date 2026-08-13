@@ -16,23 +16,6 @@ public sealed class ServerUrlBuilderTests
     }
 
     [TestMethod]
-    public void DirectStreamUrl_EncodesMediaSourceAndNormalizesExtension()
-    {
-        var itemId = Guid.Parse("f7e75cae-5055-4706-bfe1-4c4dbf33a573");
-
-        var result = ServerUrlBuilder.BuildDirectStreamUrl(
-            "https://media.example/emby/",
-            itemId,
-            "source id&2",
-            "MKV");
-
-        Assert.AreEqual(
-            "https://media.example/emby/Videos/f7e75cae50554706bfe14c4dbf33a573/stream.mkv" +
-            "?Static=true&MediaSourceId=source%20id%262",
-            result);
-    }
-
-    [TestMethod]
     public void Extension_RejectsPathAndQueryInjection()
     {
         Assert.AreEqual("mkv", ServerUrlBuilder.NormalizeExtension("mkv?api_key=bad", "mkv"));
@@ -82,5 +65,24 @@ public sealed class ServerUrlBuilderTests
             "https://media.example/ExternalPlayer/Subtitle/4/subtitle.ass?api_key=ticket",
             ServerUrlBuilder.BuildTicketSubtitleUrl(
                 "https://media.example/", "ticket", 4, "ASS"));
+    }
+
+    [TestMethod]
+    public void HeaderTicketSubtitleUrl_KeepsTheVisibleFileNameFreeOfCredentials()
+    {
+        var result = ServerUrlBuilder.BuildHeaderTicketSubtitleUrl(
+            "https://media.example/emby/", 4, "ASS");
+
+        Assert.AreEqual(
+            "https://media.example/emby/ExternalPlayer/Subtitle/4/subtitle.ass",
+            result);
+        Assert.IsFalse(result.Contains("?", StringComparison.Ordinal));
+        Assert.IsFalse(result.Contains("api_key", StringComparison.OrdinalIgnoreCase));
+
+        var namedResult = ServerUrlBuilder.BuildHeaderTicketSubtitleUrl(
+            "https://media.example/emby/", 4, "ASS", "Movie.简中.ass");
+        Assert.AreEqual(
+            "https://media.example/emby/ExternalPlayer/Subtitle/4/Movie.%E7%AE%80%E4%B8%AD.ass",
+            namedResult);
     }
 }

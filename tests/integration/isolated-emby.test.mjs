@@ -47,7 +47,7 @@ assert.match(webModule, /isAllowedLaunchUrl/);
 assert.match(webModule, /LaunchSchemes/);
 assert.match(webModule, /detectLanguage/);
 const webStylesheet = await (await fetchChecked("ExternalPlayer/Web/style.css")).text();
-assert.match(webStylesheet, /emby-external-player-dialog/);
+assert.match(webStylesheet, /emby-ep-dialog/);
 if (dashboardAppPath) {
     const dashboardApp = fs.readFileSync(dashboardAppPath, "utf8");
     assert.equal(
@@ -108,9 +108,13 @@ const configurationView = await (await api(
 assert.equal(configurationView.PageId, configurationPageId);
 const pluginConfiguration = configurationView.EditObjectContainer.Object;
 assert.equal(pluginConfiguration.Enabled, true);
-assert.equal(pluginConfiguration.StreamMode, "SecureTicketRelay");
+assert.equal(pluginConfiguration.StreamMode, undefined, "the token-exposing legacy mode must not be configurable");
 assert.equal(pluginConfiguration.EnableWebButton, true);
 assert.equal(pluginConfiguration.UseLocalizedButtonText, true);
+assert.equal(pluginConfiguration.DefaultPlayerWindows, "PotPlayer");
+assert.equal(pluginConfiguration.DefaultPlayerMacOS, "Iina");
+assert.equal(pluginConfiguration.DefaultPlayerIOS, "Infuse");
+assert.equal(pluginConfiguration.DefaultPlayerAndroid, "Vlc");
 assert.ok(Array.isArray(pluginConfiguration.CustomPlayers));
 const localizedConfigurationView = await (await api(
     `UI/View?PageId=${encodeURIComponent(configurationPageId)}&ClientLocale=zh-CN`,
@@ -121,18 +125,72 @@ assert.match(localizedConfigurationJson, /IINA/);
 assert.match(localizedConfigurationJson, /VLC media player/);
 assert.match(webModule, /添加播放器/);
 
+const builtInPlatformConfigurations = await (await api(
+    "ExternalPlayer/BuiltInPlayerPlatforms")).json();
+assert.equal(builtInPlatformConfigurations.length, 6);
+assert.deepEqual(
+    builtInPlatformConfigurations.find((entry) => entry.PlayerId === "Iina").Platforms,
+    ["MacOS"]);
+const expandedIinaPlatforms = await (await api("ExternalPlayer/BuiltInPlayerPlatforms", {
+    method: "POST",
+    body: JSON.stringify({ PlayerId: "Iina", Platforms: ["MacOS", "IOS"] })
+})).json();
+assert.deepEqual(expandedIinaPlatforms.Platforms, ["MacOS", "IOS"]);
+const rejectedIinaPlatforms = await api("ExternalPlayer/BuiltInPlayerPlatforms", {
+    method: "POST",
+    body: JSON.stringify({ PlayerId: "Iina", Platforms: ["IOS"] })
+}, [400]);
+assert.equal(rejectedIinaPlatforms.status, 400,
+    "an administrator default must remain available on its configured platform");
+
 const savedCustomConfig = await (await api("ExternalPlayer/CustomPlayers", {
     method: "POST",
     body: JSON.stringify({
         Enabled: true,
         ApplicationName: "IINA Nova Integration",
-        Platform: "MacOS",
-        UrlTemplate: "iina-nova://weblink?url={url}&new_window=1&mpv_start={start}"
+        Platforms: ["MacOS", "IOS"],
+        UrlTemplate: "iina-nova://weblink?url={url}&new_window=1&mpv_start={start}" +
+            "&mpv_sub-file={subtitle}&mpv_http-header-fields={headers}"
     })
 })).json();
 assert.match(savedCustomConfig.Id, /^[a-f0-9]{32}$/);
+assert.deepEqual(savedCustomConfig.Platforms, ["MacOS", "IOS"]);
 const customConfigurations = await (await api("ExternalPlayer/CustomPlayers")).json();
 assert.ok(customConfigurations.some((entry) => entry.Id === savedCustomConfig.Id));
+
+const idempotentCustomId = "0123456789abcdef0123456789abcdef";
+const idempotentCustomBody = {
+    Id: idempotentCustomId,
+    Enabled: true,
+    ApplicationName: "Idempotent Integration Player",
+    Platforms: ["MacOS"],
+    UrlTemplate: "idempotent-player://open?url={url}"
+};
+const firstIdempotentSave = await (await api("ExternalPlayer/CustomPlayers", {
+    method: "POST",
+    body: JSON.stringify(idempotentCustomBody)
+})).json();
+const repeatedIdempotentSave = await (await api("ExternalPlayer/CustomPlayers", {
+    method: "POST",
+    body: JSON.stringify(idempotentCustomBody)
+})).json();
+assert.equal(firstIdempotentSave.Id, idempotentCustomId);
+assert.equal(repeatedIdempotentSave.Id, idempotentCustomId);
+const configurationsAfterRetry = await (await api("ExternalPlayer/CustomPlayers")).json();
+assert.equal(configurationsAfterRetry.filter((entry) => entry.Id === idempotentCustomId).length, 1,
+    "repeating a create request with the same client ID must update instead of duplicate");
+await api(`ExternalPlayer/CustomPlayers/${idempotentCustomId}`, { method: "DELETE" });
+
+const savedSubtitleCustomConfig = await (await api("ExternalPlayer/CustomPlayers", {
+    method: "POST",
+    body: JSON.stringify({
+        Enabled: true,
+        ApplicationName: "Custom Subtitle Integration",
+        Platforms: ["MacOS"],
+        UrlTemplate: "custom-subtitle://open?url={url}&sub={subtitle}"
+    })
+})).json();
+assert.match(savedSubtitleCustomConfig.Id, /^[a-f0-9]{32}$/);
 
 const libraryName = "External Player Integration";
 const virtualFolders = await (await api("Library/VirtualFolders/Query")).json();
@@ -180,9 +238,27 @@ await api(`Users/${userId}/Items/${item.Id}/UserData`, {
 
 const unauthenticatedManifest = await fetch(new URL(`ExternalPlayer/Manifest?itemId=${item.Id}`, baseUrl));
 assert.equal(unauthenticatedManifest.status, 401);
+const unauthenticatedPreference = await fetch(new URL("ExternalPlayer/UserDefaultPlayer", baseUrl), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ Platform: "MacOS", PlayerId: "Iina" })
+});
+assert.equal(unauthenticatedPreference.status, 401);
 const invalidTicketResponse = await fetch(new URL(
     `ExternalPlayer/Stream/Invalid?api_key=${"A".repeat(43)}`, baseUrl));
 assert.equal(invalidTicketResponse.status, 401);
+
+const rejectedEmptyDefault = await api("ExternalPlayer/UserDefaultPlayer", {
+    method: "POST",
+    body: JSON.stringify({ Platform: "MacOS", PlayerId: "" })
+}, [400]);
+assert.equal(rejectedEmptyDefault.status, 400);
+
+// Keep repeated local runs deterministic when an earlier run persisted another personal default.
+await api("ExternalPlayer/UserDefaultPlayer", {
+    method: "POST",
+    body: JSON.stringify({ Platform: "MacOS", PlayerId: "Iina" })
+});
 
 const manifestResponse = await api(`ExternalPlayer/Manifest?itemId=${item.Id}&platform=MacOS&language=zh-CN`);
 const manifest = await manifestResponse.json();
@@ -198,13 +274,40 @@ assert.equal(
 assert.ok(manifest.MediaSources.length >= 2, "The multi-version movie must expose at least two media sources.");
 assert.ok(manifest.Players.some((player) =>
     player.Id === "Iina" && player.DisplayName === "IINA" && player.LaunchSchemes.includes("iina")));
+assert.equal(manifest.DefaultPlayerId, "Iina");
 const customIinaPlayer = manifest.Players.find((player) => player.DisplayName === "IINA Nova Integration");
 assert.ok(customIinaPlayer && customIinaPlayer.LaunchSchemes.includes("iina-nova"));
+assert.equal(customIinaPlayer.Id, `custom-${savedCustomConfig.Id}`);
+const customSubtitlePlayer = manifest.Players.find((player) => player.DisplayName === "Custom Subtitle Integration");
+assert.ok(customSubtitlePlayer && customSubtitlePlayer.SupportsExternalSubtitle);
+assert.equal(customSubtitlePlayer.Id, `custom-${savedSubtitleCustomConfig.Id}`);
+
+const savedUserDefault = await (await api("ExternalPlayer/UserDefaultPlayer", {
+    method: "POST",
+    body: JSON.stringify({ Platform: "MacOS", PlayerId: customIinaPlayer.Id })
+})).json();
+assert.equal(savedUserDefault.Platform, "MacOS");
+assert.equal(savedUserDefault.PlayerId, customIinaPlayer.Id);
+const preferredManifest = await (await api(
+    `ExternalPlayer/Manifest?itemId=${item.Id}&platform=MacOS&language=zh-CN`)).json();
+assert.equal(preferredManifest.DefaultPlayerId, customIinaPlayer.Id);
+
+const rejectedForeignPlatformPreference = await api("ExternalPlayer/UserDefaultPlayer", {
+    method: "POST",
+    body: JSON.stringify({ Platform: "Windows", PlayerId: customIinaPlayer.Id })
+}, [400]);
+assert.equal(rejectedForeignPlatformPreference.status, 400);
+const rejectedNumericPlatformPreference = await api("ExternalPlayer/UserDefaultPlayer", {
+    method: "POST",
+    body: JSON.stringify({ Platform: "999", PlayerId: "Iina" })
+}, [400]);
+assert.equal(rejectedNumericPlatformPreference.status, 400);
 
 const source = manifest.MediaSources[0];
 const subtitles = source.Subtitles || [];
 assert.ok(subtitles.some((subtitle) => subtitle.Format === "srt"));
 assert.ok(subtitles.some((subtitle) => subtitle.Format === "ass"));
+const subtitle = subtitles.find((candidate) => candidate.Format === "srt");
 
 async function resolve(body, expected = [200]) {
     return api("ExternalPlayer/Resolve", {
@@ -258,7 +361,48 @@ const customTicketMatch = customTicketField.match(/^X-Emby-Playback-Ticket: ([A-
 assert.ok(customTicketMatch);
 const customTicket = customTicketMatch[1];
 
+const customIinaSubtitleResolution = await (await resolve({
+    PlayerId: customIinaPlayer.Id,
+    MediaSourceId: source.Id,
+    SubtitleStreamIndex: subtitle.Index,
+    Resume: false
+})).json();
+const customIinaSubtitleLaunchUrl = new URL(customIinaSubtitleResolution.LaunchUrl);
+const cleanCustomSubtitleUrl = customIinaSubtitleLaunchUrl.searchParams.get("mpv_sub-file");
+assert.ok(cleanCustomSubtitleUrl);
+assert.equal(new URL(cleanCustomSubtitleUrl).search, "",
+    "header-capable custom players must not expose subtitle tickets in the visible file name");
+assert.match(new URL(cleanCustomSubtitleUrl).pathname, /\/[^/]+\.srt$/);
+const combinedTicketField = customIinaSubtitleLaunchUrl.searchParams.get("mpv_http-header-fields") || "";
+const combinedTicketMatch = combinedTicketField.match(
+    /^X-Emby-Playback-Ticket: ([A-Za-z0-9_-]{43}),X-Emby-Subtitle-Ticket: ([A-Za-z0-9_-]{43})$/);
+assert.ok(combinedTicketMatch);
+const cleanSubtitleResponse = await fetch(cleanCustomSubtitleUrl, {
+    headers: { "X-Emby-Subtitle-Ticket": combinedTicketMatch[2] }
+});
+assert.equal(cleanSubtitleResponse.status, 200);
+assert.match(await cleanSubtitleResponse.text(), /简体中文外挂字幕/);
+const cleanSubtitleWrongScope = await fetch(cleanCustomSubtitleUrl, {
+    headers: { "X-Emby-Subtitle-Ticket": combinedTicketMatch[1] }
+});
+assert.equal(cleanSubtitleWrongScope.status, 401);
+
 await api(`ExternalPlayer/CustomPlayers/${savedCustomConfig.Id}`, { method: "DELETE" });
+const fallbackManifest = await (await api(
+    `ExternalPlayer/Manifest?itemId=${item.Id}&platform=MacOS&language=zh-CN`)).json();
+assert.equal(fallbackManifest.DefaultPlayerId, "Iina");
+
+const customSubtitleResolution = await (await resolve({
+    PlayerId: customSubtitlePlayer.Id,
+    MediaSourceId: source.Id,
+    SubtitleStreamIndex: subtitle.Index,
+    Resume: false
+})).json();
+const customSubtitleLaunchUrl = new URL(customSubtitleResolution.LaunchUrl);
+const customSubtitleUrl = customSubtitleLaunchUrl.searchParams.get("sub");
+assert.ok(customSubtitleUrl, "a custom {subtitle} template must receive a signed subtitle URL");
+assert.match(new URL(customSubtitleUrl).pathname, /\/[^/]+\.srt$/);
+await api(`ExternalPlayer/CustomPlayers/${savedSubtitleCustomConfig.Id}`, { method: "DELETE" });
 
 const head = await fetch(streamUrl, { method: "HEAD", headers: iinaHeaders });
 assert.equal(head.status, 200);
@@ -297,7 +441,15 @@ const secondRange = await fetch(secondStreamUrl, {
 assert.equal(secondRange.status, 206);
 assert.equal((await secondRange.arrayBuffer()).byteLength, 16);
 
-const subtitle = subtitles.find((candidate) => candidate.Format === "srt");
+const nonBlockingIinaSubtitleResolution = await (await resolve({
+    PlayerId: "Iina",
+    MediaSourceId: source.Id,
+    SubtitleStreamIndex: subtitle.Index,
+    Resume: false
+})).json();
+assert.match(nonBlockingIinaSubtitleResolution.LaunchUrl, /^iina:\/\/weblink\?/);
+assert.ok(nonBlockingIinaSubtitleResolution.Warnings.length > 0);
+assert.doesNotMatch(nonBlockingIinaSubtitleResolution.LaunchUrl, /subtitle|sub-file|sub=/i);
 const infuseResolution = await (await resolve({
     PlayerId: "Infuse",
     MediaSourceId: source.Id,
@@ -309,11 +461,23 @@ assert.ok(!infuseResolution.LaunchUrl.includes(token));
 const infuseUrl = new URL(infuseResolution.LaunchUrl);
 const subtitleUrl = infuseUrl.searchParams.get("sub");
 assert.ok(subtitleUrl);
-assert.match(new URL(subtitleUrl).pathname, /\/subtitle\.srt$/);
+assert.match(new URL(subtitleUrl).pathname, /\/[^/]+\.srt$/);
 const subtitleResponse = await fetch(subtitleUrl);
 assert.equal(subtitleResponse.status, 200);
-assert.match(subtitleResponse.headers.get("content-disposition") || "", /^inline; filename="[\x20-\x7E]+"$/);
+assert.match(
+    subtitleResponse.headers.get("content-disposition") || "",
+    /^inline; filename="[\x20-\x7E]+"(?:; filename\*=UTF-8''[^\s]+)?$/);
 assert.match(await subtitleResponse.text(), /简体中文外挂字幕/);
+const subtitleTicket = new URL(subtitleUrl).searchParams.get("api_key");
+assert.match(subtitleTicket, /^[A-Za-z0-9_-]{43}$/);
+const subtitleTicketOnMediaUrl = new URL(streamUrl);
+subtitleTicketOnMediaUrl.searchParams.set("api_key", subtitleTicket);
+const wrongScopeMediaResponse = await fetch(subtitleTicketOnMediaUrl);
+assert.equal(wrongScopeMediaResponse.status, 401, "a subtitle ticket must not authorize the media stream");
+const mediaTicketOnSubtitleUrl = new URL(subtitleUrl);
+mediaTicketOnSubtitleUrl.searchParams.set("api_key", iinaTicket);
+const wrongScopeSubtitleResponse = await fetch(mediaTicketOnSubtitleUrl);
+assert.equal(wrongScopeSubtitleResponse.status, 401, "a media ticket must not authorize the subtitle stream");
 
 const assSubtitle = subtitles.find((candidate) => candidate.Format === "ass");
 const assResolution = await (await resolve({
@@ -324,7 +488,7 @@ const assResolution = await (await resolve({
 })).json();
 const assSubtitleUrl = new URL(assResolution.LaunchUrl).searchParams.get("sub");
 assert.ok(assSubtitleUrl);
-assert.match(new URL(assSubtitleUrl).pathname, /\/subtitle\.ass$/);
+assert.match(new URL(assSubtitleUrl).pathname, /\/[^/]+\.ass$/);
 const assSubtitleResponse = await fetch(assSubtitleUrl);
 assert.equal(assSubtitleResponse.status, 200);
 assert.match(await assSubtitleResponse.text(), /\[Script Info\]/);

@@ -9,7 +9,14 @@ public sealed class IsolationTests
         var testRoot = Environment.GetEnvironmentVariable("EMBY_EXTERNAL_PLAYER_TEST_ROOT");
 
         Assert.IsFalse(string.IsNullOrWhiteSpace(testRoot));
-        StringAssert.Contains(Path.GetFullPath(testRoot!), Path.Combine("emby-external-player-plugin-design", ".local"));
-        StringAssert.StartsWith(Path.GetFullPath(Path.GetTempPath()), Path.GetFullPath(testRoot!).Replace("test-work", "tmp"));
+        var fullTestRoot = Path.GetFullPath(testRoot!);
+        var localRoot = Directory.GetParent(fullTestRoot)?.FullName;
+
+        Assert.IsNotNull(localRoot);
+        Assert.AreEqual(".local", Path.GetFileName(localRoot));
+        Assert.AreEqual("test-work", Path.GetFileName(fullTestRoot));
+        StringAssert.StartsWith(
+            Path.GetFullPath(Path.GetTempPath()),
+            Path.Combine(localRoot, "tmp"));
     }
 }

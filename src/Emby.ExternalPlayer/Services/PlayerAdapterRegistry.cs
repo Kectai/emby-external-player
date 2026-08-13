@@ -34,11 +34,13 @@ public sealed class PlayerAdapterRegistry
             .Where(adapter => options.IsPlayerEnabled(adapter.Descriptor.BuiltInId!.Value))
             .Where(adapter => !platformOnly ||
                               platform == ClientPlatform.Unknown ||
-                              adapter.Descriptor.Platforms.Contains(platform))
+                              PluginOptions.IncludesPlatform(
+                                  options.GetPlayerPlatforms(adapter.Descriptor.BuiltInId!.Value),
+                                  platform))
             .Select(adapter => adapter.Describe(platform));
 
         var customPlayers = ((IEnumerable<CustomPlayerOptions>)(options.CustomPlayers ?? new CustomPlayerOptionsCollection()))
-            .Select((custom, index) => CreateCustomDescriptor(custom, index))
+            .Select(CreateCustomDescriptor)
             .Where(descriptor => descriptor is not null)
             .Select(descriptor => descriptor!)
             .Where(descriptor => !platformOnly ||
@@ -62,14 +64,13 @@ public sealed class PlayerAdapterRegistry
             return BuildBuiltInLaunchUrl(builtInId, canonicalContext);
         }
 
-        if (!TryGetCustomIndex(playerId, out var customIndex) ||
-            options.CustomPlayers is null ||
-            customIndex < 0 || customIndex >= options.CustomPlayers.Count)
+        if (!TryGetCustomId(playerId, out var customId) || options.CustomPlayers is null)
         {
             throw new ArgumentOutOfRangeException(nameof(playerId));
         }
 
-        var custom = options.CustomPlayers[customIndex];
+        var custom = ((IEnumerable<CustomPlayerOptions>)options.CustomPlayers).FirstOrDefault(candidate =>
+            candidate is not null && string.Equals(candidate.Id, customId, StringComparison.OrdinalIgnoreCase));
         if (custom is null || !custom.Enabled || !CustomPlayerTemplate.IsValid(custom.UrlTemplate))
         {
             throw new ArgumentOutOfRangeException(nameof(playerId));
@@ -131,10 +132,11 @@ public sealed class PlayerAdapterRegistry
         };
     }
 
-    private static PlayerDescriptor? CreateCustomDescriptor(CustomPlayerOptions? custom, int index)
+    private static PlayerDescriptor? CreateCustomDescriptor(CustomPlayerOptions? custom)
     {
         if (custom is null || !custom.Enabled || string.IsNullOrWhiteSpace(custom.ApplicationName) ||
-            custom.ApplicationName.Length > 80 || !CustomPlayerTemplate.IsValid(custom.UrlTemplate))
+            custom.ApplicationName.Length > 80 || !Guid.TryParseExact(custom.Id, "N", out _) ||
+            !CustomPlayerTemplate.IsValid(custom.UrlTemplate))
         {
             return null;
         }
@@ -148,47 +150,60 @@ public sealed class PlayerAdapterRegistry
         {
             capabilities |= PlayerCapabilities.ExternalSubtitle;
         }
-        if (custom.UrlTemplate.Contains("{title}", StringComparison.Ordinal))
-        {
-            capabilities |= PlayerCapabilities.DisplayTitle;
-        }
         if (CustomPlayerTemplate.SupportsHttpRequestHeaders(custom.UrlTemplate))
         {
             capabilities |= PlayerCapabilities.HttpRequestHeaders;
         }
 
         return new PlayerDescriptor(
-            "custom-" + (index + 1).ToString(CultureInfo.InvariantCulture),
+            "custom-" + custom.Id.ToLowerInvariant(),
             custom.ApplicationName,
-            GetCustomPlatforms(custom.Platform),
+            GetCustomPlatforms(custom.GetEffectivePlatforms()),
             capabilities,
             new[] { CustomPlayerTemplate.GetScheme(custom.UrlTemplate) });
     }
 
-    private static IReadOnlyCollection<ClientPlatform> GetCustomPlatforms(CustomPlayerPlatform platform)
+    private static IReadOnlyCollection<ClientPlatform> GetCustomPlatforms(PlayerPlatforms platforms)
     {
-        return platform switch
+        var result = new List<ClientPlatform>();
+        if ((platforms & PlayerPlatforms.Windows) != 0)
         {
-            CustomPlayerPlatform.Windows => new[] { ClientPlatform.Windows },
-            CustomPlayerPlatform.MacOS => new[] { ClientPlatform.MacOS },
-            CustomPlayerPlatform.IOS => new[] { ClientPlatform.IOS },
-            CustomPlayerPlatform.Android => new[] { ClientPlatform.Android },
-            CustomPlayerPlatform.Linux => new[] { ClientPlatform.Linux },
-            _ => new[]
-            {
-                ClientPlatform.Windows, ClientPlatform.MacOS, ClientPlatform.IOS,
-                ClientPlatform.Android, ClientPlatform.Linux,
-            },
-        };
+            result.Add(ClientPlatform.Windows);
+        }
+        if ((platforms & PlayerPlatforms.MacOS) != 0)
+        {
+            result.Add(ClientPlatform.MacOS);
+        }
+        if ((platforms & PlayerPlatforms.IOS) != 0)
+        {
+            result.Add(ClientPlatform.IOS);
+        }
+        if ((platforms & PlayerPlatforms.Android) != 0)
+        {
+            result.Add(ClientPlatform.Android);
+        }
+        if ((platforms & PlayerPlatforms.Linux) != 0)
+        {
+            result.Add(ClientPlatform.Linux);
+        }
+        return result;
     }
 
-    private static bool TryGetCustomIndex(string value, out int index)
+    private static bool TryGetCustomId(string value, out string id)
     {
         const string prefix = "custom-";
-        index = -1;
-        return value.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) &&
-               int.TryParse(value.Substring(prefix.Length), NumberStyles.None, CultureInfo.InvariantCulture, out var oneBased) &&
-               oneBased > 0 && (index = oneBased - 1) >= 0;
+        id = string.Empty;
+        if (!value.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+        var candidate = value.Substring(prefix.Length);
+        if (!Guid.TryParseExact(candidate, "N", out _))
+        {
+            return false;
+        }
+        id = candidate;
+        return true;
     }
 
     private interface IPlayerAdapter

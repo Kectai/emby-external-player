@@ -1,3 +1,4 @@
+using System;
 using MediaBrowser.Controller.Net;
 using MediaBrowser.Model.Services;
 
@@ -33,10 +34,36 @@ public sealed class ResolveExternalPlayer : IReturn<Domain.LaunchResolution>
     public string Language { get; set; } = string.Empty;
 }
 
+[Route("/ExternalPlayer/UserDefaultPlayer", "POST", Summary = "Sets the authenticated user's default external player for a platform")]
+[Authenticated]
+public sealed class SaveUserDefaultPlayerPreference : IReturn<Domain.UserDefaultPlayerPreference>
+{
+    public string Platform { get; set; } = string.Empty;
+
+    public string PlayerId { get; set; } = string.Empty;
+}
+
 [Route("/ExternalPlayer/CustomPlayers", "GET", Summary = "Gets custom external-player configurations")]
 [Authenticated]
 public sealed class GetCustomPlayerConfigurations : IReturn<Domain.CustomPlayerConfiguration[]>
 {
+}
+
+[Route("/ExternalPlayer/BuiltInPlayerPlatforms", "GET", Summary = "Gets built-in player platform configurations")]
+[Authenticated]
+public sealed class GetBuiltInPlayerPlatformConfigurations :
+    IReturn<Domain.BuiltInPlayerPlatformConfiguration[]>
+{
+}
+
+[Route("/ExternalPlayer/BuiltInPlayerPlatforms", "POST", Summary = "Updates a built-in player's platforms")]
+[Authenticated]
+public sealed class SaveBuiltInPlayerPlatformConfiguration :
+    IReturn<Domain.BuiltInPlayerPlatformConfiguration>
+{
+    public string PlayerId { get; set; } = string.Empty;
+
+    public string[] Platforms { get; set; } = Array.Empty<string>();
 }
 
 [Route("/ExternalPlayer/CustomPlayers", "POST", Summary = "Creates or updates a custom external-player configuration")]
@@ -50,6 +77,8 @@ public sealed class SaveCustomPlayerConfiguration : IReturn<Domain.CustomPlayerC
     public string ApplicationName { get; set; } = string.Empty;
 
     public string Platform { get; set; } = string.Empty;
+
+    public string[] Platforms { get; set; } = Array.Empty<string>();
 
     public string UrlTemplate { get; set; } = string.Empty;
 }

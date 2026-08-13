@@ -22,15 +22,29 @@ public sealed class SecurityPolicyTests
     [TestMethod]
     public void SafeFileName_RemovesHeaderAndPathInjectionCharacters()
     {
-        Assert.AreEqual(
-            "evil__X-Injected_ yes_movie.mkv",
-            SafeFileNamePolicy.Create("evil\r\nX-Injected: yes_movie.mkv", "mkv"));
-        Assert.AreEqual("movie.mkv", SafeFileNamePolicy.Create("../movie.mkv", "mkv"));
+        Assert.AreEqual("media.mkv", SafeFileNamePolicy.CreateGeneric("mkv"));
         Assert.AreEqual(
             "inline; filename=\"movie.mkv\"",
             SafeFileNamePolicy.CreateContentDisposition("movie.mkv"));
         Assert.ThrowsExactly<InvalidOperationException>(() =>
             SafeFileNamePolicy.CreateContentDisposition("movie.mkv\r\nX-Evil: yes"));
+    }
+
+    [TestMethod]
+    public void SubtitleFileName_PreservesOnlyTheRealBaseNameAndSafeExtension()
+    {
+        Assert.AreEqual(
+            "Movie.简中.default.ass",
+            SafeFileNamePolicy.CreateFileName(
+                Path.Combine("private", "library", "Movie.简中.default.ass"),
+                "ASS",
+                "subtitle"));
+        Assert.AreEqual(
+            "subtitle.srt",
+            SafeFileNamePolicy.CreateFileName(null, "srt", "subtitle"));
+        Assert.AreEqual(
+            "inline; filename=\"Movie.__.ass\"; filename*=UTF-8''Movie.%E7%AE%80%E4%B8%AD.ass",
+            SafeFileNamePolicy.CreateContentDisposition("Movie.简中.ass"));
     }
 
     [TestMethod]

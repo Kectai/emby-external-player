@@ -8,13 +8,32 @@ public static class SafeFileNamePolicy
 {
     private const int MaximumLength = 120;
 
-    public static string CreateUrlTitle(string? title)
+    public static string CreateUrlTitle(string? title) => Sanitize(title, "media");
+
+    public static string CreateFileName(string? path, string extension, string fallbackBaseName)
+    {
+        string? baseName;
+        try
+        {
+            baseName = Path.GetFileNameWithoutExtension(path);
+        }
+        catch (Exception exception) when (
+            exception is ArgumentException ||
+            exception is NotSupportedException ||
+            exception is PathTooLongException)
+        {
+            baseName = null;
+        }
+        return Sanitize(baseName, fallbackBaseName) + "." +
+            ServerUrlBuilder.NormalizeExtension(extension, "bin");
+    }
+
+    private static string Sanitize(string? title, string fallback)
     {
         if (string.IsNullOrWhiteSpace(title))
         {
-            return "media";
+            return fallback;
         }
-
         var normalized = title.Normalize(NormalizationForm.FormC);
         var builder = new StringBuilder(Math.Min(normalized.Length, MaximumLength));
         for (var index = 0; index < normalized.Length && builder.Length < MaximumLength; index++)
@@ -34,7 +53,8 @@ public static class SafeFileNamePolicy
             }
 
             if (char.IsControl(character) || char.IsSurrogate(character) ||
-                character == '/' || character == '\\' || character == '?' || character == '#')
+                character == '/' || character == '\\' || character == '?' || character == '#' ||
+                character == '"')
             {
                 builder.Append('_');
             }
@@ -47,43 +67,12 @@ public static class SafeFileNamePolicy
         var result = builder.ToString().Trim(' ', '.');
         return string.IsNullOrWhiteSpace(result) ||
                result.Trim(' ', '.', '_', '-').Length == 0
-            ? "media"
+            ? fallback
             : result;
     }
 
-    public static string Create(string? path, string fallbackExtension)
-    {
-        var fallback = "media." + ServerUrlBuilder.NormalizeExtension(fallbackExtension, "bin");
-        if (string.IsNullOrWhiteSpace(path))
-        {
-            return fallback;
-        }
-
-        var raw = Path.GetFileName(path);
-        var builder = new StringBuilder(Math.Min(raw.Length, MaximumLength));
-        foreach (var character in raw)
-        {
-            if (builder.Length >= MaximumLength)
-            {
-                break;
-            }
-
-            if ((character >= 'a' && character <= 'z') ||
-                (character >= 'A' && character <= 'Z') ||
-                (character >= '0' && character <= '9') ||
-                character == '.' || character == '-' || character == '_' || character == ' ')
-            {
-                builder.Append(character);
-            }
-            else
-            {
-                builder.Append('_');
-            }
-        }
-
-        var result = builder.ToString().Trim(' ', '.');
-        return string.IsNullOrWhiteSpace(result) ? fallback : result;
-    }
+    public static string CreateGeneric(string extension) =>
+        "media." + ServerUrlBuilder.NormalizeExtension(extension, "bin");
 
     public static string CreateContentDisposition(string safeFileName)
     {
@@ -96,6 +85,23 @@ public static class SafeFileNamePolicy
             throw new InvalidOperationException("The response filename is invalid.");
         }
 
-        return "inline; filename=\"" + safeFileName + "\"";
+        var ascii = new StringBuilder(safeFileName.Length);
+        var requiresExtendedName = false;
+        foreach (var character in safeFileName)
+        {
+            if (character >= 0x20 && character <= 0x7e)
+            {
+                ascii.Append(character);
+            }
+            else
+            {
+                ascii.Append('_');
+                requiresExtendedName = true;
+            }
+        }
+        var disposition = "inline; filename=\"" + ascii + "\"";
+        return requiresExtendedName
+            ? disposition + "; filename*=UTF-8''" + Uri.EscapeDataString(safeFileName)
+            : disposition;
     }
 }

@@ -18,6 +18,8 @@ public sealed class ExternalPlayerManifest
 
     public long ResumePositionTicks { get; set; }
 
+    public string DefaultPlayerId { get; set; } = string.Empty;
+
     public IReadOnlyCollection<MediaVersionDescriptor> MediaSources { get; set; } =
         new List<MediaVersionDescriptor>();
 
@@ -28,13 +30,18 @@ public sealed class ExternalPlayerManifest
         new Dictionary<string, string>();
 }
 
+public sealed class UserDefaultPlayerPreference
+{
+    public string Platform { get; set; } = string.Empty;
+
+    public string PlayerId { get; set; } = string.Empty;
+}
+
 public sealed class MediaVersionDescriptor
 {
     public string Id { get; set; } = string.Empty;
 
     public string Name { get; set; } = string.Empty;
-
-    public string Container { get; set; } = string.Empty;
 
     public bool IsDefault { get; set; }
 
@@ -66,8 +73,6 @@ public sealed class PlayerApiDescriptor
     public bool SupportsStartPosition { get; set; }
 
     public bool SupportsExternalSubtitle { get; set; }
-
-    public bool SupportsDisplayTitle { get; set; }
 
     public IReadOnlyCollection<string> LaunchSchemes { get; set; } = new List<string>();
 }
