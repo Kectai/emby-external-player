@@ -6,9 +6,7 @@ Emby External Player 是一个面向 Emby Server 4.9.x 的轻量服务端插件�
 
 ## 界面预览
 
-以下截图由项目视觉测试页使用固定假数据和生产版 Web 资源渲染：
-
-![外部播放选择器视觉测试结果](docs/images/external-player-dialog.jpg)
+![Emby 视频详情页中的外部播放入口](docs/images/external-play-button.png)
 
 ## 主要功能
 
