@@ -22,6 +22,7 @@ archive="${artifacts_dir}/${package_name}.zip"
 mkdir -p "${staging_dir}/docs" "${artifacts_dir}"
 cp "${project_root}/.local/build/bin/Release/netstandard2.1/Emby.ExternalPlayer.dll" "${staging_dir}/"
 cp "${project_root}/README.md" "${project_root}/LICENSE" "${staging_dir}/"
+cp -R "${project_root}/docs/images" "${staging_dir}/docs/"
 cp "${project_root}/docs/INSTALL.md" \
    "${project_root}/docs/CLIENT_HANDLERS.md" \
    "${project_root}/docs/SECURITY.md" \

@@ -4,6 +4,10 @@ Emby External Player 是一个面向 Emby Server 4.9.x 的轻量服务端插件�
 
 **本项目源于作者的个人使用需求。**开发目的是在 Emby Web 中更方便地选择外部播放器打开媒体，同时兼顾媒体版本、字幕与续播等日常使用场景。代码公开在 GitHub，主要用于留存项目，也希望能为有类似需求的用户提供参考或直接使用。目前仅在 macOS 上通过 IINA 完成实际使用和验证，其他平台适配依据公开协议实现，尚未进行端到端验证。项目将随作者自身需求不定期更新，目前没有固定的维护计划或功能路线图。
 
+## 界面预览
+
+![Emby 视频详情页中的外部播放入口](docs/images/external-play-button.png)
+
 ## 主要功能
 
 - 内置 PotPlayer、IINA、VLC media player、Infuse、mpv 和 nPlayer 适配器。
