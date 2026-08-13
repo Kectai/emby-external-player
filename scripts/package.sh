@@ -35,7 +35,14 @@ cp "${project_root}/docs/INSTALL.md" \
 chmod -R u=rwX,go=rX "${staging_dir}"
 (cd "${staging_parent}" && COPYFILE_DISABLE=1 zip -X -q -r "${archive_tmp}" "${package_name}")
 mv -f "${archive_tmp}" "${archive}"
-(cd "${artifacts_dir}" && shasum -a 256 "${package_name}.zip" > "${package_name}.zip.sha256")
+if command -v shasum >/dev/null 2>&1; then
+    (cd "${artifacts_dir}" && shasum -a 256 "${package_name}.zip" > "${package_name}.zip.sha256")
+elif command -v sha256sum >/dev/null 2>&1; then
+    (cd "${artifacts_dir}" && sha256sum "${package_name}.zip" > "${package_name}.zip.sha256")
+else
+    echo "Neither shasum nor sha256sum is available." >&2
+    exit 1
+fi
 unzip -tq "${archive}"
 if zipinfo -v "${archive}" | rg -q 'Unix UID/GID'; then
     echo "Package contains local Unix UID/GID metadata." >&2
