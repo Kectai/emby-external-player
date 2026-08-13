@@ -7,6 +7,7 @@ dll_path="${project_root}/.local/build/bin/Release/netstandard2.1/Emby.ExternalP
 web_js="${project_root}/src/Emby.ExternalPlayer/Resources/external-player.js"
 web_css="${project_root}/src/Emby.ExternalPlayer/Resources/external-player.css"
 
+"${script_dir}/check-privacy.sh"
 "${script_dir}/test.sh"
 
 dll_bytes="$(wc -c < "${dll_path}" | tr -d ' ')"

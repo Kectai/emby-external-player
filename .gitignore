@@ -1,13 +1,73 @@
+# Operating-system metadata
 .DS_Store
+._*
+.AppleDouble
+.LSOverride
+Icon?
+Thumbs.db
+Desktop.ini
+
+# Editors and IDEs
 .idea/
 .vscode/
-.local/
-artifacts/
-bin/
-obj/
-TestResults/
+.vs/
+.fleet/
 *.user
 *.suo
+*.userosscache
+*.sln.docstates
+*.swp
+*.swo
+*~
+*.orig
+*.rej
+
+# Local configuration and private material
+.env
+.env.*
+!.env.example
+.direnv/
+.secrets/
+credentials.json
+credentials.*.json
+secrets.json
+secrets.*.json
+*.local.json
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.mobileprovision
+
+# Build, test and release output
+.local/
+artifacts/
+[Bb]in/
+[Oo]bj/
+TestResults/
+coverage/
+.coverage/
+*.coverage
+*.coveragexml
+*.trx
 *.nupkg
 *.snupkg
 
+# Runtime and temporary files
+logs/
+tmp/
+temp/
+*.log
+*.pid
+*.tmp
+*.temp
+*.bak
+
+# Optional JavaScript tooling
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
