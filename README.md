@@ -13,14 +13,13 @@ Emby External Player 是一个面向 Emby Server 4.9.x 的轻量服务端插件�
 - 支持媒体版本、Emby 已识别的外挂字幕和从上次位置继续。
 - 提供简体中文、繁体中文和英文界面。
 - 使用短期、分作用域的媒体与字幕票据，不把完整 Emby Token 交给播放器。
-- 支持 HEAD 和单 Range 请求，不启动常驻轮询，也不修改 Emby 数据库。
+- 支持 HEAD 和单 Range 请求。
 
-## 使用范围
+## 适用环境
 
-- 仅支持服务器提供的 Emby Web；不改变原生电视或移动客户端。
-- 仅处理本地 `File` 媒体源和本地外挂字幕。
-- STRM、HLS、远程 URL 和虚拟媒体源不会降级为携带 Emby Token 的播放地址。
-- 当前只负责打开单个媒体，不回传播放进度，也不向播放器传递连续播放列表。
+- Emby Server 4.9.x 提供的 Emby Web。
+- 本地 `File` 媒体源和 Emby 已识别的本地外挂字幕。
+- 能够由浏览器通过 URL Scheme 唤起并访问 Emby 地址的播放器。
 - Web 入口依赖 Emby 4.9.x 的 Dashboard UI 结构；Emby 更新后可能需要调整适配。
 
 ## 安装
