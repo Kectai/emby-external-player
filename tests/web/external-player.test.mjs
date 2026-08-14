@@ -343,6 +343,10 @@ assert.match(stylesheet, /\.emby-ep-config-input,[\s\S]*?\.emby-ep-config-select
 assert.match(stylesheet, /\.emby-ep-toggle-switch\s*\{[\s\S]*?width:\s*3em;/);
 assert.match(stylesheet, /\.emby-ep-toggle-input:checked\s*~\s*\.emby-ep-toggle-switch\s*\{[\s\S]*?var\(--ep-accent\)/);
 assert.match(stylesheet, /\.emby-ep-default-field\s*\{/);
+assert.match(
+    stylesheet,
+    /@media not all and \(min-width:50em\)\{\.detailButtons \.detailButton\.emby-ep-button\{[\s\S]*?flex-basis:100% !important;[\s\S]*?flex-grow:1 !important;[\s\S]*?flex-shrink:0 !important;[\s\S]*?max-width:100%;\}\}/,
+    "the external-play action must keep a full mobile row even when Emby marks the play button as stacked");
 const document = new FakeDocument();
 const resumeButton = document.createElement("button");
 resumeButton.className = "raised emby-button detailButton detailButton-primary detailButton-stacked btnResume";

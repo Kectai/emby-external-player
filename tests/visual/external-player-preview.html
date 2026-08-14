@@ -179,7 +179,7 @@
             serverId() { return "visual-server"; },
             getUrl(path, query) {
                 return path === "ExternalPlayer/Web/style.css"
-                    ? `../../src/Emby.ExternalPlayer/Resources/external-player.css?v=${query?.v || "1.6.11"}`
+                    ? `../../src/Emby.ExternalPlayer/Resources/external-player.css?v=${query?.v || "1.6.12"}`
                     : path;
             },
             getJSON() {
@@ -202,7 +202,7 @@
         window.location.hash = "#!/item?id=preview-item&preview=1";
     </script>
     <output id="previewStatus"></output>
-    <script src="../../src/Emby.ExternalPlayer/Resources/external-player.js?v=1.6.11"></script>
+    <script src="../../src/Emby.ExternalPlayer/Resources/external-player.js?v=1.6.12"></script>
     <script>
         window.externalPlayerInitializer();
         document.documentElement.setAttribute("data-module-initialized", "true");
