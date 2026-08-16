@@ -309,6 +309,7 @@ public sealed class PlayerAdapterRegistryTests
                     ApplicationName = "IINA Nova",
                     Platform = CustomPlayerPlatform.MacOS,
                     UrlTemplate = "iina-nova://weblink?url={url}&new_window=1&mpv_start={start}&mpv_http-header-fields={headers}",
+                    EnablePlaybackReporting = true,
                 },
             },
         };
@@ -320,6 +321,7 @@ public sealed class PlayerAdapterRegistryTests
         var url = CreateRegistry().BuildLaunchUrl(CustomPlayerId, options, context);
 
         Assert.IsTrue(descriptor.Capabilities.HasFlag(PlayerCapabilities.HttpRequestHeaders));
+        Assert.IsTrue(descriptor.Capabilities.HasFlag(PlayerCapabilities.PlaybackReporting));
         Assert.AreEqual(
             "iina-nova://weblink?url=https%3A%2F%2Femby.example%2FExternalPlayer%2FStream%2Fa_b-c" +
             "&new_window=1&mpv_start=90" +
@@ -384,6 +386,58 @@ public sealed class PlayerAdapterRegistryTests
             .Single(player => player.Id == CustomPlayerId);
 
         Assert.IsFalse(descriptor.Capabilities.HasFlag(PlayerCapabilities.HttpRequestHeaders));
+        Assert.IsFalse(descriptor.Capabilities.HasFlag(PlayerCapabilities.PlaybackReporting));
+    }
+
+    [TestMethod]
+    public void CustomHeaderPlayer_ReceivesExplicitPlaybackReportingCapabilityForAnyScheme()
+    {
+        var options = new PluginOptions
+        {
+            CustomPlayers = new CustomPlayerOptionsCollection
+            {
+                new()
+                {
+                    Id = CustomId,
+                    Enabled = true,
+                    ApplicationName = "Generic header player",
+                    Platform = CustomPlayerPlatform.MacOS,
+                    UrlTemplate = "generic://open?url={url}&headers={headers}",
+                    EnablePlaybackReporting = true,
+                },
+            },
+        };
+
+        var descriptor = CreateRegistry().GetAvailable(options, ClientPlatform.MacOS, true)
+            .Single(player => player.Id == CustomPlayerId);
+
+        Assert.IsTrue(descriptor.Capabilities.HasFlag(PlayerCapabilities.HttpRequestHeaders));
+        Assert.IsTrue(descriptor.Capabilities.HasFlag(PlayerCapabilities.PlaybackReporting));
+    }
+
+    [TestMethod]
+    public void CustomIinaScheme_DoesNotImplicitlyEnablePlaybackReporting()
+    {
+        var options = new PluginOptions
+        {
+            CustomPlayers = new CustomPlayerOptionsCollection
+            {
+                new()
+                {
+                    Id = CustomId,
+                    Enabled = true,
+                    ApplicationName = "IINA Fork",
+                    Platform = CustomPlayerPlatform.MacOS,
+                    UrlTemplate = "third-party-iina://open?url={url}&headers={headers}",
+                },
+            },
+        };
+
+        var descriptor = CreateRegistry().GetAvailable(options, ClientPlatform.MacOS, true)
+            .Single(player => player.Id == CustomPlayerId);
+
+        Assert.IsTrue(descriptor.Capabilities.HasFlag(PlayerCapabilities.HttpRequestHeaders));
+        Assert.IsFalse(descriptor.Capabilities.HasFlag(PlayerCapabilities.PlaybackReporting));
     }
 
     [TestMethod]

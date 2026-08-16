@@ -10,6 +10,7 @@ public enum PlayerCapabilities
     StartPosition = 1,
     ExternalSubtitle = 2,
     HttpRequestHeaders = 4,
+    PlaybackReporting = 8,
 }
 
 public sealed class PlayerDescriptor

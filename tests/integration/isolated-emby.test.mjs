@@ -149,12 +149,26 @@ const savedCustomConfig = await (await api("ExternalPlayer/CustomPlayers", {
         Enabled: true,
         ApplicationName: "IINA Nova Integration",
         Platforms: ["MacOS", "IOS"],
+        EnablePlaybackReporting: true,
         UrlTemplate: "iina-nova://weblink?url={url}&new_window=1&mpv_start={start}" +
             "&mpv_sub-file={subtitle}&mpv_http-header-fields={headers}"
     })
 })).json();
 assert.match(savedCustomConfig.Id, /^[a-f0-9]{32}$/);
 assert.deepEqual(savedCustomConfig.Platforms, ["MacOS", "IOS"]);
+assert.equal(savedCustomConfig.EnablePlaybackReporting, true);
+const rejectedReportingWithoutHeaders = await api("ExternalPlayer/CustomPlayers", {
+    method: "POST",
+    body: JSON.stringify({
+        Enabled: true,
+        ApplicationName: "Misconfigured Reporter",
+        Platforms: ["MacOS"],
+        EnablePlaybackReporting: true,
+        UrlTemplate: "misconfigured://open?url={url}"
+    })
+}, [400]);
+assert.equal(rejectedReportingWithoutHeaders.status, 400,
+    "playback reporting must require explicit header transport support");
 const customConfigurations = await (await api("ExternalPlayer/CustomPlayers")).json();
 assert.ok(customConfigurations.some((entry) => entry.Id === savedCustomConfig.Id));
 
@@ -316,6 +330,14 @@ async function resolve(body, expected = [200]) {
     }, expected);
 }
 
+function parseMpvHeaders(value) {
+    return Object.fromEntries((value || "").split(",").map((field) => {
+        const colon = field.indexOf(":");
+        assert.ok(colon > 0, `invalid mpv header field: ${field}`);
+        return [field.slice(0, colon).trim().toLowerCase(), field.slice(colon + 1).trim()];
+    }));
+}
+
 await resolve({ PlayerId: "UnknownPlayer", MediaSourceId: source.Id, Resume: false }, [400]);
 await resolve({ PlayerId: "Iina", MediaSourceId: "foreign-source", Resume: false }, [400]);
 await resolve({ PlayerId: "Iina", MediaSourceId: source.Id, SubtitleStreamIndex: 99999, Resume: false }, [400]);
@@ -330,6 +352,9 @@ assert.match(iinaResolution.LaunchUrl, /mpv_start=120/);
 assert.match(iinaResolution.LaunchUrl, /mpv_http-header-fields=/);
 assert.doesNotMatch(iinaResolution.LaunchUrl, /mpv_force-media-title=/);
 assert.ok(iinaResolution.TicketExpiresAt);
+assert.equal(iinaResolution.PlaybackReporting.ProtocolVersion, 1);
+assert.equal(iinaResolution.PlaybackReporting.HeartbeatSeconds, 10);
+assert.ok(iinaResolution.PlaybackReporting.TicketExpiresAtUtc);
 assert.ok(!iinaResolution.LaunchUrl.includes(token));
 
 const iinaUrl = new URL(iinaResolution.LaunchUrl);
@@ -338,12 +363,90 @@ assert.ok(streamUrl);
 const parsedStreamUrl = new URL(streamUrl);
 assert.ok(parsedStreamUrl.pathname.includes("/ExternalPlayer/Stream/"));
 assert.match(decodeURIComponent(parsedStreamUrl.pathname), /集成测试|Integration/);
+const launchIdMatch = parsedStreamUrl.pathname.match(/\/ExternalPlayer\/Stream\/([a-f0-9]{32})\//);
+assert.ok(launchIdMatch);
+const launchId = launchIdMatch[1];
 assert.equal(parsedStreamUrl.search, "", "IINA media URL must not expose a ticket in its title.");
 const iinaTicketField = iinaUrl.searchParams.get("mpv_http-header-fields") || "";
-const iinaTicketMatch = iinaTicketField.match(/^X-Emby-Playback-Ticket: ([A-Za-z0-9_-]{43})$/);
-assert.ok(iinaTicketMatch);
-const iinaTicket = iinaTicketMatch[1];
+const parsedIinaHeaders = parseMpvHeaders(iinaTicketField);
+const iinaTicket = parsedIinaHeaders["x-emby-playback-ticket"];
+const progressTicket = parsedIinaHeaders["x-emby-progress-ticket"];
+assert.match(iinaTicket, /^[A-Za-z0-9_-]{43}$/);
+assert.match(progressTicket, /^[A-Za-z0-9_-]{43}$/);
+assert.equal(parsedIinaHeaders["x-emby-progress-protocol"], "1");
+assert.ok(Date.parse(parsedIinaHeaders["x-emby-progress-expires"]));
 const iinaHeaders = { "X-Emby-Playback-Ticket": iinaTicket };
+
+async function reportPlayback(kind, payload, ticket = progressTicket, expectedStatus = 200) {
+    const response = await fetch(new URL(`ExternalPlayer/Playback/${kind}`, baseUrl), {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-Emby-Progress-Ticket": ticket
+        },
+        body: JSON.stringify(payload)
+    });
+    assert.equal(response.status, expectedStatus);
+    return response.json();
+}
+
+const startPayload = {
+    protocolVersion: 1,
+    launchId,
+    epoch: 1,
+    sequence: 1,
+    positionTicks: 1200000000,
+    isPaused: false,
+    playbackRate: 1,
+    clientTimeUtc: new Date().toISOString()
+};
+const playbackStart = await reportPlayback("Start", startPayload);
+assert.equal(playbackStart.Accepted, true);
+assert.ok(playbackStart.OwnerRevision > 0);
+const progressPayload = {
+    ...startPayload,
+    ownerRevision: playbackStart.OwnerRevision,
+    sequence: 2,
+    positionTicks: 1210000000,
+    isPaused: true
+};
+const playbackProgress = await reportPlayback("Progress", progressPayload);
+assert.equal(playbackProgress.AcceptedSequence, 2);
+const duplicateProgress = await reportPlayback("Progress", progressPayload);
+assert.equal(duplicateProgress.AcceptedSequence, 2);
+const playbackStopLogStart = serverLogPath ? fs.statSync(serverLogPath).size : 0;
+const playbackStop = await reportPlayback("Stop", {
+    ...progressPayload,
+    sequence: 3,
+    positionTicks: 1220000000,
+    clientEndReason: "windowClosed"
+});
+assert.equal(playbackStop.Accepted, true);
+assert.equal(playbackStop.Terminal, true);
+if (serverLogPath) {
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    const stopLog = fs.readFileSync(serverLogPath)
+        .subarray(playbackStopLogStart)
+        .toString("utf8");
+    assert.doesNotMatch(stopLog, /ObjectDisposedException/,
+        "PlaybackStopped subscribers must not observe an already-disposed SessionInfo.");
+    assert.doesNotMatch(stopLog, /Object name: 'SessionInfo'/,
+        "normal Stop must not immediately dispose the synthetic device session.");
+    assert.doesNotMatch(stopLog, /NotificationManager\._sessionManager_PlaybackStopped/,
+        "normal Stop must not fail in the asynchronous notification handler.");
+}
+const sessionsAfterStop = await (await api("Sessions")).json();
+const syntheticSession = sessionsAfterStop.find((candidate) =>
+    candidate.DeviceId === `external-player-${launchId.slice(0, 12)}`);
+if (syntheticSession) {
+    assert.equal(syntheticSession.NowPlayingItem ?? null, null,
+        "the synthetic session may remain idle, but it must no longer be playing the item.");
+}
+await reportPlayback("Start", startPayload, iinaTicket, 401);
+const wrongScopeStream = await fetch(streamUrl, {
+    headers: { "X-Emby-Playback-Ticket": progressTicket }
+});
+assert.equal(wrongScopeStream.status, 401);
 
 const customIinaResolution = await (await resolve({
     PlayerId: customIinaPlayer.Id,
@@ -357,9 +460,11 @@ const customStreamUrl = customIinaUrl.searchParams.get("url");
 assert.ok(customStreamUrl);
 assert.equal(new URL(customStreamUrl).search, "", "custom IINA-derived players must keep tickets out of the media title");
 const customTicketField = customIinaUrl.searchParams.get("mpv_http-header-fields") || "";
-const customTicketMatch = customTicketField.match(/^X-Emby-Playback-Ticket: ([A-Za-z0-9_-]{43})$/);
+const customTicketMatch = customTicketField.match(/(?:^|,)X-Emby-Playback-Ticket: ([A-Za-z0-9_-]{43})(?:,|$)/);
 assert.ok(customTicketMatch);
 const customTicket = customTicketMatch[1];
+assert.equal(customIinaResolution.PlaybackReporting.ProtocolVersion, 1);
+assert.match(customTicketField, /(?:^|,)X-Emby-Progress-Ticket: [A-Za-z0-9_-]{43}(?:,|$)/);
 
 const customIinaSubtitleResolution = await (await resolve({
     PlayerId: customIinaPlayer.Id,
@@ -374,16 +479,19 @@ assert.equal(new URL(cleanCustomSubtitleUrl).search, "",
     "header-capable custom players must not expose subtitle tickets in the visible file name");
 assert.match(new URL(cleanCustomSubtitleUrl).pathname, /\/[^/]+\.srt$/);
 const combinedTicketField = customIinaSubtitleLaunchUrl.searchParams.get("mpv_http-header-fields") || "";
-const combinedTicketMatch = combinedTicketField.match(
-    /^X-Emby-Playback-Ticket: ([A-Za-z0-9_-]{43}),X-Emby-Subtitle-Ticket: ([A-Za-z0-9_-]{43})$/);
-assert.ok(combinedTicketMatch);
+const combinedMediaTicketMatch = combinedTicketField.match(
+    /(?:^|,)X-Emby-Playback-Ticket: ([A-Za-z0-9_-]{43})(?:,|$)/);
+const combinedSubtitleTicketMatch = combinedTicketField.match(
+    /(?:^|,)X-Emby-Subtitle-Ticket: ([A-Za-z0-9_-]{43})(?:,|$)/);
+assert.ok(combinedMediaTicketMatch);
+assert.ok(combinedSubtitleTicketMatch);
 const cleanSubtitleResponse = await fetch(cleanCustomSubtitleUrl, {
-    headers: { "X-Emby-Subtitle-Ticket": combinedTicketMatch[2] }
+    headers: { "X-Emby-Subtitle-Ticket": combinedSubtitleTicketMatch[1] }
 });
 assert.equal(cleanSubtitleResponse.status, 200);
 assert.match(await cleanSubtitleResponse.text(), /简体中文外挂字幕/);
 const cleanSubtitleWrongScope = await fetch(cleanCustomSubtitleUrl, {
-    headers: { "X-Emby-Subtitle-Ticket": combinedTicketMatch[1] }
+    headers: { "X-Emby-Subtitle-Ticket": combinedMediaTicketMatch[1] }
 });
 assert.equal(cleanSubtitleWrongScope.status, 401);
 
@@ -432,9 +540,8 @@ const secondStreamUrl = new URL(secondResolution.LaunchUrl).searchParams.get("ur
 assert.ok(secondStreamUrl && secondStreamUrl !== streamUrl);
 const secondIinaUrl = new URL(secondResolution.LaunchUrl);
 const secondTicketField = secondIinaUrl.searchParams.get("mpv_http-header-fields") || "";
-const secondTicketMatch = secondTicketField.match(/^X-Emby-Playback-Ticket: ([A-Za-z0-9_-]{43})$/);
-assert.ok(secondTicketMatch);
-const secondTicket = secondTicketMatch[1];
+const secondTicket = parseMpvHeaders(secondTicketField)["x-emby-playback-ticket"];
+assert.match(secondTicket, /^[A-Za-z0-9_-]{43}$/);
 const secondRange = await fetch(secondStreamUrl, {
     headers: { "X-Emby-Playback-Ticket": secondTicket, Range: "bytes=32-47" }
 });
@@ -498,7 +605,7 @@ if (programData) {
     assert.ok(logBuffer.length >= serverLogStart, "The Emby log unexpectedly rotated during the test.");
     const logText = logBuffer.subarray(serverLogStart).toString("utf8");
     const protectedUrls = [streamUrl, customStreamUrl, secondStreamUrl, subtitleUrl, assSubtitleUrl];
-    const tickets = [iinaTicket, customTicket, secondTicket, ...[subtitleUrl, assSubtitleUrl].map((url) => {
+    const tickets = [iinaTicket, progressTicket, customTicket, secondTicket, ...[subtitleUrl, assSubtitleUrl].map((url) => {
         const parsed = new URL(url);
         return parsed.searchParams.get("api_key");
     })];

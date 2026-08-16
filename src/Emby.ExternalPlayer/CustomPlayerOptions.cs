@@ -80,6 +80,10 @@ public sealed class CustomPlayerOptions : EditableOptionsBase
     [DisplayNameL(nameof(PluginStrings.UrlTemplate), typeof(PluginStrings))]
     [DescriptionL(nameof(PluginStrings.UrlTemplateDescription), typeof(PluginStrings))]
     public string UrlTemplate { get; set; } = string.Empty;
+
+    [DisplayNameL(nameof(PluginStrings.EnablePlaybackReporting), typeof(PluginStrings))]
+    [DescriptionL(nameof(PluginStrings.EnablePlaybackReportingDescription), typeof(PluginStrings))]
+    public bool EnablePlaybackReporting { get; set; }
 }
 
 public sealed class CustomPlayerOptionsCollection :

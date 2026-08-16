@@ -21,7 +21,7 @@ IINA 使用：
 iina://weblink?url=...&new_window=1&mpv_start=...&mpv_http-header-fields=...
 ```
 
-媒体地址不携带查询票据，短期票据通过 IINA 允许的 `mpv_http-header-fields` 传递，因此标题不会包含 `api_key`。IINA 的 URL Scheme 安全白名单包含 `start` 与 `http-header-fields`，但不包含自动外挂字幕所需的 `sub-file`；选择字幕时插件会保留选择并给出非阻断说明，不会为内置 IINA 生成无法交付的字幕地址。
+媒体地址不携带查询票据，短期票据通过 IINA 允许的 `mpv_http-header-fields` 传递，因此标题不会包含 `api_key`。从服务端 `1.7.0` 起，内置 IINA 默认携带独立的 `X-Emby-Progress-*` 请求头；安装配套 Reporter 后，媒体路径中的 `launchId` 与该票据共同启用 Playback Reporting Protocol v1。IINA 的 URL Scheme 安全白名单包含 `start` 与 `http-header-fields`，但不包含自动外挂字幕所需的 `sub-file`；选择字幕时插件会保留选择并给出非阻断说明，不会为内置 IINA 生成无法交付的字幕地址。
 
 实现依据：[IINA AppDelegate.swift](https://github.com/iina/iina/blob/develop/iina/AppDelegate.swift)。
 
@@ -60,6 +60,8 @@ myplayer://open?url={url}&sub={subtitle}
 ```text
 iina-nova://weblink?url={url}&new_window=1&mpv_start={start}&mpv_sub-file={subtitle}&mpv_http-header-fields={headers}
 ```
+
+自定义播放器不会根据应用名称、URL Scheme 或 Bundle ID 推断进度回传能力。管理员确认客户端已经安装兼容 Reporter 且会把 `{headers}` 应用到媒体请求后，可为该条配置显式打开“启用播放进度回传”；因此任意第三方 IINA 衍生 Scheme 都可以使用，普通播放器则不会意外收到进度票据。Emby 中创建的活动会话使用该配置的应用名称显示。
 
 `{headers}` 只能放在播放器官方定义的 HTTP 请求头参数中。不要把它放入标题、文件名或会转交第三方的位置。媒体和字幕分别使用 `X-Emby-Playback-Ticket` 与 `X-Emby-Subtitle-Ticket`，播放器需要把对应请求头应用到各自请求。
 

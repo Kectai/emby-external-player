@@ -279,6 +279,12 @@ public sealed class PluginOptions : EditableOptionsBase
                 custom.Platforms = PlayerPlatforms.All;
                 changed = true;
             }
+            if (custom.EnablePlaybackReporting &&
+                !CustomPlayerTemplate.SupportsHttpRequestHeaders(custom.UrlTemplate))
+            {
+                custom.EnablePlaybackReporting = false;
+                changed = true;
+            }
         }
 
         return changed;

@@ -10,6 +10,15 @@ public sealed class GetExternalPlayerStream
     public string FileName { get; set; } = string.Empty;
 }
 
+[Route("/ExternalPlayer/Stream/{LaunchId}/{FileName}", "GET,HEAD", Summary = "Relays a titled video bound to an external-player launch")]
+[Unauthenticated]
+public sealed class GetExternalPlayerLaunchStream
+{
+    public string LaunchId { get; set; } = string.Empty;
+
+    public string FileName { get; set; } = string.Empty;
+}
+
 [Route("/ExternalPlayer/Subtitle/{Index}/{FileName}", "GET,HEAD", Summary = "Relays an external subtitle using a short-lived playback ticket")]
 [Unauthenticated]
 public sealed class GetExternalPlayerSubtitle

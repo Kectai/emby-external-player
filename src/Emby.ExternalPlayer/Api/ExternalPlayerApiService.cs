@@ -67,6 +67,7 @@ public sealed class ExternalPlayerApiService : IService, IRequiresRequest
             Platform = request.Platform,
             Platforms = request.Platforms,
             UrlTemplate = request.UrlTemplate,
+            EnablePlaybackReporting = request.EnablePlaybackReporting,
         });
     }
 
@@ -194,10 +195,43 @@ public sealed class ExternalPlayerApiService : IService, IRequiresRequest
         var lifetime = LaunchTicketStore.CreateLifetime(options.TicketLifetimeMinutes);
         var urlFileName = SafeFileNamePolicy.CreateUrlTitle(context.Item.Name);
         var mediaFormat = ServerUrlBuilder.NormalizeExtension(selection.MediaSource.Container, "mkv");
+        var useHeaderTickets =
+            (selection.Player.Capabilities & PlayerCapabilities.HttpRequestHeaders) != 0;
+        var enablePlaybackReporting = useHeaderTickets &&
+            (selection.Player.Capabilities & PlayerCapabilities.PlaybackReporting) != 0;
+        PlaybackReportTicket? progressTicket = null;
+        if (enablePlaybackReporting && runtime.PlaybackReports.Enabled)
+        {
+            try
+            {
+                progressTicket = runtime.PlaybackReportTickets.Issue(new PlaybackReportGrant
+                {
+                    UserId = user.Id,
+                    ItemId = context.Item.Id,
+                    CanonicalItemId = context.Item.Id,
+                    MediaSourceId = selection.MediaSource.Id,
+                    RunTimeTicks = selection.MediaSource.RunTimeTicks ?? context.Item.RunTimeTicks ?? 0,
+                    PlayerName = selection.Player.DisplayName,
+                    ClientAddress = Request.RemoteIp?.ToString() ?? string.Empty,
+                }, lifetime);
+                if (!runtime.PlaybackReports.Enabled)
+                {
+                    runtime.PlaybackReportTickets.Revoke(progressTicket.Value);
+                    progressTicket = null;
+                }
+            }
+            catch (InvalidOperationException)
+            {
+                // Reporting is an optional capability. Capacity pressure must
+                // never prevent the media relay itself from being launched.
+                progressTicket = null;
+            }
+        }
         var ticketPayloads = new List<LaunchTicketPayload>
         {
             new LaunchTicketPayload
             {
+                LaunchId = progressTicket?.LaunchId ?? string.Empty,
                 Scope = LaunchTicketScope.Media,
                 UserId = user.Id,
                 ItemId = context.Item.Id,
@@ -237,18 +271,44 @@ public sealed class ExternalPlayerApiService : IService, IRequiresRequest
             });
         }
 
-        var issuedTickets = runtime.Tickets.IssueBatch(ticketPayloads, lifetime);
+        IReadOnlyList<LaunchTicket> issuedTickets;
+        try
+        {
+            issuedTickets = runtime.Tickets.IssueBatch(ticketPayloads, lifetime);
+        }
+        catch
+        {
+            if (progressTicket is not null)
+            {
+                runtime.PlaybackReportTickets.Revoke(progressTicket.Value);
+            }
+            throw;
+        }
         var mediaTicket = issuedTickets[0];
-        var useHeaderTickets =
-            (selection.Player.Capabilities & PlayerCapabilities.HttpRequestHeaders) != 0;
         var streamRequestHeaders = new List<string>();
 
         string streamUrl;
         if (useHeaderTickets)
         {
-            streamUrl = ServerUrlBuilder.BuildHeaderTicketStreamUrl(publicApiBase, urlFileName);
+            streamUrl = progressTicket is null
+                ? ServerUrlBuilder.BuildHeaderTicketStreamUrl(publicApiBase, urlFileName)
+                : ServerUrlBuilder.BuildHeaderTicketStreamUrl(
+                    publicApiBase,
+                    progressTicket.LaunchId,
+                    urlFileName);
             streamRequestHeaders.Add(
                 ServerUrlBuilder.PlaybackTicketHeaderName + ": " + mediaTicket.Value);
+            if (progressTicket is not null)
+            {
+                streamRequestHeaders.Add(
+                    ServerUrlBuilder.ProgressTicketHeaderName + ": " + progressTicket.Value);
+                streamRequestHeaders.Add(
+                    ServerUrlBuilder.ProgressProtocolHeaderName + ": " +
+                    PlaybackReportCoordinator.ProtocolVersion.ToString(CultureInfo.InvariantCulture));
+                streamRequestHeaders.Add(
+                    ServerUrlBuilder.ProgressExpiresHeaderName + ": " +
+                    progressTicket.ExpiresAtUtc.ToString("O", CultureInfo.InvariantCulture));
+            }
         }
         else
         {
@@ -312,6 +372,16 @@ public sealed class ExternalPlayerApiService : IService, IRequiresRequest
             LaunchUrl = launchUrl,
             TicketExpiresAt = mediaTicket.ExpiresAt.ToString("O"),
             Warnings = warnings,
+            PlaybackReporting = progressTicket is null
+                ? null
+                : new PlaybackReportingCapability
+                {
+                    ProtocolVersion = PlaybackReportCoordinator.ProtocolVersion,
+                    HeartbeatSeconds = PlaybackReportCoordinator.HeartbeatSeconds,
+                    TicketExpiresAtUtc = progressTicket.ExpiresAtUtc.ToString(
+                        "O",
+                        CultureInfo.InvariantCulture),
+                },
         };
     }
 

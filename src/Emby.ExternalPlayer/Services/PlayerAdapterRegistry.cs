@@ -153,6 +153,10 @@ public sealed class PlayerAdapterRegistry
         if (CustomPlayerTemplate.SupportsHttpRequestHeaders(custom.UrlTemplate))
         {
             capabilities |= PlayerCapabilities.HttpRequestHeaders;
+            if (custom.EnablePlaybackReporting)
+            {
+                capabilities |= PlayerCapabilities.PlaybackReporting;
+            }
         }
 
         return new PlayerDescriptor(
@@ -275,7 +279,9 @@ public sealed class PlayerAdapterRegistry
                 PlayerId.Iina,
                 "IINA",
                 new[] { ClientPlatform.MacOS },
-                PlayerCapabilities.StartPosition | PlayerCapabilities.HttpRequestHeaders,
+                PlayerCapabilities.StartPosition |
+                    PlayerCapabilities.HttpRequestHeaders |
+                    PlayerCapabilities.PlaybackReporting,
                 new[] { "iina" }))
         {
         }

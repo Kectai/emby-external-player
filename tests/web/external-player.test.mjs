@@ -397,7 +397,8 @@ const apiClient = {
                 ApplicationName: "IINA Nova",
                 Platform: "MacOS",
                 Platforms: ["MacOS", "IOS"],
-                UrlTemplate: "iina-nova://weblink?url={url}&new_window=1&mpv_start={start}&mpv_http-header-fields={headers}"
+                UrlTemplate: "iina-nova://weblink?url={url}&new_window=1&mpv_start={start}&mpv_http-header-fields={headers}",
+                EnablePlaybackReporting: true
             }]);
         }
         return Promise.resolve(manifest);
@@ -1032,6 +1033,8 @@ const loadedPlayerName = loadedCustomPlayerCard.walk().find((item) =>
     item.attributes.get("data-field") === "applicationName");
 const loadedPlayerEnabled = loadedCustomPlayerCard.walk().find((item) =>
     item.attributes.get("data-field") === "enabled");
+const loadedPlaybackReporting = loadedCustomPlayerCard.walk().find((item) =>
+    item.attributes.get("data-field") === "enablePlaybackReporting");
 const loadedPlayerEnabledContainer = loadedCustomPlayerCard.walk().find((item) =>
     item.className.split(/\s+/).includes("emby-ep-config-enabled-container"));
 const loadedPlayerEnabledSwitch = loadedCustomPlayerCard.walk().find((item) =>
@@ -1052,6 +1055,10 @@ assert.ok(loadedPlayerEnabled.className.includes("emby-toggle"));
 assert.equal(loadedPlayerEnabled.attributes.get("is"), "emby-toggle");
 assert.equal(loadedPlayerEnabled.attributes.get("role"), "switch");
 assert.equal(loadedPlayerEnabled.checked, true);
+assert.ok(loadedPlaybackReporting, "custom players must expose an explicit playback-reporting switch");
+assert.equal(loadedPlaybackReporting.checked, true);
+assert.ok(loadedCustomPlayerCard.walk().some((item) =>
+    item.textContent.includes("启用播放进度回传")));
 assert.ok(loadedPlayerEnabledSwitch.className.includes("toggleSwitch"));
 assert.deepEqual(
     loadedPlatformInputs.filter((item) => item.checked).map((item) => item.value),
@@ -1073,6 +1080,8 @@ assert.equal(loadedPlayerStatus.attributes.get("data-state"), "dirty");
 loadedPlayerSave.dispatch("click");
 await new Promise((resolve) => setTimeout(resolve, 0));
 assert.equal(lastCustomPlayerPostBody.enabled, false, "the Emby-style switch must preserve the saved Enabled value");
+assert.equal(lastCustomPlayerPostBody.enablePlaybackReporting, true,
+    "playback reporting must be submitted as an explicit administrator choice");
 assert.deepEqual(
     Array.from(lastCustomPlayerPostBody.platforms),
     ["Windows", "MacOS"],

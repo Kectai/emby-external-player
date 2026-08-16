@@ -84,4 +84,6 @@ public sealed class LaunchResolution
     public string TicketExpiresAt { get; set; } = string.Empty;
 
     public IReadOnlyCollection<string> Warnings { get; set; } = new List<string>();
+
+    public PlaybackReportingCapability? PlaybackReporting { get; set; }
 }

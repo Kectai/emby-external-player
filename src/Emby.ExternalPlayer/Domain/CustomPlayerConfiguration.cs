@@ -15,6 +15,8 @@ public sealed class CustomPlayerConfiguration
     public string[] Platforms { get; set; } = Array.Empty<string>();
 
     public string UrlTemplate { get; set; } = string.Empty;
+
+    public bool EnablePlaybackReporting { get; set; }
 }
 
 public sealed class BuiltInPlayerPlatformConfiguration

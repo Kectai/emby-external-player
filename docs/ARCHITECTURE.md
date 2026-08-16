@@ -18,6 +18,7 @@ Emby.ExternalPlayer.dll
   ├─ Manifest / Resolve / 配置 API
   ├─ 短期票据存储
   ├─ 媒体与字幕流入口
+  ├─ 播放进度回传票据、租约与会话桥接
   └─ Dashboard UI 加载器安装与撤销
 ```
 
@@ -29,8 +30,9 @@ Web 资源嵌入 DLL，由匿名只读资源接口提供。插件启动时只向
 2. `GET /ExternalPlayer/Manifest` 根据当前认证用户、媒体条目、平台和语言返回可用播放器、媒体版本、外挂字幕、续播位置及个人默认播放器。
 3. 用户确认后，Web 模块向 `POST /ExternalPlayer/Resolve` 提交所选媒体源、字幕、播放器和续播方式。
 4. 服务端重新检查用户权限、媒体源、字幕、播放器状态和平台范围。
-5. 服务端为媒体和字幕分别签发短期票据，生成播放器 URL Scheme。
+5. 服务端为媒体和字幕分别签发短期票据；所选播放器启用回传能力时还会签发独立的进度回传票据和 `launchId`，再生成播放器 URL Scheme。
 6. 浏览器把 URL Scheme 交给操作系统，播放器通过票据流入口读取媒体和字幕。
+7. 安装了兼容 Reporter 的客户端使用 Playback Reporting Protocol v1 调用 Start、Progress 和 Stop；服务端校验所有权后转交 Emby `ISessionManager`。
 
 Manifest 只用于展示。Resolve 不信任浏览器先前取得的数据，因此直接构造请求不能绕过服务端校验。
 
@@ -44,7 +46,11 @@ Manifest 只用于展示。Resolve 不信任浏览器先前取得的数据，因
 | `GET/POST/DELETE /ExternalPlayer/CustomPlayers` | 管理员 | 管理自定义播放器 |
 | `GET/POST /ExternalPlayer/BuiltInPlayerPlatforms` | 管理员 | 管理内置播放器适用平台 |
 | `GET/HEAD /ExternalPlayer/Stream/{FileName}` | 短期票据 | 读取媒体 |
+| `GET/HEAD /ExternalPlayer/Stream/{LaunchId}/{FileName}` | 媒体票据 + launch 绑定 | 读取支持回传的外部播放器媒体 |
 | `GET/HEAD /ExternalPlayer/Subtitle/{Index}/{FileName}` | 短期票据 | 读取外挂字幕 |
+| `POST /ExternalPlayer/Playback/Start` | 专用回传票据 | 创建外部播放器 Emby 播放会话 |
+| `POST /ExternalPlayer/Playback/Progress` | 专用回传票据 + owner revision | 更新位置、暂停和速度 |
+| `POST /ExternalPlayer/Playback/Stop` | 专用回传票据 + owner revision | 保存最终位置并结束会话 |
 
 管理员 API 虽使用认证路由，仍会在服务端显式检查管理员权限。
 
@@ -71,9 +77,11 @@ Manifest 只用于展示。Resolve 不信任浏览器先前取得的数据，因
 
 ## 票据与流
 
-媒体与字幕票据彼此独立，每张票据绑定用户、条目、媒体源、资源路径、长度、最后修改时间、作用域和绝对过期时间。服务端只保存票据摘要，禁用插件、卸载或重启都会清空内存票据。
+媒体、字幕与进度回传票据彼此独立。媒体和字幕票据绑定资源读取信息；进度票据只绑定用户、规范条目、媒体源、`launchId`、服务端 launch generation 和绝对过期时间。服务端只保存票据摘要，禁用插件、卸载或重启都会结束活动回传会话并清空内存票据。
 
 播放器支持请求头时，票据通过 `X-Emby-Playback-Ticket` 和 `X-Emby-Subtitle-Ticket` 传递；否则使用 Emby 可脱敏的 `api_key` 查询参数。流入口在每次读取时重新检查票据、用户权限、当前媒体源和文件状态。
+
+同一用户、同一规范条目使用单写入者租约。只有较新且已成功 Start 的显式 launch 能获得新的 `ownerRevision`；旧窗口可以继续播放，但其迟发 Progress、Stop 和断网恢复都只能得到 `superseded`，不能覆盖新会话。90 秒无心跳时看门狗以最后接受位置自动 Stop，并允许尚未被新 launch 取代的同一票据使用更高 epoch 恢复。
 
 ## Web 生命周期
 

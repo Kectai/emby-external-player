@@ -25,6 +25,8 @@
 - HEAD、单 Range、文件名清理、请求头注入和日志敏感信息扫描。
 - Emby Web 路由重建、重复进入、配置自动保存、服务器或用户切换、弹窗焦点和窄屏布局。
 - 用户播放器偏好文件的迁移、原子写入、备份恢复、权限和卸载清理。
+- 回传票据摘要存储、容量、协议字段和限频。
+- Start/Progress/Stop 幂等、乱序拒绝、单写入者租约转移、旧 Stop 隔离和 watchdog epoch 恢复。
 
 `tests/visual/` 是不连接 Emby Server 的本地视觉夹具，用于人工检查主题、间距和响应式布局。
 
@@ -39,4 +41,4 @@
 
 ## 人工验证
 
-当前发布前至少验证 macOS Emby Web、IINA、HTTPS、字幕、续播、前进后退和窄屏页面。Windows、iOS、Android 或 Linux 在标记为已验证之前，必须分别完成对应播放器的实际协议跳转和读取测试。
+当前发布前至少验证 macOS Emby Web、IINA、HTTPS、字幕、续播、前进后退和窄屏页面。进度回传还需在真实 IINA 中验证 `http-header-fields` 可读性、暂停、seek、正常结束、窗口关闭、断网、睡眠恢复和连续媒体切换。Windows、iOS、Android 或 Linux 在标记为已验证之前，必须分别完成对应播放器的实际协议跳转和读取测试。

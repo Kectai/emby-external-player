@@ -81,6 +81,8 @@ public sealed class SaveCustomPlayerConfiguration : IReturn<Domain.CustomPlayerC
     public string[] Platforms { get; set; } = Array.Empty<string>();
 
     public string UrlTemplate { get; set; } = string.Empty;
+
+    public bool EnablePlaybackReporting { get; set; }
 }
 
 [Route("/ExternalPlayer/CustomPlayers/{Id}", "DELETE", Summary = "Deletes a custom external-player configuration")]
@@ -88,4 +90,25 @@ public sealed class SaveCustomPlayerConfiguration : IReturn<Domain.CustomPlayerC
 public sealed class DeleteCustomPlayerConfiguration
 {
     public string Id { get; set; } = string.Empty;
+}
+
+[Route("/ExternalPlayer/Playback/Start", "POST", Summary = "Starts an external-player playback reporting session")]
+[Unauthenticated]
+public sealed class ReportExternalPlaybackStart : Domain.PlaybackReportRequest,
+    IReturn<Domain.PlaybackReportResponse>
+{
+}
+
+[Route("/ExternalPlayer/Playback/Progress", "POST", Summary = "Updates an external-player playback reporting session")]
+[Unauthenticated]
+public sealed class ReportExternalPlaybackProgress : Domain.PlaybackReportRequest,
+    IReturn<Domain.PlaybackReportResponse>
+{
+}
+
+[Route("/ExternalPlayer/Playback/Stop", "POST", Summary = "Stops an external-player playback reporting session")]
+[Unauthenticated]
+public sealed class ReportExternalPlaybackStop : Domain.PlaybackReportRequest,
+    IReturn<Domain.PlaybackReportResponse>
+{
 }

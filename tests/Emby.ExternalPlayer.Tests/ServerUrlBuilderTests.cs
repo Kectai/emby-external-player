@@ -52,6 +52,25 @@ public sealed class ServerUrlBuilderTests
     }
 
     [TestMethod]
+    public void ReportingHeaderTicketUrl_BindsTheLaunchIdInThePath()
+    {
+        var result = ServerUrlBuilder.BuildHeaderTicketStreamUrl(
+            "https://media.example/emby/",
+            "f74b0d6ee5af4a76a9f24e0942b49267",
+            "中文 Movie");
+
+        Assert.AreEqual(
+            "https://media.example/emby/ExternalPlayer/Stream/" +
+            "f74b0d6ee5af4a76a9f24e0942b49267/%E4%B8%AD%E6%96%87%20Movie",
+            result);
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            ServerUrlBuilder.BuildHeaderTicketStreamUrl(
+                "https://media.example/",
+                "../bad",
+                "Movie"));
+    }
+
+    [TestMethod]
     public void TicketRoutes_UseEmbyLogRedactionAndRealSubtitleExtensions()
     {
         StringAssert.Contains(

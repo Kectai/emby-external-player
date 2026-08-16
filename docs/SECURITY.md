@@ -18,7 +18,13 @@ Manifest 和 Resolve 使用 Emby 认证上下文确定用户，不接受客户�
 - 全局最多 2000 条、单用户最多 100 条；一个用户不会淘汰其他用户的票据。
 - 禁用、卸载、服务重启或插件重启会立即清空全部票据。
 
-支持请求头的播放器使用 `X-Emby-Playback-Ticket` 和 `X-Emby-Subtitle-Ticket`；其他播放器使用 Emby 可脱敏的 `api_key` 查询参数。反向代理仍应主动隐藏查询票据和这两个请求头。
+播放进度回传使用第三种独立的 32 字节随机票据，只能写入该次 launch 绑定的播放状态，不能读取媒体，也不能选择用户或条目。内置 IINA 默认启用；自定义播放器必须由管理员显式授权，且模板必须支持 `{headers}`。服务端为每个用户最多允许 8 个、全局最多允许 256 个已 Start 的活动回传会话；未 Start、dormant 和 terminal 授权不占活动额度，含 tombstone 的总存储上限为 512。容量不足只省略或拒绝回传，不阻断媒体播放。单票据采用持续每分钟 12 次、短突发 4 次的令牌桶限频。请求体上限为 2 KiB，位置、速度、epoch、sequence 和 owner revision 均进行范围检查。
+
+支持请求头的播放器使用 `X-Emby-Playback-Ticket` 和 `X-Emby-Subtitle-Ticket`；启用回传的播放器还会收到 `X-Emby-Progress-Ticket`。其他播放器使用 Emby 可脱敏的 `api_key` 查询参数。反向代理仍应主动隐藏查询票据和全部 `X-Emby-*-Ticket` 请求头，并且不得把 `/ExternalPlayer/Playback/*` 重定向到其他 origin；当前 IINA JavaScript HTTP API 无法禁止或审计跨域重定向。
+
+回传 API 不使用通用 Emby API Key。每次请求重新检查用户权限和媒体源，并在 `UserId + CanonicalItemId` 范围内验证服务端签发的 launch generation、owner revision、epoch 和 sequence。重复事件只返回已有 ACK；已被较新 launch 取代的旧请求不会调用 Emby 会话接口。
+
+播放器在窗口关闭或媒体切换时可能先把 `time-pos` 重置为 `0`。客户端终止事件只采样一次并在这种情况下保留最后的稳定非零位置；服务端也不会让终止事件的瞬时 `0` 覆盖同一会话已经接受的非零位置。显式回到开头仍应先发送一次正常 Progress，再结束会话。
 
 ## 文件读取
 
@@ -38,3 +44,4 @@ Manifest 和 Resolve 使用 Emby 认证上下文确定用户，不接受客户�
 - 媒体标题会出现在 URL 路径中，这是为播放器提供可读标题的明确取舍。
 - Web 入口依赖受控但非官方的 Emby UI 锚点，Emby 更新可能使入口安全失效。
 - URL Scheme 最终由客户端应用解析，只应配置可信播放器及其官方参数。
+- 单写入者租约只覆盖使用本回传协议的外部播放器；Emby 官方客户端与外部播放器同时播放同一条目时，Emby 核心仍可能按自己的规则更新进度。

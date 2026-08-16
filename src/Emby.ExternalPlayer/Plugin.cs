@@ -244,6 +244,11 @@ public sealed class Plugin : BasePluginSimpleUI<PluginOptions>
         {
             throw new ArgumentException(PluginStrings.CustomPlayerTemplateInvalid, nameof(value));
         }
+        if (value.EnablePlaybackReporting &&
+            !CustomPlayerTemplate.SupportsHttpRequestHeaders(value.UrlTemplate))
+        {
+            throw new ArgumentException(PluginStrings.PlaybackReportingRequiresHeaders, nameof(value));
+        }
 
         lock (optionsSync)
         {
@@ -265,6 +270,7 @@ public sealed class Plugin : BasePluginSimpleUI<PluginOptions>
                 ApplicationName = value.ApplicationName,
                 Platforms = platforms,
                 UrlTemplate = value.UrlTemplate,
+                EnablePlaybackReporting = value.EnablePlaybackReporting,
             };
             if (index >= 0)
             {
@@ -481,6 +487,7 @@ public sealed class Plugin : BasePluginSimpleUI<PluginOptions>
         return left.Length == right.Length && left.Zip(right, (a, b) =>
             string.Equals(a.Id, b.Id, StringComparison.OrdinalIgnoreCase) &&
             a.Enabled == b.Enabled &&
+            a.EnablePlaybackReporting == b.EnablePlaybackReporting &&
             string.Equals(a.ApplicationName, b.ApplicationName, StringComparison.Ordinal) &&
             a.GetEffectivePlatforms() == b.GetEffectivePlatforms() &&
             string.Equals(a.UrlTemplate, b.UrlTemplate, StringComparison.Ordinal)).All(equal => equal);
@@ -500,6 +507,7 @@ public sealed class Plugin : BasePluginSimpleUI<PluginOptions>
             Platform = player.Platform,
             Platforms = player.Platforms,
             UrlTemplate = player.UrlTemplate,
+            EnablePlaybackReporting = player.EnablePlaybackReporting,
         }));
 
     private static UserPlayerPreferenceOptionsCollection CloneUserPlayerPreferences(
@@ -519,6 +527,7 @@ public sealed class Plugin : BasePluginSimpleUI<PluginOptions>
         Platform = LegacyPlatformName(player.Platforms),
         Platforms = PlatformNames(player.Platforms),
         UrlTemplate = player.UrlTemplate,
+        EnablePlaybackReporting = player.EnablePlaybackReporting,
     };
 
     private static PlayerPlatforms ParseCustomPlatforms(CustomPlayerConfiguration value)

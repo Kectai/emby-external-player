@@ -149,7 +149,8 @@ public sealed class PluginOptionsEditorTests
                     Enabled = true,
                     ApplicationName = "Elmedia Video Player",
                     Platform = CustomPlayerPlatform.MacOS,
-                    UrlTemplate = "elmedia://open?url={url}",
+                    UrlTemplate = "elmedia://open?url={url}&headers={headers}",
+                    EnablePlaybackReporting = true,
                 },
             },
         };
@@ -163,6 +164,29 @@ public sealed class PluginOptionsEditorTests
         Assert.IsFalse(string.IsNullOrWhiteSpace(restored.CustomPlayers[0].Id));
         Assert.AreEqual("Elmedia Video Player", restored.CustomPlayers[0].ApplicationName);
         Assert.AreEqual(PlayerPlatforms.MacOS, restored.CustomPlayers[0].Platforms);
+        Assert.IsTrue(restored.CustomPlayers[0].EnablePlaybackReporting);
+    }
+
+    [TestMethod]
+    public void PlaybackReporting_NormalizationDisablesTamperedConfigurationWithoutHeaders()
+    {
+        var options = new PluginOptions
+        {
+            CustomPlayers = new CustomPlayerOptionsCollection
+            {
+                new()
+                {
+                    Enabled = true,
+                    ApplicationName = "Third-party IINA",
+                    UrlTemplate = "third-party-iina://open?url={url}",
+                    EnablePlaybackReporting = true,
+                },
+            },
+        };
+
+        Assert.IsTrue(options.NormalizeCustomPlayers());
+        Assert.IsFalse(options.CustomPlayers[0].EnablePlaybackReporting);
+        Assert.IsFalse(options.NormalizeCustomPlayers());
     }
 
     [TestMethod]

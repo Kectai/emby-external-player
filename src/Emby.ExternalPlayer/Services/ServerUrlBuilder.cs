@@ -7,6 +7,9 @@ public static class ServerUrlBuilder
 {
     public const string PlaybackTicketHeaderName = "X-Emby-Playback-Ticket";
     public const string SubtitleTicketHeaderName = "X-Emby-Subtitle-Ticket";
+    public const string ProgressTicketHeaderName = "X-Emby-Progress-Ticket";
+    public const string ProgressProtocolHeaderName = "X-Emby-Progress-Protocol";
+    public const string ProgressExpiresHeaderName = "X-Emby-Progress-Expires";
 
     private static readonly Regex SafeExtension = new("^[a-z0-9]{1,12}$", RegexOptions.Compiled);
 
@@ -47,6 +50,20 @@ public static class ServerUrlBuilder
         return Combine(
             apiBase,
             "ExternalPlayer/Stream/" + Uri.EscapeDataString(urlFileName));
+    }
+
+    public static string BuildHeaderTicketStreamUrl(
+        string apiBase,
+        string launchId,
+        string urlFileName)
+    {
+        if (!PlaybackReportTicketStore.IsValidLaunchId(launchId))
+        {
+            throw new ArgumentException("The launch id is invalid.", nameof(launchId));
+        }
+        return Combine(
+            apiBase,
+            "ExternalPlayer/Stream/" + launchId + "/" + Uri.EscapeDataString(urlFileName));
     }
 
     public static string BuildTicketSubtitleUrl(

@@ -58,6 +58,9 @@ public static class PluginStrings
             [nameof(AnyPlatform)] = "Any platform",
             [nameof(UrlTemplate)] = "URL scheme template",
             [nameof(UrlTemplateDescription)] = "Example: myplayer://open?url={url}&title={title}. Placeholder values are percent-encoded.",
+            [nameof(EnablePlaybackReporting)] = "Enable playback progress reporting",
+            [nameof(EnablePlaybackReportingDescription)] = "Requires {headers} in the URL template and a compatible, trusted reporter plugin in the player.",
+            [nameof(PlaybackReportingRequiresHeaders)] = "Playback progress reporting requires {headers} in the URL template.",
             [nameof(PotPlayer)] = "PotPlayer",
             [nameof(IINA)] = "IINA",
             [nameof(VLCMediaPlayer)] = "VLC media player",
@@ -148,6 +151,9 @@ public static class PluginStrings
             [nameof(AnyPlatform)] = "所有平台",
             [nameof(UrlTemplate)] = "URL Scheme 模板",
             [nameof(UrlTemplateDescription)] = "例如：myplayer://open?url={url}&title={title}。占位符值会进行 URL 编码。",
+            [nameof(EnablePlaybackReporting)] = "启用播放进度回传",
+            [nameof(EnablePlaybackReportingDescription)] = "URL 模板必须包含 {headers}，且播放器中需安装兼容、可信的回传插件。",
+            [nameof(PlaybackReportingRequiresHeaders)] = "启用播放进度回传时，URL 模板必须包含 {headers}。",
             [nameof(Windows)] = "Windows",
             [nameof(MacOS)] = "macOS",
             [nameof(IOS)] = "iOS",
@@ -232,6 +238,9 @@ public static class PluginStrings
             [nameof(AnyPlatform)] = "所有平台",
             [nameof(UrlTemplate)] = "URL Scheme 範本",
             [nameof(UrlTemplateDescription)] = "例如：myplayer://open?url={url}&title={title}。預留位置值會進行 URL 編碼。",
+            [nameof(EnablePlaybackReporting)] = "啟用播放進度回傳",
+            [nameof(EnablePlaybackReportingDescription)] = "URL 範本必須包含 {headers}，且播放器中需安裝相容、可信的回傳外掛。",
+            [nameof(PlaybackReportingRequiresHeaders)] = "啟用播放進度回傳時，URL 範本必須包含 {headers}。",
             [nameof(ExternalPlay)] = "外部播放",
             [nameof(ChoosePlayer)] = "選擇播放器",
             [nameof(Open)] = "開啟",
@@ -308,6 +317,8 @@ public static class PluginStrings
     public static string AnyPlatform => Get(nameof(AnyPlatform));
     public static string UrlTemplate => Get(nameof(UrlTemplate));
     public static string UrlTemplateDescription => Get(nameof(UrlTemplateDescription));
+    public static string EnablePlaybackReporting => Get(nameof(EnablePlaybackReporting));
+    public static string EnablePlaybackReportingDescription => Get(nameof(EnablePlaybackReportingDescription));
     public static string PotPlayer => Get(nameof(PotPlayer));
     public static string IINA => Get(nameof(IINA));
     public static string VLCMediaPlayer => Get(nameof(VLCMediaPlayer));
@@ -349,6 +360,7 @@ public static class PluginStrings
     public static string CustomPlayerNameTooLong => Get(nameof(CustomPlayerNameTooLong));
     public static string CustomPlayerTemplateRequired => Get(nameof(CustomPlayerTemplateRequired));
     public static string CustomPlayerTemplateInvalid => Get(nameof(CustomPlayerTemplateInvalid));
+    public static string PlaybackReportingRequiresHeaders => Get(nameof(PlaybackReportingRequiresHeaders));
 
     public static Dictionary<string, string> GetWebStrings(string? language)
     {

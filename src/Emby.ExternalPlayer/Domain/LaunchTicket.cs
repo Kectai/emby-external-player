@@ -10,6 +10,8 @@ public enum LaunchTicketScope
 
 public sealed class LaunchTicketPayload
 {
+    public string LaunchId { get; set; } = string.Empty;
+
     public LaunchTicketScope Scope { get; set; }
 
     public Guid UserId { get; set; }

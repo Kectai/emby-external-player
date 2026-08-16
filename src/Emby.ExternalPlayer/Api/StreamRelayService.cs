@@ -40,13 +40,24 @@ public sealed class StreamRelayService : IService, IRequiresRequest
 
     public Task<object> Get(GetExternalPlayerStream request)
     {
+        return GetStream(request.FileName, launchId: null);
+    }
+
+    public Task<object> Get(GetExternalPlayerLaunchStream request)
+    {
+        return GetStream(request.FileName, request.LaunchId);
+    }
+
+    private Task<object> GetStream(string fileName, string? launchId)
+    {
         var rawTicket = Request.Headers[ServerUrlBuilder.PlaybackTicketHeaderName] ??
             Request.QueryString["api_key"] ?? string.Empty;
         var payload = GetTicket(rawTicket, LaunchTicketScope.Media);
-        if (!string.IsNullOrWhiteSpace(request.FileName) &&
-            !string.Equals(request.FileName, payload.UrlFileName, StringComparison.Ordinal))
+        if (!string.Equals(payload.LaunchId, launchId ?? string.Empty, StringComparison.Ordinal) ||
+            (!string.IsNullOrWhiteSpace(fileName) &&
+             !string.Equals(fileName, payload.UrlFileName, StringComparison.Ordinal)))
         {
-            throw new ResourceNotFoundException("The playback title does not match the ticket.");
+            throw new ResourceNotFoundException("The playback launch path does not match the ticket.");
         }
         return CreateFileResult(
             payload.FilePath,
@@ -57,6 +68,8 @@ public sealed class StreamRelayService : IService, IRequiresRequest
     }
 
     public Task<object> Head(GetExternalPlayerStream request) => Get(request);
+
+    public Task<object> Head(GetExternalPlayerLaunchStream request) => Get(request);
 
     public Task<object> Get(GetExternalPlayerSubtitle request)
     {
