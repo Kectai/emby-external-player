@@ -317,6 +317,8 @@ const source = fs.readFileSync(
 const stylesheet = fs.readFileSync(
     new URL("../../src/Emby.ExternalPlayer/Resources/external-player.css", import.meta.url),
     "utf8");
+assert.doesNotMatch(source, /toggleContainer/,
+    "independent switches must not inherit Emby's Generic UI toggle-container width rules");
 assert.match(stylesheet, /\.dialog\.formDialog\.emby-ep-dialog\s*\{[\s\S]*?max-width:\s*44rem\s*!important;/);
 assert.match(stylesheet, /\.dialog\.formDialog\.emby-ep-dialog\s*\{[\s\S]*?min-width:\s*0\s*!important;/);
 assert.match(stylesheet, /width:\s*min\(clamp\(36rem,\s*52vw,\s*44rem\),\s*calc\(100vw\s*-\s*3rem\)\)\s*!important;/);
@@ -334,13 +336,22 @@ assert.match(stylesheet, /\.emby-ep-config-fields\s*\{[\s\S]*?gap:\s*\.75rem 1re
 assert.match(stylesheet, /\.emby-ep-config-platform-field\s*\{[\s\S]*?grid-column:\s*1 \/ -1;/);
 assert.match(stylesheet, /\.emby-ep-config-platforms\s*\{[\s\S]*?flex-wrap:\s*wrap;/);
 assert.match(stylesheet, /\.emby-ep-config-platform-option-selected\s*\{/);
-assert.match(stylesheet, /\.emby-ep-config-builtin-row\s*\{[\s\S]*?grid-template-columns:\s*minmax\(8rem,11rem\) minmax\(0,1fr\);/);
-assert.match(stylesheet, /\.emby-ep-config-builtin-row \.emby-ep-config-card-status\s*\{[\s\S]*?grid-column:\s*2;[\s\S]*?overflow-wrap:\s*anywhere;/);
+assert.match(stylesheet, /\.emby-ep-config-builtin-row\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,1fr\);/);
+assert.match(stylesheet, /\.emby-ep-config-builtin-row>\.emby-ep-config-builtin-enabled\s*\{[\s\S]*?width:\s*100%\s*!important;/);
+assert.match(stylesheet, /\.emby-ep-config-builtin-row \.emby-ep-config-platform-field\s*\{[\s\S]*?grid-column:\s*1;/);
+assert.match(stylesheet, /\.emby-ep-config-builtin-row \.emby-ep-config-card-status\s*\{[\s\S]*?grid-column:\s*1;[\s\S]*?overflow-wrap:\s*anywhere;/);
 assert.match(stylesheet, /\.emby-ep-config-builtin-row \.emby-ep-config-platform-option\s*\{[\s\S]*?font-size:\s*\.9rem;/);
 assert.match(stylesheet, /\.emby-ep-config-card-actions \.emby-button\s*\{[\s\S]*?justify-content:\s*center\s*!important;/);
 assert.match(stylesheet, /\.emby-ep-config-card-status\[data-state="dirty"\]\s*\{/);
 assert.match(stylesheet, /\.emby-ep-config-input,[\s\S]*?\.emby-ep-config-select\s*\{[\s\S]*?height:\s*3em\s*!important;/);
-assert.match(stylesheet, /\.emby-ep-toggle-switch\s*\{[\s\S]*?width:\s*3em;/);
+assert.match(stylesheet, /\.emby-ep-toggle-switch\s*\{[\s\S]*?height:\s*2\.16em;[\s\S]*?width:\s*3\.7em;/,
+    "coarse-pointer devices must retain Emby's larger toggle dimensions");
+assert.match(stylesheet, /@media all and \(pointer:fine\)\{\.emby-ep-toggle-switch\{[\s\S]*?height:\s*1\.66em;[\s\S]*?width:\s*3em;/,
+    "fine-pointer devices must use Emby's compact toggle dimensions");
+assert.match(stylesheet, /\.emby-ep-toggle-label\s*\{[\s\S]*?cursor:\s*default\s*!important;[\s\S]*?grid-template-columns:\s*minmax\(0,1fr\) auto;[\s\S]*?width:\s*100%\s*!important;/);
+assert.match(stylesheet, /\.emby-ep-toggle-text\s*\{[\s\S]*?cursor:\s*default\s*!important;/);
+assert.match(stylesheet, /\.emby-ep-toggle-switch\s*\{[\s\S]*?cursor:\s*pointer;/);
+assert.match(stylesheet, /\.emby-ep-toggle-row\s*\{[\s\S]*?display:\s*block\s*!important;[\s\S]*?width:\s*100%\s*!important;/);
 assert.match(stylesheet, /\.emby-ep-toggle-input:checked\s*~\s*\.emby-ep-toggle-switch\s*\{[\s\S]*?var\(--ep-accent\)/);
 assert.match(stylesheet, /\.emby-ep-default-field\s*\{/);
 assert.match(
@@ -359,6 +370,8 @@ let lastResolveBody;
 let lastCustomPlayerPostBody;
 let lastBuiltInPlatformsPostBody;
 let rejectBuiltInPlatforms = false;
+let deferBuiltInPlatforms = false;
+const pendingBuiltInPlatformSaves = [];
 const defaultPreferenceBodies = [];
 let rejectDefaultPreference = false;
 let deferDefaultPreferences = false;
@@ -382,12 +395,12 @@ const apiClient = {
     getJSON(url) {
         if (String(url).includes("ExternalPlayer/BuiltInPlayerPlatforms")) {
             return Promise.resolve([
-                { PlayerId: "PotPlayer", DisplayName: "PotPlayer", Platforms: ["Windows"] },
-                { PlayerId: "Iina", DisplayName: "IINA", Platforms: ["MacOS"] },
-                { PlayerId: "Vlc", DisplayName: "VLC media player", Platforms: ["Windows", "MacOS", "IOS", "Android", "Linux"] },
-                { PlayerId: "Infuse", DisplayName: "Infuse", Platforms: ["MacOS", "IOS"] },
-                { PlayerId: "Mpv", DisplayName: "mpv", Platforms: ["Windows", "MacOS", "Linux"] },
-                { PlayerId: "NPlayer", DisplayName: "nPlayer", Platforms: ["IOS", "Android"] }
+                { PlayerId: "PotPlayer", DisplayName: "PotPlayer", Enabled: true, Platforms: ["Windows"] },
+                { PlayerId: "Iina", DisplayName: "IINA", Enabled: true, Platforms: ["MacOS"] },
+                { PlayerId: "Vlc", DisplayName: "VLC media player", Enabled: true, Platforms: ["Windows", "MacOS", "IOS", "Android", "Linux"] },
+                { PlayerId: "Infuse", DisplayName: "Infuse", Enabled: true, Platforms: ["MacOS", "IOS"] },
+                { PlayerId: "Mpv", DisplayName: "mpv", Enabled: false, Platforms: ["Windows", "MacOS", "Linux"] },
+                { PlayerId: "NPlayer", DisplayName: "nPlayer", Enabled: false, Platforms: ["IOS", "Android"] }
             ]);
         }
         if (String(url).includes("ExternalPlayer/CustomPlayers")) {
@@ -419,11 +432,18 @@ const apiClient = {
             const value = JSON.parse(options.data);
             lastBuiltInPlatformsPostBody = value;
             if (rejectBuiltInPlatforms) return Promise.reject(new Error("platform save failed"));
-            return Promise.resolve({
+            const response = {
                 PlayerId: value.playerId,
                 DisplayName: value.playerId,
+                Enabled: value.enabled,
                 Platforms: value.platforms
-            });
+            };
+            if (deferBuiltInPlatforms) {
+                return new Promise((resolve, reject) => {
+                    pendingBuiltInPlatformSaves.push({ value, response, resolve, reject });
+                });
+            }
+            return Promise.resolve(response);
         }
         if (String(options.url).includes("ExternalPlayer/UserDefaultPlayer")) {
             const value = JSON.parse(options.data);
@@ -998,7 +1018,61 @@ const builtInRows = customConfigurationSection.walk().filter((item) =>
 assert.equal(builtInRows.length, 6, "all built-in players must expose their configurable platform scope");
 assert.ok(builtInRows.every((row) => !row.walk().some((item) => item.tagName === "LEGEND")),
     "the section heading must replace repeated platform legends in built-in rows");
+assert.ok(builtInRows.every((row) => row.walk().some((item) =>
+    item.className.split(/\s+/).includes("emby-ep-config-builtin-enabled-input"))),
+    "each built-in player must expose an enable switch");
+assert.ok(builtInRows.every((row) => {
+    const enabled = row.walk().find((item) =>
+        item.className.split(/\s+/).includes("emby-ep-config-builtin-enabled-input"));
+    const text = row.walk().find((item) =>
+        item.className.split(/\s+/).includes("emby-ep-toggle-text"));
+    return enabled.parentNode.className.includes("emby-ep-toggle-label") &&
+        text.parentNode === enabled.parentNode;
+}), "built-in and custom switches must use the same full-row Emby toggle structure");
+assert.ok(builtInRows.every((row) => {
+    const platformField = row.walk().find((item) =>
+        item.className.split(/\s+/).includes("emby-ep-config-platform-field"));
+    const enabled = row.walk().find((item) =>
+        item.className.split(/\s+/).includes("emby-ep-config-builtin-enabled-input"));
+    return enabled.parentNode.parentNode.parentNode === row && platformField.parentNode === row &&
+        enabled.parentNode.parentNode !== platformField;
+}), "built-in enable controls and platform configuration must occupy separate rows");
+const mpvBuiltInRow = builtInRows.find((item) => item.attributes.get("data-player-id") === "Mpv");
+const mpvEnabledInput = mpvBuiltInRow.walk().find((item) =>
+    item.className.split(/\s+/).includes("emby-ep-config-builtin-enabled-input"));
+assert.equal(mpvEnabledInput.checked, false);
+deferBuiltInPlatforms = true;
+mpvEnabledInput.checked = true;
+mpvEnabledInput.dispatch("change");
+await new Promise((resolve) => setTimeout(resolve, 300));
+assert.equal(pendingBuiltInPlatformSaves.length, 1);
+assert.deepEqual(pendingBuiltInPlatformSaves[0].value, {
+    playerId: "Mpv",
+    enabled: true,
+    platforms: ["Windows", "MacOS", "Linux"]
+}, "enabling mpv must persist through the same validated API as its platform scope");
+mpvEnabledInput.checked = false;
+mpvEnabledInput.dispatch("change");
+const staleMpvSave = pendingBuiltInPlatformSaves.shift();
+staleMpvSave.resolve(staleMpvSave.response);
+await new Promise((resolve) => setTimeout(resolve, 0));
+assert.equal(
+    mpvEnabledInput.checked,
+    false,
+    "an older successful response must not overwrite a newer enable selection");
+assert.equal(pendingBuiltInPlatformSaves.length, 1);
+assert.equal(
+    pendingBuiltInPlatformSaves[0].value.enabled,
+    false,
+    "the queued retry must submit the user's newest enable selection");
+const latestMpvSave = pendingBuiltInPlatformSaves.shift();
+latestMpvSave.resolve(latestMpvSave.response);
+await new Promise((resolve) => setTimeout(resolve, 0));
+deferBuiltInPlatforms = false;
+assert.equal(mpvEnabledInput.checked, false);
 const iinaBuiltInRow = builtInRows.find((item) => item.attributes.get("data-player-id") === "Iina");
+const iinaEnabledInput = iinaBuiltInRow.walk().find((item) =>
+    item.className.split(/\s+/).includes("emby-ep-config-builtin-enabled-input"));
 const iinaPlatformInputs = iinaBuiltInRow.walk().filter((item) =>
     item.className.split(/\s+/).includes("emby-ep-config-platform-input"));
 assert.deepEqual(
@@ -1013,6 +1087,7 @@ assert.ok(!iinaBuiltInRow.walk().some((item) => item.tagName === "BUTTON"),
 await new Promise((resolve) => setTimeout(resolve, 300));
 assert.deepEqual(lastBuiltInPlatformsPostBody, {
     playerId: "Iina",
+    enabled: true,
     platforms: ["MacOS", "IOS"]
 }, "built-in players must save multi-platform selections independently");
 rejectBuiltInPlatforms = true;
@@ -1050,7 +1125,7 @@ assert.equal(
     "适用平台",
     "a standalone custom-player form must retain its one contextual platform label");
 assert.equal(loadedPlayerStatus.textContent, "", "a loaded player starts without a false dirty state");
-assert.ok(loadedPlayerEnabledContainer.className.includes("toggleContainer"));
+assert.ok(loadedPlayerEnabledContainer.className.includes("emby-ep-toggle-row"));
 assert.ok(loadedPlayerEnabled.className.includes("emby-toggle"));
 assert.equal(loadedPlayerEnabled.attributes.get("is"), "emby-toggle");
 assert.equal(loadedPlayerEnabled.attributes.get("role"), "switch");
@@ -1060,6 +1135,14 @@ assert.equal(loadedPlaybackReporting.checked, true);
 assert.ok(loadedCustomPlayerCard.walk().some((item) =>
     item.textContent.includes("启用播放进度回传")));
 assert.ok(loadedPlayerEnabledSwitch.className.includes("toggleSwitch"));
+assert.ok(loadedPlayerEnabled.parentNode.className.includes("emby-ep-toggle-label"));
+assert.equal(loadedPlayerEnabledSwitch.parentNode, loadedPlayerEnabled.parentNode);
+assert.equal(
+    loadedPlayerEnabledContainer.walk().find((item) =>
+        item.className.split(/\s+/).includes("emby-ep-toggle-text")).parentNode,
+    loadedPlayerEnabled.parentNode,
+    "the enabled text must remain clickable through the same full-width label row");
+assert.ok(loadedPlaybackReporting.parentNode.className.includes("emby-ep-toggle-label"));
 assert.deepEqual(
     loadedPlatformInputs.filter((item) => item.checked).map((item) => item.value),
     ["MacOS", "IOS"],
@@ -1155,8 +1238,29 @@ assert.match(
     /无法生成播放地址/);
 document.dispatch("keydown", { key: "Escape", preventDefault() {} });
 
+const nPlayerBuiltInRow = builtInRows.find((item) =>
+    item.attributes.get("data-player-id") === "NPlayer");
+const nPlayerEnabledInput = nPlayerBuiltInRow.walk().find((item) =>
+    item.className.split(/\s+/).includes("emby-ep-config-builtin-enabled-input"));
+nPlayerEnabledInput.checked = true;
+nPlayerEnabledInput.dispatch("change");
+document.dispatch("viewbeforehide", {});
+await new Promise((resolve) => setTimeout(resolve, 0));
+assert.equal(lastBuiltInPlatformsPostBody.playerId, "NPlayer");
+assert.equal(
+    lastBuiltInPlatformsPostBody.enabled,
+    true,
+    "viewbeforehide must immediately flush a built-in change inside the debounce window");
+deferBuiltInPlatforms = true;
+nPlayerEnabledInput.checked = false;
+nPlayerEnabledInput.dispatch("change");
+await new Promise((resolve) => setTimeout(resolve, 300));
+assert.equal(pendingBuiltInPlatformSaves.length, 1);
+nPlayerEnabledInput.checked = true;
+nPlayerEnabledInput.dispatch("change");
 ticketLifetimeInput.value = "365";
 configurationMain.dispatch("input", { target: ticketLifetimeInput, isTrusted: true });
+document.dispatch("viewbeforehide", {});
 window.location.hash = "#!/plugins";
 document.dispatch("viewshow", {});
 await new Promise((resolve) => setTimeout(resolve, 0));
@@ -1173,6 +1277,19 @@ assert.equal(
 assert.ok(
     !rebuiltSaveButton.className.includes("emby-ep-native-save-hidden"),
     "leaving the route must restore Emby's retained native Save button");
+const departingBuiltInSave = pendingBuiltInPlatformSaves.shift();
+departingBuiltInSave.resolve(departingBuiltInSave.response);
+await new Promise((resolve) => setTimeout(resolve, 0));
+assert.equal(
+    pendingBuiltInPlatformSaves.length,
+    1,
+    "leaving the page must retain the latest built-in change behind an in-flight save");
+assert.equal(pendingBuiltInPlatformSaves[0].value.enabled, true);
+assert.equal(pendingBuiltInPlatformSaves[0].value.playerId, "NPlayer");
+const flushedBuiltInSave = pendingBuiltInPlatformSaves.shift();
+flushedBuiltInSave.resolve(flushedBuiltInSave.response);
+await new Promise((resolve) => setTimeout(resolve, 0));
+deferBuiltInPlatforms = false;
 
 configurationMain.hidden = true;
 rebuiltSaveButton.hidden = true;

@@ -51,7 +51,7 @@ public sealed class ExternalPlayerApiService : IService, IRequiresRequest
         RequireAdministrator();
         return (Plugin.Instance
                 ?? throw new InvalidOperationException("The External Player plugin is unavailable."))
-            .SaveBuiltInPlayerPlatformConfiguration(request.PlayerId, request.Platforms);
+            .SaveBuiltInPlayerPlatformConfiguration(request.PlayerId, request.Platforms, request.Enabled);
     }
 
     public object Post(SaveCustomPlayerConfiguration request)

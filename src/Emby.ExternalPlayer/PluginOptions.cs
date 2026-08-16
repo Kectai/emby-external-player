@@ -100,28 +100,22 @@ public sealed class PluginOptions : EditableOptionsBase
     [MaxValue(LaunchTicketStore.MaximumLifetimeMinutes)]
     public int TicketLifetimeMinutes { get; set; } = LaunchTicketStore.DefaultLifetimeMinutes;
 
-    [DisplayNameL(nameof(PluginStrings.EnablePotPlayer), typeof(PluginStrings))]
-    [DescriptionL(nameof(PluginStrings.PotPlayerPlatforms), typeof(PluginStrings))]
+    [Browsable(false)]
     public bool EnablePotPlayer { get; set; } = true;
 
-    [DisplayNameL(nameof(PluginStrings.EnableIINA), typeof(PluginStrings))]
-    [DescriptionL(nameof(PluginStrings.IINAPlatforms), typeof(PluginStrings))]
+    [Browsable(false)]
     public bool EnableIina { get; set; } = true;
 
-    [DisplayNameL(nameof(PluginStrings.EnableVLC), typeof(PluginStrings))]
-    [DescriptionL(nameof(PluginStrings.VLCPlatforms), typeof(PluginStrings))]
+    [Browsable(false)]
     public bool EnableVlc { get; set; } = true;
 
-    [DisplayNameL(nameof(PluginStrings.EnableInfuse), typeof(PluginStrings))]
-    [DescriptionL(nameof(PluginStrings.InfusePlatforms), typeof(PluginStrings))]
+    [Browsable(false)]
     public bool EnableInfuse { get; set; } = true;
 
-    [DisplayNameL(nameof(PluginStrings.EnableMpv), typeof(PluginStrings))]
-    [DescriptionL(nameof(PluginStrings.MpvPlatforms), typeof(PluginStrings))]
+    [Browsable(false)]
     public bool EnableMpv { get; set; }
 
-    [DisplayNameL(nameof(PluginStrings.EnableNPlayer), typeof(PluginStrings))]
-    [DescriptionL(nameof(PluginStrings.NPlayerPlatforms), typeof(PluginStrings))]
+    [Browsable(false)]
     public bool EnableNPlayer { get; set; }
 
     [Browsable(false)]
@@ -228,6 +222,20 @@ public sealed class PluginOptions : EditableOptionsBase
             PlayerId.NPlayer => EnableNPlayer,
             _ => false,
         };
+    }
+
+    public void SetPlayerEnabled(PlayerId playerId, bool enabled)
+    {
+        switch (playerId)
+        {
+            case PlayerId.PotPlayer: EnablePotPlayer = enabled; break;
+            case PlayerId.Iina: EnableIina = enabled; break;
+            case PlayerId.Vlc: EnableVlc = enabled; break;
+            case PlayerId.Infuse: EnableInfuse = enabled; break;
+            case PlayerId.Mpv: EnableMpv = enabled; break;
+            case PlayerId.NPlayer: EnableNPlayer = enabled; break;
+            default: throw new ArgumentOutOfRangeException(nameof(playerId));
+        }
     }
 
     public void PrepareForEditor()

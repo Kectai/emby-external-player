@@ -44,7 +44,7 @@ Manifest 只用于展示。Resolve 不信任浏览器先前取得的数据，因
 | `POST /ExternalPlayer/Resolve` | 已认证用户 | 校验选择并生成启动地址 |
 | `POST /ExternalPlayer/UserDefaultPlayer` | 已认证用户 | 保存当前用户的平台默认播放器 |
 | `GET/POST/DELETE /ExternalPlayer/CustomPlayers` | 管理员 | 管理自定义播放器 |
-| `GET/POST /ExternalPlayer/BuiltInPlayerPlatforms` | 管理员 | 管理内置播放器适用平台 |
+| `GET/POST /ExternalPlayer/BuiltInPlayerPlatforms` | 管理员 | 管理内置播放器启用状态与适用平台 |
 | `GET/HEAD /ExternalPlayer/Stream/{FileName}` | 短期票据 | 读取媒体 |
 | `GET/HEAD /ExternalPlayer/Stream/{LaunchId}/{FileName}` | 媒体票据 + launch 绑定 | 读取支持回传的外部播放器媒体 |
 | `GET/HEAD /ExternalPlayer/Subtitle/{Index}/{FileName}` | 短期票据 | 读取外挂字幕 |

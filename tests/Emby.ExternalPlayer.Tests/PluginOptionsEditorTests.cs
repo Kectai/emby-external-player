@@ -82,6 +82,26 @@ public sealed class PluginOptionsEditorTests
                 item.Id == nameof(PluginOptions.CustomPlayers)));
             Assert.IsFalse(container.EditorRoot.EditorItems.Any(item =>
                 item.Id == nameof(PluginOptions.UserPlayerPreferences)));
+            CollectionAssert.AreEquivalent(
+                new[]
+                {
+                    nameof(PluginOptions.EnablePotPlayer),
+                    nameof(PluginOptions.EnableIina),
+                    nameof(PluginOptions.EnableVlc),
+                    nameof(PluginOptions.EnableInfuse),
+                    nameof(PluginOptions.EnableMpv),
+                    nameof(PluginOptions.EnableNPlayer),
+                },
+                TypeDescriptor.GetProperties(options).Cast<PropertyDescriptor>()
+                    .Where(property => property.Name.StartsWith("Enable", StringComparison.Ordinal) &&
+                        property.Name != nameof(PluginOptions.Enabled) &&
+                        property.Name != nameof(PluginOptions.EnableWebButton))
+                    .Where(property => !property.IsBrowsable)
+                    .Select(property => property.Name)
+                    .ToArray(),
+                "built-in enable switches must be managed beside their platform selectors");
+            Assert.IsFalse(container.EditorRoot.EditorItems.Any(item =>
+                item.Id == nameof(PluginOptions.EnableMpv)));
             CollectionAssert.IsSubsetOf(
                 new[]
                 {

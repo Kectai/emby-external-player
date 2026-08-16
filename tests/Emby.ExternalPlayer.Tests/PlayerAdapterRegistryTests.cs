@@ -82,6 +82,20 @@ public sealed class PlayerAdapterRegistryTests
     }
 
     [TestMethod]
+    public void Mpv_UsesTheOfficialUrlProtocolShape()
+    {
+        var context = CreateContext();
+        context.StreamUrl = "https://emby.example/media/a file.mkv?quality=原画";
+
+        var url = CreateRegistry().BuildLaunchUrl(PlayerId.Mpv, context);
+
+        Assert.AreEqual(
+            "mpv://https://emby.example/media/a%20file.mkv?quality=%E5%8E%9F%E7%94%BB",
+            url);
+        Assert.IsFalse(url.Contains("mpv://play/", StringComparison.Ordinal));
+    }
+
+    [TestMethod]
     public void Infuse_UsesOfficialCallbackShape()
     {
         var url = CreateRegistry().BuildLaunchUrl(PlayerId.Infuse, CreateContext());

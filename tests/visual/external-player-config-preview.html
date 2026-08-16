@@ -69,12 +69,12 @@
             UrlTemplate: "iina-nova://weblink?url={url}&new_window=1&mpv_start={start}&mpv_sub-file={subtitle}&mpv_http-header-fields={headers}"
         }];
         const builtInPlayers = [
-            { PlayerId: "PotPlayer", DisplayName: "PotPlayer", Platforms: ["Windows"] },
-            { PlayerId: "Iina", DisplayName: "IINA", Platforms: ["MacOS"] },
-            { PlayerId: "Vlc", DisplayName: "VLC media player", Platforms: ["Windows", "MacOS", "IOS", "Android", "Linux"] },
-            { PlayerId: "Infuse", DisplayName: "Infuse", Platforms: ["MacOS", "IOS"] },
-            { PlayerId: "Mpv", DisplayName: "mpv", Platforms: ["Windows", "MacOS", "Linux"] },
-            { PlayerId: "NPlayer", DisplayName: "nPlayer", Platforms: ["IOS", "Android"] }
+            { PlayerId: "PotPlayer", DisplayName: "PotPlayer", Enabled: true, Platforms: ["Windows"] },
+            { PlayerId: "Iina", DisplayName: "IINA", Enabled: true, Platforms: ["MacOS"] },
+            { PlayerId: "Vlc", DisplayName: "VLC media player", Enabled: true, Platforms: ["Windows", "MacOS", "IOS", "Android", "Linux"] },
+            { PlayerId: "Infuse", DisplayName: "Infuse", Enabled: true, Platforms: ["MacOS", "IOS"] },
+            { PlayerId: "Mpv", DisplayName: "mpv", Enabled: false, Platforms: ["Windows", "MacOS", "Linux"] },
+            { PlayerId: "NPlayer", DisplayName: "nPlayer", Enabled: false, Platforms: ["IOS", "Android"] }
         ];
         const events = { on() {}, off() {} };
         const apiClient = {

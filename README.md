@@ -32,7 +32,7 @@ Emby External Player 是一个面向 Emby Server 4.9.x 的轻量服务端插件�
 
 ## 安装
 
-1. 从 [最新 Release](https://github.com/Kectai/emby-external-player/releases/latest) 下载 `Emby.ExternalPlayer-1.7.0.zip`，校验同页提供的 SHA-256 后取出 `Emby.ExternalPlayer.dll`。
+1. 从 [最新 Release](https://github.com/Kectai/emby-external-player/releases/latest) 下载 `Emby.ExternalPlayer-1.7.1.zip`，校验同页提供的 SHA-256 后取出 `Emby.ExternalPlayer.dll`。
 2. 停止 Emby Server，把 DLL 放入 Emby 程序数据目录的 `plugins` 文件夹。
 3. 启动 Emby，在插件设置中启用所需播放器。
 4. 强制刷新 Emby Web，再打开视频详情页。

@@ -25,5 +25,7 @@ public sealed class BuiltInPlayerPlatformConfiguration
 
     public string DisplayName { get; set; } = string.Empty;
 
+    public bool Enabled { get; set; }
+
     public string[] Platforms { get; set; } = Array.Empty<string>();
 }

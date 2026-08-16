@@ -22,6 +22,7 @@ public sealed class Plugin : BasePluginSimpleUI<PluginOptions>
     private UserPlayerPreferenceStore? userPlayerPreferenceStore;
     private CustomPlayerOptionsCollection? customPlayersSnapshot;
     private Dictionary<PlayerId, PlayerPlatforms>? builtInPlatformSnapshot;
+    private Dictionary<PlayerId, bool>? builtInEnabledSnapshot;
     private bool separatePreferenceStoreReady;
     private bool savingManagedOptions;
     private bool uninstalling;
@@ -103,6 +104,7 @@ public sealed class Plugin : BasePluginSimpleUI<PluginOptions>
             options.PrepareForEditor();
             customPlayersSnapshot = CloneCustomPlayers(options.CustomPlayers);
             builtInPlatformSnapshot = SnapshotBuiltInPlatforms(options);
+            builtInEnabledSnapshot = SnapshotBuiltInEnabled(options);
             if (separatePreferenceStoreReady && userPlayerPreferenceStore is not null)
             {
                 options.UserPlayerPreferences = new UserPlayerPreferenceOptionsCollection();
@@ -122,6 +124,10 @@ public sealed class Plugin : BasePluginSimpleUI<PluginOptions>
             if (!savingManagedOptions && builtInPlatformSnapshot is not null)
             {
                 RestoreBuiltInPlatforms(options, builtInPlatformSnapshot);
+            }
+            if (!savingManagedOptions && builtInEnabledSnapshot is not null)
+            {
+                RestoreBuiltInEnabled(options, builtInEnabledSnapshot);
             }
             if (separatePreferenceStoreReady)
             {
@@ -181,9 +187,11 @@ public sealed class Plugin : BasePluginSimpleUI<PluginOptions>
                 SaveManagedOptions(options);
             }
             builtInPlatformSnapshot = SnapshotBuiltInPlatforms(options);
+            builtInEnabledSnapshot = SnapshotBuiltInEnabled(options);
             return Enum.GetValues(typeof(PlayerId)).Cast<PlayerId>()
                 .Select(playerId => ToBuiltInPlatformConfiguration(
                     playerId,
+                    options.IsPlayerEnabled(playerId),
                     options.GetPlayerPlatforms(playerId)))
                 .ToArray();
         }
@@ -191,7 +199,8 @@ public sealed class Plugin : BasePluginSimpleUI<PluginOptions>
 
     public BuiltInPlayerPlatformConfiguration SaveBuiltInPlayerPlatformConfiguration(
         string playerIdValue,
-        string[] platformNames)
+        string[] platformNames,
+        bool? enabled = null)
     {
         if (string.IsNullOrWhiteSpace(playerIdValue) ||
             int.TryParse(playerIdValue, out _) ||
@@ -205,19 +214,29 @@ public sealed class Plugin : BasePluginSimpleUI<PluginOptions>
         {
             var options = GetOptions();
             options.NormalizeBuiltInPlatformScopes();
-            var previous = SnapshotBuiltInPlatforms(options);
+            var previousPlatforms = SnapshotBuiltInPlatforms(options);
+            var previousEnabled = SnapshotBuiltInEnabled(options);
+            if (enabled.HasValue)
+            {
+                options.SetPlayerEnabled(playerId, enabled.Value);
+            }
             options.SetPlayerPlatforms(playerId, platforms);
             try
             {
                 SaveManagedOptions(options);
                 builtInPlatformSnapshot = SnapshotBuiltInPlatforms(options);
+                builtInEnabledSnapshot = SnapshotBuiltInEnabled(options);
             }
             catch
             {
-                RestoreBuiltInPlatforms(options, previous);
+                RestoreBuiltInPlatforms(options, previousPlatforms);
+                RestoreBuiltInEnabled(options, previousEnabled);
                 throw;
             }
-            return ToBuiltInPlatformConfiguration(playerId, platforms);
+            return ToBuiltInPlatformConfiguration(
+                playerId,
+                options.IsPlayerEnabled(playerId),
+                options.GetPlayerPlatforms(playerId));
         }
     }
 
@@ -470,6 +489,12 @@ public sealed class Plugin : BasePluginSimpleUI<PluginOptions>
             RestoreBuiltInPlatforms(options, builtInPlatformSnapshot);
             changed = true;
         }
+        if (builtInEnabledSnapshot is not null &&
+            !BuiltInEnabledEqual(options, builtInEnabledSnapshot))
+        {
+            RestoreBuiltInEnabled(options, builtInEnabledSnapshot);
+            changed = true;
+        }
         if (separatePreferenceStoreReady && options.UserPlayerPreferences.Count > 0)
         {
             options.UserPlayerPreferences = new UserPlayerPreferenceOptionsCollection();
@@ -497,6 +522,11 @@ public sealed class Plugin : BasePluginSimpleUI<PluginOptions>
         PluginOptions options,
         IReadOnlyDictionary<PlayerId, PlayerPlatforms> expected) =>
         expected.All(value => options.GetPlayerPlatforms(value.Key) == value.Value);
+
+    private static bool BuiltInEnabledEqual(
+        PluginOptions options,
+        IReadOnlyDictionary<PlayerId, bool> expected) =>
+        expected.All(value => options.IsPlayerEnabled(value.Key) == value.Value);
 
     private static CustomPlayerOptionsCollection CloneCustomPlayers(IEnumerable<CustomPlayerOptions> players) =>
         new(players.Select(player => new CustomPlayerOptions
@@ -603,6 +633,10 @@ public sealed class Plugin : BasePluginSimpleUI<PluginOptions>
         Enum.GetValues(typeof(PlayerId)).Cast<PlayerId>()
             .ToDictionary(playerId => playerId, options.GetPlayerPlatforms);
 
+    private static Dictionary<PlayerId, bool> SnapshotBuiltInEnabled(PluginOptions options) =>
+        Enum.GetValues(typeof(PlayerId)).Cast<PlayerId>()
+            .ToDictionary(playerId => playerId, options.IsPlayerEnabled);
+
     private static void RestoreBuiltInPlatforms(
         PluginOptions options,
         IReadOnlyDictionary<PlayerId, PlayerPlatforms> values)
@@ -613,8 +647,19 @@ public sealed class Plugin : BasePluginSimpleUI<PluginOptions>
         }
     }
 
+    private static void RestoreBuiltInEnabled(
+        PluginOptions options,
+        IReadOnlyDictionary<PlayerId, bool> values)
+    {
+        foreach (var value in values)
+        {
+            options.SetPlayerEnabled(value.Key, value.Value);
+        }
+    }
+
     private static BuiltInPlayerPlatformConfiguration ToBuiltInPlatformConfiguration(
         PlayerId playerId,
+        bool enabled,
         PlayerPlatforms platforms) => new()
         {
             PlayerId = playerId.ToString(),
@@ -626,6 +671,7 @@ public sealed class Plugin : BasePluginSimpleUI<PluginOptions>
                 PlayerId.NPlayer => "nPlayer",
                 _ => playerId.ToString(),
             },
+            Enabled = enabled,
             Platforms = PlatformNames(platforms),
         };
 

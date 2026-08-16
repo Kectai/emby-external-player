@@ -30,7 +30,7 @@ iina://weblink?url=...&new_window=1&mpv_start=...&mpv_http-header-fields=...
 - PotPlayer 使用媒体 URL 加 `/current`、`/seek=<秒>` 和 `/sub=<URL>`。
 - VLC iOS 使用 `vlc-x-callback://x-callback-url/stream?url=...&sub=...`，其他平台使用 `vlc://`。
 - Infuse 使用 `infuse://x-callback-url/play?url=...&sub=...`。
-- mpv 使用 `mpv://play/`，实际能力由本机注册该协议的 Handler 决定。
+- mpv 使用当前官方定义的 `mpv://<媒体 URL>` 入口。客户端仍需安装支持并注册 `mpv` URL Scheme 的 mpv 版本或应用包；Windows 可使用当前版本的 `--register`，macOS 与 Linux 则依赖应用包或桌面项完成协议注册。
 - nPlayer 把 HTTP(S) 地址转换为 `nplayer-http(s)://`。
 
 参考：[VLC iOS URL Handler](https://github.com/videolan/vlc-ios/blob/master/Sources/Helpers/Network/URLHandler.swift)、[Infuse x-callback API](https://support.firecore.com/hc/en-us/articles/215090997-API-for-Third-Party-Apps-Services)、[PotPlayer 参数参考](https://potplayer.org/en/update/history.html)。

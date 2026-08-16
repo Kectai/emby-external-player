@@ -131,6 +131,18 @@ assert.equal(builtInPlatformConfigurations.length, 6);
 assert.deepEqual(
     builtInPlatformConfigurations.find((entry) => entry.PlayerId === "Iina").Platforms,
     ["MacOS"]);
+assert.equal(
+    builtInPlatformConfigurations.find((entry) => entry.PlayerId === "Iina").Enabled,
+    true);
+const enabledMpv = await (await api("ExternalPlayer/BuiltInPlayerPlatforms", {
+    method: "POST",
+    body: JSON.stringify({
+        PlayerId: "Mpv",
+        Enabled: true,
+        Platforms: ["Windows", "MacOS", "Linux"]
+    })
+})).json();
+assert.equal(enabledMpv.Enabled, true);
 const expandedIinaPlatforms = await (await api("ExternalPlayer/BuiltInPlayerPlatforms", {
     method: "POST",
     body: JSON.stringify({ PlayerId: "Iina", Platforms: ["MacOS", "IOS"] })

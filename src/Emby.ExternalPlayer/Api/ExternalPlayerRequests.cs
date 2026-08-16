@@ -56,12 +56,14 @@ public sealed class GetBuiltInPlayerPlatformConfigurations :
 {
 }
 
-[Route("/ExternalPlayer/BuiltInPlayerPlatforms", "POST", Summary = "Updates a built-in player's platforms")]
+[Route("/ExternalPlayer/BuiltInPlayerPlatforms", "POST", Summary = "Updates a built-in player's enabled state and platforms")]
 [Authenticated]
 public sealed class SaveBuiltInPlayerPlatformConfiguration :
     IReturn<Domain.BuiltInPlayerPlatformConfiguration>
 {
     public string PlayerId { get; set; } = string.Empty;
+
+    public bool? Enabled { get; set; }
 
     public string[] Platforms { get; set; } = Array.Empty<string>();
 }

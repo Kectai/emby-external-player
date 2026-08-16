@@ -381,7 +381,7 @@ public sealed class PlayerAdapterRegistry
         }
 
         public override string BuildLaunchUrl(PlayerLaunchContext context) =>
-            "mpv://play/" + Encode(context.StreamUrl);
+            "mpv://" + context.StreamUrl;
     }
 
     private sealed class NPlayerAdapter : PlayerAdapterBase
