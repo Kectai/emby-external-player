@@ -12,6 +12,8 @@ public sealed class PlaybackReportGrant
 
     public string MediaSourceId { get; set; } = string.Empty;
 
+    public bool IsRemoteStrm { get; set; }
+
     public long RunTimeTicks { get; set; }
 
     public string PlayerName { get; set; } = string.Empty;
@@ -51,6 +53,8 @@ public class PlaybackReportRequest
     public long Sequence { get; set; }
 
     public long PositionTicks { get; set; }
+
+    public long? RunTimeTicks { get; set; }
 
     public bool IsPaused { get; set; }
 

@@ -8,6 +8,7 @@ public sealed class PluginRuntime
         Tickets = new LaunchTicketStore(Clock);
         PlaybackReportTickets = new PlaybackReportTicketStore(Clock);
         PlaybackReports = new PlaybackReportCoordinator(PlaybackReportTickets, Clock);
+        RemoteStreams = new RemoteRedirectResolver();
         Players = new PlayerAdapterRegistry();
     }
 
@@ -18,6 +19,8 @@ public sealed class PluginRuntime
     public PlaybackReportTicketStore PlaybackReportTickets { get; }
 
     public PlaybackReportCoordinator PlaybackReports { get; }
+
+    public RemoteRedirectResolver RemoteStreams { get; }
 
     public PlayerAdapterRegistry Players { get; }
 }

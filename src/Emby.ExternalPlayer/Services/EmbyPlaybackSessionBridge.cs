@@ -6,7 +6,6 @@ using Emby.ExternalPlayer.Domain;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Session;
-using MediaBrowser.Model.MediaInfo;
 using MediaBrowser.Model.Session;
 
 namespace Emby.ExternalPlayer.Services;
@@ -155,10 +154,23 @@ public sealed class EmbyPlaybackSessionBridge : IPlaybackSessionBridge
                 candidate.Id,
                 grant.MediaSourceId,
                 StringComparison.Ordinal));
-        if (source is null || source.Protocol != MediaProtocol.File)
+        if (source is null)
         {
             throw new PlaybackAuthorizationException(
                 "The playback reporting media source is no longer authorized.");
+        }
+        try
+        {
+            RemoteMediaSourcePolicy.RequireAuthorizedPlaybackSource(
+                item.Path,
+                source,
+                grant.IsRemoteStrm);
+        }
+        catch (ArgumentException exception)
+        {
+            throw new PlaybackAuthorizationException(
+                "The playback reporting media source is no longer authorized.",
+                exception);
         }
         return (user, item);
     }

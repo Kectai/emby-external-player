@@ -18,6 +18,7 @@ Emby External Player 是一个面向 Emby Server 4.9.x 的轻量服务端插件�
 - 支持自定义播放器、多个适用平台和 URL Scheme 模板。
 - 每个 Emby 用户可按当前平台保存自己的默认播放器。
 - 支持媒体版本、Emby 已识别的外挂字幕和从上次位置继续。
+- 支持本地媒体及指向 HTTP(S) 重定向入口的本地 `.strm`；播放器通过短期 CDN 地址直接读取远程媒体。
 - 提供简体中文、繁体中文和英文界面。
 - 使用短期、分作用域的媒体与字幕票据，不把完整 Emby Token 交给播放器。
 - 支持 HEAD 和单 Range 请求。
@@ -26,18 +27,18 @@ Emby External Player 是一个面向 Emby Server 4.9.x 的轻量服务端插件�
 ## 适用环境
 
 - Emby Server 4.9.x 提供的 Emby Web。
-- 本地 `File` 媒体源和 Emby 已识别的本地外挂字幕。
+- 本地 `File` 媒体源、Emby 识别的静态 HTTP(S) `.strm` 和本地外挂字幕。
 - 能够由浏览器通过 URL Scheme 唤起并访问 Emby 地址的播放器。
 - Web 入口依赖 Emby 4.9.x 的 Dashboard UI 结构；Emby 更新后可能需要调整适配。
 
 ## 安装
 
-1. 从 [最新 Release](https://github.com/Kectai/emby-external-player/releases/latest) 下载 `Emby.ExternalPlayer-1.7.1.zip`，校验同页提供的 SHA-256 后取出 `Emby.ExternalPlayer.dll`。
+1. 从 [最新 Release](https://github.com/Kectai/emby-external-player/releases/latest) 下载 `Emby.ExternalPlayer-1.7.2.zip`，校验同页提供的 SHA-256 后取出 `Emby.ExternalPlayer.dll`。
 2. 停止 Emby Server，把 DLL 放入 Emby 程序数据目录的 `plugins` 文件夹。
 3. 启动 Emby，在插件设置中启用所需播放器。
 4. 强制刷新 Emby Web，再打开视频详情页。
 
-如需播放进度回传，请另外安装配套 IINA 插件。内置 IINA 默认支持；第三方衍生客户端需要在自定义播放器中使用 `{headers}`，并显式打开“启用播放进度回传”。服务端 `1.7.0` 支持 Playback Reporting Protocol v1；客户端插件不是使用外部播放的前置条件。
+如需播放进度回传，请另外安装配套 IINA 插件。内置 IINA 默认支持；第三方衍生客户端需要在自定义播放器中使用 `{headers}`，并显式打开“启用播放进度回传”。服务端 `1.7.0` 支持 Playback Reporting Protocol v1；STRM 回传需要服务端 `1.7.2` 与 Reporter `0.1.2`。客户端插件不是使用外部播放的前置条件。
 
 详细安装、升级和卸载步骤见 [安装说明](docs/INSTALL.md)。
 

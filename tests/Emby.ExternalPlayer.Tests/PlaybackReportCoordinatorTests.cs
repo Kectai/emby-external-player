@@ -241,6 +241,139 @@ public sealed class PlaybackReportCoordinatorTests
     }
 
     [TestMethod]
+    public async Task ClientRunTimeCompletesAFreshStrmPlaybackSession()
+    {
+        var harness = new Harness();
+        var ticket = harness.Issue();
+        var runTimeTicks = TimeSpan.FromMinutes(42).Ticks;
+
+        var start = await harness.Coordinator.StartAsync(
+            ticket.Value,
+            harness.Request(ticket, 1, 10_000_000, runTimeTicks: runTimeTicks));
+        Assert.AreEqual(runTimeTicks, harness.Bridge.LastStartRunTimeTicks);
+
+        await harness.Coordinator.ProgressAsync(
+            ticket.Value,
+            harness.Request(
+                ticket,
+                2,
+                20_000_000,
+                start.Response.OwnerRevision,
+                runTimeTicks: runTimeTicks));
+        Assert.AreEqual(runTimeTicks, harness.Bridge.LastProgressRunTimeTicks);
+
+        await harness.Coordinator.StopAsync(
+            ticket.Value,
+            harness.Request(
+                ticket,
+                3,
+                30_000_000,
+                start.Response.OwnerRevision,
+                "windowClosed"));
+        Assert.AreEqual(runTimeTicks, harness.Bridge.LastStopRunTimeTicks);
+    }
+
+    [TestMethod]
+    public async Task FirstValidRunTimeCanArriveAfterPlaybackStart()
+    {
+        var harness = new Harness();
+        var ticket = harness.Issue();
+        var start = await harness.Coordinator.StartAsync(
+            ticket.Value,
+            harness.Request(ticket, 1, 10_000_000));
+        Assert.AreEqual(0, harness.Bridge.LastStartRunTimeTicks);
+
+        var runTimeTicks = TimeSpan.FromMinutes(55).Ticks;
+        await harness.Coordinator.ProgressAsync(
+            ticket.Value,
+            harness.Request(
+                ticket,
+                2,
+                20_000_000,
+                start.Response.OwnerRevision,
+                runTimeTicks: runTimeTicks));
+        Assert.AreEqual(runTimeTicks, harness.Bridge.LastProgressRunTimeTicks);
+
+        await harness.Coordinator.StopAsync(
+            ticket.Value,
+            harness.Request(
+                ticket,
+                3,
+                30_000_000,
+                start.Response.OwnerRevision,
+                "shutdown"));
+        Assert.AreEqual(runTimeTicks, harness.Bridge.LastStopRunTimeTicks);
+    }
+
+    [TestMethod]
+    public async Task RunTimeFirstReportedByStopGetsAFinalProgressCheckIn()
+    {
+        var harness = new Harness();
+        var ticket = harness.Issue();
+        var start = await harness.Coordinator.StartAsync(
+            ticket.Value,
+            harness.Request(ticket, 1, 10_000_000));
+        var runTimeTicks = TimeSpan.FromMinutes(35).Ticks;
+
+        var stop = await harness.Coordinator.StopAsync(
+            ticket.Value,
+            harness.Request(
+                ticket,
+                2,
+                0,
+                start.Response.OwnerRevision,
+                "windowClosed",
+                runTimeTicks));
+
+        Assert.AreEqual(200, stop.StatusCode);
+        Assert.AreEqual(1, harness.Bridge.ProgressCount);
+        Assert.AreEqual(10_000_000, harness.Bridge.LastProgressPositionTicks);
+        Assert.AreEqual(10_000_000, harness.Bridge.LastStopPositionTicks);
+        Assert.AreEqual(runTimeTicks, harness.Bridge.LastProgressRunTimeTicks);
+        Assert.AreEqual(runTimeTicks, harness.Bridge.LastStopRunTimeTicks);
+    }
+
+    [TestMethod]
+    public async Task EmbyRunTimeRemainsAuthoritativeAndInvalidClientValuesAreRejected()
+    {
+        var harness = new Harness();
+        var embyRunTimeTicks = TimeSpan.FromMinutes(60).Ticks;
+        var ticket = harness.Issue(runTimeTicks: embyRunTimeTicks);
+        var clientRunTimeTicks = TimeSpan.FromMinutes(45).Ticks;
+
+        var accepted = await harness.Coordinator.StartAsync(
+            ticket.Value,
+            harness.Request(ticket, 1, 0, runTimeTicks: clientRunTimeTicks));
+        Assert.AreEqual(200, accepted.StatusCode);
+        Assert.AreEqual(embyRunTimeTicks, harness.Bridge.LastStartRunTimeTicks);
+
+        var invalidHarness = new Harness();
+        var invalidTicket = invalidHarness.Issue();
+        var zero = invalidHarness.Request(invalidTicket, 1, 0, runTimeTicks: 0);
+        var tooLarge = invalidHarness.Request(
+            invalidTicket,
+            1,
+            0,
+            runTimeTicks: PlaybackReportCoordinator.MaximumProtocolInteger + 1);
+        var excessivePosition = invalidHarness.Request(
+            invalidTicket,
+            1,
+            TimeSpan.FromHours(1).Ticks,
+            runTimeTicks: TimeSpan.FromMinutes(10).Ticks);
+
+        Assert.AreEqual(400, (await invalidHarness.Coordinator.StartAsync(
+            invalidTicket.Value,
+            zero)).StatusCode);
+        Assert.AreEqual(400, (await invalidHarness.Coordinator.StartAsync(
+            invalidTicket.Value,
+            tooLarge)).StatusCode);
+        Assert.AreEqual(400, (await invalidHarness.Coordinator.StartAsync(
+            invalidTicket.Value,
+            excessivePosition)).StatusCode);
+        Assert.AreEqual(0, invalidHarness.Bridge.StartCount);
+    }
+
+    [TestMethod]
     public async Task RateLimiterAllowsNormalHeartbeatButRejectsAnImmediateFlood()
     {
         var harness = new Harness();
@@ -531,7 +664,8 @@ public sealed class PlaybackReportCoordinatorTests
             long sequence,
             long positionTicks,
             long? ownerRevision = null,
-            string? endReason = null) =>
+            string? endReason = null,
+            long? runTimeTicks = null) =>
             new()
             {
                 ProtocolVersion = 1,
@@ -540,6 +674,7 @@ public sealed class PlaybackReportCoordinatorTests
                 Epoch = 1,
                 Sequence = sequence,
                 PositionTicks = positionTicks,
+                RunTimeTicks = runTimeTicks,
                 IsPaused = false,
                 PlaybackRate = 1,
                 ClientTimeUtc = Clock.UtcNow.ToString("O"),
@@ -569,6 +704,14 @@ public sealed class PlaybackReportCoordinatorTests
 
         public long LastStopPositionTicks { get; private set; }
 
+        public long LastStartRunTimeTicks { get; private set; }
+
+        public long LastProgressRunTimeTicks { get; private set; }
+
+        public long LastProgressPositionTicks { get; private set; }
+
+        public long LastStopRunTimeTicks { get; private set; }
+
         public void BlockNextStart()
         {
             blockedStart = new TaskCompletionSource<bool>(
@@ -590,6 +733,7 @@ public sealed class PlaybackReportCoordinatorTests
             PlaybackReportRequest request)
         {
             StartCount++;
+            LastStartRunTimeTicks = grant.RunTimeTicks;
             if (blockedStart is not null)
             {
                 blockedStartEntered!.TrySetResult(true);
@@ -616,6 +760,8 @@ public sealed class PlaybackReportCoordinatorTests
                 throw new PlaybackAuthorizationException("revoked");
             }
             ProgressCount++;
+            LastProgressPositionTicks = request.PositionTicks;
+            LastProgressRunTimeTicks = grant.RunTimeTicks;
             return Task.CompletedTask;
         }
 
@@ -631,6 +777,7 @@ public sealed class PlaybackReportCoordinatorTests
             }
             StopCount++;
             LastStopPositionTicks = positionTicks;
+            LastStopRunTimeTicks = grant.RunTimeTicks;
             if (isAutomated)
             {
                 AutomatedStopCount++;

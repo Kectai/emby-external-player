@@ -30,8 +30,8 @@ Web 资源嵌入 DLL，由匿名只读资源接口提供。插件启动时只向
 2. `GET /ExternalPlayer/Manifest` 根据当前认证用户、媒体条目、平台和语言返回可用播放器、媒体版本、外挂字幕、续播位置及个人默认播放器。
 3. 用户确认后，Web 模块向 `POST /ExternalPlayer/Resolve` 提交所选媒体源、字幕、播放器和续播方式。
 4. 服务端重新检查用户权限、媒体源、字幕、播放器状态和平台范围。
-5. 服务端为媒体和字幕分别签发短期票据；所选播放器启用回传能力时还会签发独立的进度回传票据和 `launchId`，再生成播放器 URL Scheme。
-6. 浏览器把 URL Scheme 交给操作系统，播放器通过票据流入口读取媒体和字幕。
+5. 本地媒体和字幕分别签发短期票据；静态 HTTP(S) `.strm` 签发独立的远程票据。所选播放器启用回传能力时还会签发进度票据和 `launchId`，再生成播放器 URL Scheme。
+6. 浏览器把 URL Scheme 交给操作系统。本地资源由票据流入口读取；远程入口由服务端取得源站的临时重定向，再把播放器 302 到最终 CDN。
 7. 安装了兼容 Reporter 的客户端使用 Playback Reporting Protocol v1 调用 Start、Progress 和 Stop；服务端校验所有权后转交 Emby `ISessionManager`。
 
 Manifest 只用于展示。Resolve 不信任浏览器先前取得的数据，因此直接构造请求不能绕过服务端校验。
@@ -48,6 +48,8 @@ Manifest 只用于展示。Resolve 不信任浏览器先前取得的数据，因
 | `GET/HEAD /ExternalPlayer/Stream/{FileName}` | 短期票据 | 读取媒体 |
 | `GET/HEAD /ExternalPlayer/Stream/{LaunchId}/{FileName}` | 媒体票据 + launch 绑定 | 读取支持回传的外部播放器媒体 |
 | `GET/HEAD /ExternalPlayer/Subtitle/{Index}/{FileName}` | 短期票据 | 读取外挂字幕 |
+| `GET/HEAD /ExternalPlayer/Remote/{FileName}` | 远程票据 | 校验 `.strm` 并返回临时 CDN 重定向 |
+| `GET/HEAD /ExternalPlayer/Remote/{LaunchId}/{FileName}` | 远程票据 + launch 绑定 | 校验支持回传的 `.strm` 并返回临时 CDN 重定向 |
 | `POST /ExternalPlayer/Playback/Start` | 专用回传票据 | 创建外部播放器 Emby 播放会话 |
 | `POST /ExternalPlayer/Playback/Progress` | 专用回传票据 + owner revision | 更新位置、暂停和速度 |
 | `POST /ExternalPlayer/Playback/Stop` | 专用回传票据 + owner revision | 保存最终位置并结束会话 |
@@ -77,11 +79,17 @@ Manifest 只用于展示。Resolve 不信任浏览器先前取得的数据，因
 
 ## 票据与流
 
-媒体、字幕与进度回传票据彼此独立。媒体和字幕票据绑定资源读取信息；进度票据只绑定用户、规范条目、媒体源、`launchId`、服务端 launch generation 和绝对过期时间。服务端只保存票据摘要，禁用插件、卸载或重启都会结束活动回传会话并清空内存票据。
+本地媒体、字幕、远程媒体与进度回传票据彼此独立。远程票据绑定用户、媒体源、本地 `.strm` 文件状态和源站 URL，沿用管理员配置的播放票据有效期；源站 URL 不出现在启动 Scheme、播放标题或生产日志中。进度票据只绑定用户、规范条目、媒体源、`launchId`、服务端 launch generation 和绝对过期时间。服务端只保存票据摘要，禁用插件、卸载或重启都会结束活动回传会话并清空内存票据。
 
-播放器支持请求头时，票据通过 `X-Emby-Playback-Ticket` 和 `X-Emby-Subtitle-Ticket` 传递；否则使用 Emby 可脱敏的 `api_key` 查询参数。流入口在每次读取时重新检查票据、用户权限、当前媒体源和文件状态。
+兑换远程票据时，插件以 `Range: bytes=0-0` 请求源站且禁止自动跟随重定向，只读取响应头。源站必须在 30 秒内直接返回安全的 HTTP(S) 30x 地址；插件随后向播放器返回 302。安全结果进入最多 256 项的进程内租约缓存：30 秒租约内直接复用，到期后立即移除，下一次网关访问重新请求一次源站。插件不请求或探测 CDN 地址，也不解释 CDN 查询参数或签名格式。
+
+源站发生网络错误、超时、408、429 或 5xx 时，插件不会返回过期地址，而是返回带 `Retry-After` 的 503；失败缓存按源 URL 共享，只记录退避截止时间，不保存 URL，因此切换 `User-Agent` 不能绕过源站冷却。源站声明的 `Retry-After` 最多采纳 60 秒，其他临时失败默认冷却 5 秒。相同请求的并发解析会合并为一次远程访问，每次最多接受 64 个等待请求；全局最多同时处理 16 个，单源最多 2 个，且单源新远程操作按短突发 12 次、持续每分钟 30 次限流。媒体正文由播放器直接从 CDN 读取，不经过 Emby 的内存、磁盘或网络链路。
+
+本地媒体播放器支持请求头时，票据通过 `X-Emby-Playback-Ticket` 和 `X-Emby-Subtitle-Ticket` 传递；否则使用 Emby 可脱敏的 `api_key` 查询参数。启用 STRM 回传时，媒体票据、进度票据和进度有效期封装在同一个版本化 `api_key` 值中，媒体路由只兑换媒体部分，Reporter 只保留进度部分。流入口在每次读取时重新检查票据、用户权限、当前媒体源和文件状态。
 
 同一用户、同一规范条目使用单写入者租约。只有较新且已成功 Start 的显式 launch 能获得新的 `ownerRevision`；旧窗口可以继续播放，但其迟发 Progress、Stop 和断网恢复都只能得到 `superseded`，不能覆盖新会话。90 秒无心跳时看门狗以最后接受位置自动 Stop，并允许尚未被新 launch 取代的同一票据使用更高 epoch 恢复。
+
+Reporter 可以在 Protocol v1 请求中附带播放器确认的 `runTimeTicks`。服务端已有媒体时长时始终以 Emby 为准；静态媒体源尚无时长时，仅把首个有效客户端值用于当前回传会话的 Start/Progress，不触发媒体扫描，也不写入媒体流元数据。
 
 ## Web 生命周期
 

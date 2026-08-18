@@ -154,6 +154,7 @@ public sealed class Plugin : BasePluginSimpleUI<PluginOptions>
             if (!options.Enabled)
             {
                 Runtime?.Tickets.Clear();
+                Runtime?.RemoteStreams.Clear();
             }
             logger.Info("External Player options were updated.");
             PluginEntryPoint.Instance?.Refresh(options);
@@ -678,6 +679,7 @@ public sealed class Plugin : BasePluginSimpleUI<PluginOptions>
     public override void OnUninstalling()
     {
         Runtime?.Tickets.Clear();
+        Runtime?.RemoteStreams.Clear();
         try
         {
             lock (optionsSync)

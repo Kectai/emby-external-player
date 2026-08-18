@@ -94,6 +94,33 @@ public static class ServerUrlBuilder
             Uri.EscapeDataString(fileName ?? "subtitle." + extension));
     }
 
+    public static string BuildTicketRemoteStreamUrl(
+        string apiBase,
+        string ticket,
+        string fileName)
+    {
+        return Combine(
+            apiBase,
+            "ExternalPlayer/Remote/" + Uri.EscapeDataString(fileName) +
+            "?api_key=" + Uri.EscapeDataString(ticket));
+    }
+
+    public static string BuildTicketRemoteLaunchStreamUrl(
+        string apiBase,
+        string launchToken,
+        string launchId,
+        string fileName)
+    {
+        if (!PlaybackReportTicketStore.IsValidLaunchId(launchId))
+        {
+            throw new ArgumentException("The launch id is invalid.", nameof(launchId));
+        }
+        return Combine(
+            apiBase,
+            "ExternalPlayer/Remote/" + launchId + "/" + Uri.EscapeDataString(fileName) +
+            "?api_key=" + Uri.EscapeDataString(launchToken));
+    }
+
     public static string NormalizeExtension(string? value, string fallback)
     {
         var normalized = (value ?? string.Empty).Trim().TrimStart('.').ToLowerInvariant();

@@ -30,4 +30,9 @@ public sealed class PlaybackAuthorizationException : Exception
         : base(message)
     {
     }
+
+    public PlaybackAuthorizationException(string message, Exception innerException)
+        : base(message, innerException)
+    {
+    }
 }

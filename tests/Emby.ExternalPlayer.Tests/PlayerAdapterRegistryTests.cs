@@ -488,6 +488,16 @@ public sealed class PlayerAdapterRegistryTests
     }
 
     [TestMethod]
+    public void BuildLaunchUrl_RejectsLocalFileStreamUrl()
+    {
+        var context = CreateContext();
+        context.StreamUrl = "file:///etc/passwd";
+
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            CreateRegistry().BuildLaunchUrl(PlayerId.Iina, context));
+    }
+
+    [TestMethod]
     public void BuildLaunchUrl_RejectsNonHttpSubtitleUrl()
     {
         var context = CreateContext();

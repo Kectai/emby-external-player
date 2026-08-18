@@ -104,4 +104,40 @@ public sealed class ServerUrlBuilderTests
             "https://media.example/emby/ExternalPlayer/Subtitle/4/Movie.%E7%AE%80%E4%B8%AD.ass",
             namedResult);
     }
+
+    [TestMethod]
+    public void RemoteStreamUrl_ContainsTicketButNeverTheSignedOriginUrl()
+    {
+        var result = ServerUrlBuilder.BuildTicketRemoteStreamUrl(
+            "https://media.example/emby/",
+            "short_lived-ticket",
+            "中文 Movie.mkv");
+
+        Assert.AreEqual(
+            "https://media.example/emby/ExternalPlayer/Remote/" +
+            "%E4%B8%AD%E6%96%87%20Movie.mkv?api_key=short_lived-ticket",
+            result);
+        Assert.IsFalse(result.Contains("Signature", StringComparison.OrdinalIgnoreCase));
+        Assert.IsFalse(result.Contains("cdn.example", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [TestMethod]
+    public void RemoteReportingUrl_BindsLaunchWithoutExposingTheOriginUrl()
+    {
+        var result = ServerUrlBuilder.BuildTicketRemoteLaunchStreamUrl(
+            "https://media.example/emby/",
+            "v1.media.progress.1786974752",
+            "f74b0d6ee5af4a76a9f24e0942b49267",
+            "中文 Movie.mkv");
+
+        Assert.AreEqual(
+            "https://media.example/emby/ExternalPlayer/Remote/" +
+            "f74b0d6ee5af4a76a9f24e0942b49267/" +
+            "%E4%B8%AD%E6%96%87%20Movie.mkv?api_key=v1.media.progress.1786974752",
+            result);
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            ServerUrlBuilder.BuildTicketRemoteLaunchStreamUrl(
+                "https://media.example/", "token", "../bad", "Movie.mkv"));
+        Assert.IsFalse(result.Contains("cdn.example", StringComparison.OrdinalIgnoreCase));
+    }
 }

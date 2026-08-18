@@ -6,7 +6,7 @@ Manifest 和 Resolve 使用 Emby 认证上下文确定用户，不接受客户�
 
 自定义模板只能使用 `{url}`、`{title}`、`{subtitle}`、`{start}` 和 `{headers}`。模板必须使用受允许的非 Web 自定义协议；HTTP(S)、脚本、文件、通信、`intent:` 和 `ms-*` 等协议会被拒绝。Web 模块在打开地址前还会核对服务端声明的 Scheme。
 
-插件只接受 Emby 返回的本地 `File` 媒体源。STRM、HLS、远程 URL 和虚拟源不会降级为包含完整 Emby Token 的播放地址。
+本地 `File` 媒体源通过插件的短期票据流入口读取。远程播放只接受本地 `.strm` 文件中的单条 HTTP(S) URL，并要求它与 Emby 当前静态媒体源完全一致。`RequiresOpening`、`OpenToken`、`RequiredHttpHeaders`、非 HTTP(S) 协议及其他远程或虚拟源均会被拒绝。
 
 ## 短期票据
 
@@ -20,7 +20,11 @@ Manifest 和 Resolve 使用 Emby 认证上下文确定用户，不接受客户�
 
 播放进度回传使用第三种独立的 32 字节随机票据，只能写入该次 launch 绑定的播放状态，不能读取媒体，也不能选择用户或条目。内置 IINA 默认启用；自定义播放器必须由管理员显式授权，且模板必须支持 `{headers}`。服务端为每个用户最多允许 8 个、全局最多允许 256 个已 Start 的活动回传会话；未 Start、dormant 和 terminal 授权不占活动额度，含 tombstone 的总存储上限为 512。容量不足只省略或拒绝回传，不阻断媒体播放。单票据采用持续每分钟 12 次、短突发 4 次的令牌桶限频。请求体上限为 2 KiB，位置、速度、epoch、sequence 和 owner revision 均进行范围检查。
 
-支持请求头的播放器使用 `X-Emby-Playback-Ticket` 和 `X-Emby-Subtitle-Ticket`；启用回传的播放器还会收到 `X-Emby-Progress-Ticket`。其他播放器使用 Emby 可脱敏的 `api_key` 查询参数。反向代理仍应主动隐藏查询票据和全部 `X-Emby-*-Ticket` 请求头，并且不得把 `/ExternalPlayer/Playback/*` 重定向到其他 origin；当前 IINA JavaScript HTTP API 无法禁止或审计跨域重定向。
+本地媒体使用支持请求头的播放器时，通过 `X-Emby-Playback-Ticket` 和 `X-Emby-Subtitle-Ticket` 传递票据；启用回传的播放器还会收到 `X-Emby-Progress-Ticket`。其他播放器使用 Emby 可脱敏的 `api_key` 查询参数。启用 STRM 回传时，初始 Emby URL 的版本化 `api_key` 同时携带彼此独立的媒体票据和进度票据；媒体入口只使用媒体票据，Reporter 验证后只保留进度票据，二者不能互换权限。Emby 返回的 302 `Location` 完全取自源站响应，不合并初始查询参数，因此这两种票据都不会传给远程源站或 CDN。
+
+远程 `.strm` 媒体票据沿用管理员配置的播放票据有效期，以保证长视频在后段 seek 或重新发起请求时仍能进入 Emby；它只出现在初始 Emby URL。插件取得源站重定向后，播放器会看到 CDN 最终地址。插件不解释 CDN 查询参数或推断签名期限，而是使用单一的 30 秒按需租约：成功地址按源 URL 和播放器 `User-Agent` 隔离复用，过期地址立即失去返回资格，下一次网关访问重新解析 STRM 源站；Emby Server 不主动访问或探测 CDN。源站发生网络错误、超时、408、429 或 5xx 时，插件返回带 `Retry-After` 的 503，并按源 URL 共享不含 URL 的短期失败状态，绝不降级返回过期 CDN 地址。源站 `Retry-After` 最多采纳 60 秒，其他临时失败默认冷却 5 秒。
+
+CDN 地址只保存在最多 256 项、有效期 30 秒的进程内缓存中；看门狗定期清理过期地址和票据，插件禁用或卸载时立即清空。最终地址可能带有 CDN 授权参数；插件会阻止源地址中已识别的查询授权参数值被直接复制、改名到目标查询、目标主机标签或目标路径，但无法从不透明的新授权值推断真实有效期。路径本身携带且没有可识别参数名的授权值无法与普通媒体路径可靠区分，不应使用这类 STRM 源地址。播放器在授权有效期内仍可复制最终地址，这是直连 CDN 模式无法消除的边界。反向代理应隐藏 `api_key` 查询值和全部 `X-Emby-*-Ticket` 请求头，并且不得把 `/ExternalPlayer/Playback/*` 重定向到其他 origin。
 
 回传 API 不使用通用 Emby API Key。每次请求重新检查用户权限和媒体源，并在 `UserId + CanonicalItemId` 范围内验证服务端签发的 launch generation、owner revision、epoch 和 sequence。重复事件只返回已有 ACK；已被较新 launch 取代的旧请求不会调用 Emby 会话接口。
 
@@ -28,7 +32,9 @@ Manifest 和 Resolve 使用 Emby 认证上下文确定用户，不接受客户�
 
 ## 文件读取
 
-插件不向客户端提供的 URL 发起请求，不通过本机 Emby HTTP 接口回源，因此没有远程回源 SSRF 面。物理路径不返回浏览器，也不写入生产日志。
+插件会从 Emby Server 请求经校验的 `.strm` 源站 URL。请求使用 `Range: bytes=0-0`、禁用自动重定向并只读取响应头；返回 200 正文、缺少 Location、不安全目标或仍携带原始长期授权值的重定向都会失败。插件只在首次解析或 30 秒租约到期后按需请求源站，不请求响应中的 CDN 地址；相同源和 User-Agent 的并发解析合并为一次，临时失败后的 5 秒冷却用于抑制重试。源站 URL、Location 和签名不写入生产日志，启动 Scheme 与播放标题只包含短期 Emby 票据和清洗后的媒体名。
+
+由于该请求由 Emby Server 发起，能够写入媒体库 `.strm` 文件的本地用户，以及管理员配置的 STRM 源站主机、DNS 和网络目标，都属于服务器网络访问的信任边界。媒体正文随后由播放器直连 CDN，不会被插件缓冲、落盘或中转，大文件大小不影响插件资源占用。
 
 出票和读取阶段都会核对路径、长度与最后修改时间，真正打开前再次复核。流使用异步 `FileStream`，由 Emby 处理 HEAD、单 Range 和输出长度，不会把完整媒体载入内存。符号链接媒体库被允许，因此能够修改 Emby 媒体目录的本地用户属于服务器信任边界。
 

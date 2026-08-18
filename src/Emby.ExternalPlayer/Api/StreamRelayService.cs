@@ -13,6 +13,7 @@ using MediaBrowser.Controller.Net;
 using MediaBrowser.Model.IO;
 using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.MediaInfo;
+using MediaBrowser.Model.Logging;
 using MediaBrowser.Model.Services;
 
 namespace Emby.ExternalPlayer.Api;
@@ -21,6 +22,7 @@ public sealed class StreamRelayService : IService, IRequiresRequest
 {
     private readonly IHttpResultFactory resultFactory;
     private readonly ILibraryManager libraryManager;
+    private readonly ILogger logger;
     private readonly IMediaSourceManager mediaSourceManager;
     private readonly IUserManager userManager;
 
@@ -28,12 +30,14 @@ public sealed class StreamRelayService : IService, IRequiresRequest
         IHttpResultFactory resultFactory,
         ILibraryManager libraryManager,
         IMediaSourceManager mediaSourceManager,
-        IUserManager userManager)
+        IUserManager userManager,
+        ILogManager logManager)
     {
         this.resultFactory = resultFactory;
         this.libraryManager = libraryManager;
         this.mediaSourceManager = mediaSourceManager;
         this.userManager = userManager;
+        logger = logManager.GetLogger(Plugin.Instance?.Name ?? "External Player");
     }
 
     public IRequest Request { get; set; } = null!;
@@ -96,6 +100,120 @@ public sealed class StreamRelayService : IService, IRequiresRequest
 
     public Task<object> Head(GetExternalPlayerSubtitle request) => Get(request);
 
+    public async Task<object> Get(GetExternalPlayerRemoteStream request)
+    {
+        return await GetRemoteStream(request.FileName, launchId: null).ConfigureAwait(false);
+    }
+
+    public async Task<object> Get(GetExternalPlayerRemoteLaunchStream request)
+    {
+        return await GetRemoteStream(request.FileName, request.LaunchId).ConfigureAwait(false);
+    }
+
+    private async Task<object> GetRemoteStream(string fileName, string? launchId)
+    {
+        var rawTicket = Request.QueryString["api_key"] ?? string.Empty;
+        if (!RemoteStreamPolicy.TryParseLaunchToken(rawTicket, out var credentials))
+        {
+            throw UnauthorizedTicket("The remote playback ticket is invalid or expired.");
+        }
+        var payload = GetTicket(credentials.MediaTicket, LaunchTicketScope.RemoteStream);
+        RequireRemotePathMatch(payload, credentials, fileName, launchId);
+
+        var runtime = Plugin.Runtime
+            ?? throw new InvalidOperationException("The External Player runtime is unavailable.");
+        ResolvedRemoteStream resolved;
+        try
+        {
+            resolved = await runtime.RemoteStreams.ResolveAsync(
+                    payload.RemoteUrl,
+                    Request.UserAgent,
+                    runtime.Clock.UtcNow,
+                    Request.CancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (RemoteResolutionThrottledException exception)
+        {
+            logger.Debug(
+                "External Player throttled STRM redirect resolution for item " +
+                payload.ItemId.ToString("N") + ".");
+            Request.Response.StatusCode = 429;
+            Request.Response.AddHeader(
+                "Retry-After",
+                exception.RetryAfterSeconds.ToString(CultureInfo.InvariantCulture));
+            Request.Response.AddHeader("Cache-Control", "private, no-store");
+            return string.Empty;
+        }
+        catch (RemoteSourceUnavailableException exception)
+        {
+            logger.Debug(
+                "External Player could not temporarily resolve the STRM source for item " +
+                payload.ItemId.ToString("N") + ".");
+            Request.Response.StatusCode = 503;
+            Request.Response.AddHeader(
+                "Retry-After",
+                exception.RetryAfterSeconds.ToString(CultureInfo.InvariantCulture));
+            Request.Response.AddHeader("Cache-Control", "private, no-store");
+            return string.Empty;
+        }
+        catch (Exception exception) when (
+            exception is ArgumentException ||
+            exception is InvalidOperationException ||
+            exception is System.Net.Http.HttpRequestException ||
+            exception is TaskCanceledException)
+        {
+            logger.Debug(
+                "External Player could not resolve the authorized STRM redirect for item " +
+                payload.ItemId.ToString("N") + ": " + GetRemoteFailureReason(exception));
+            throw new ResourceNotFoundException(
+                "The selected STRM source could not provide a safe temporary media redirect.");
+        }
+
+        // The shared source request is independent of any one caller. Recheck
+        // authorization and the descriptor after awaiting it, before exposing
+        // the resolved CDN location to this response.
+        payload = GetTicket(credentials.MediaTicket, LaunchTicketScope.RemoteStream);
+        RequireRemotePathMatch(payload, credentials, fileName, launchId);
+
+        logger.Debug(
+            "External Player resolved a temporary STRM redirect for item " +
+            payload.ItemId.ToString("N") + ".");
+        Request.Response.StatusCode = 302;
+        Request.Response.AddHeader("Location", resolved.Url);
+        Request.Response.AddHeader("Cache-Control", "private, no-store");
+        Request.Response.AddHeader("Pragma", "no-cache");
+        Request.Response.AddHeader("Referrer-Policy", "no-referrer");
+        Request.Response.AddHeader("X-Content-Type-Options", "nosniff");
+        return string.Empty;
+    }
+
+    private static void RequireRemotePathMatch(
+        LaunchTicketPayload payload,
+        RemoteLaunchCredentials credentials,
+        string fileName,
+        string? launchId)
+    {
+        if (!string.Equals(payload.LaunchId, launchId ?? string.Empty, StringComparison.Ordinal) ||
+            credentials.HasPlaybackReporting != !string.IsNullOrEmpty(launchId) ||
+            !string.Equals(fileName, payload.UrlFileName, StringComparison.Ordinal))
+        {
+            throw new ResourceNotFoundException(
+                "The remote stream file name does not match the ticket.");
+        }
+    }
+
+    public Task<object> Head(GetExternalPlayerRemoteStream request) => Get(request);
+
+    public Task<object> Head(GetExternalPlayerRemoteLaunchStream request) => Get(request);
+
+    private static string GetRemoteFailureReason(Exception exception) => exception switch
+    {
+        InvalidOperationException => exception.Message,
+        TaskCanceledException => "The source request timed out or was canceled.",
+        System.Net.Http.HttpRequestException => "The source request failed.",
+        _ => "The source or redirect URL was invalid.",
+    };
+
     private LaunchTicketPayload GetTicket(string rawTicket, LaunchTicketScope expectedScope)
     {
         var runtime = Plugin.Runtime
@@ -127,20 +245,53 @@ public sealed class StreamRelayService : IService, IRequiresRequest
                 user: user)
             .FirstOrDefault(source =>
                 string.Equals(source.Id, payload.MediaSourceId, StringComparison.Ordinal));
-        var authorizedPath = expectedScope == LaunchTicketScope.Media
-            ? mediaSource?.Protocol == MediaProtocol.File ? mediaSource.Path : null
-            : mediaSource?.MediaStreams?.FirstOrDefault(stream =>
-                stream.Type == MediaStreamType.Subtitle &&
-                stream.Protocol == MediaProtocol.File &&
-                stream.Index == payload.SubtitleStreamIndex &&
-                stream.IsExternal)?.Path;
-        if (!PathsEqual(authorizedPath, payload.FilePath))
+        var matchesResource = expectedScope switch
+        {
+            LaunchTicketScope.Media =>
+                mediaSource?.Protocol == MediaProtocol.File &&
+                PathsEqual(mediaSource.Path, payload.FilePath),
+            LaunchTicketScope.Subtitle => PathsEqual(
+                mediaSource?.MediaStreams?.FirstOrDefault(stream =>
+                    stream.Type == MediaStreamType.Subtitle &&
+                    stream.Protocol == MediaProtocol.File &&
+                    stream.Index == payload.SubtitleStreamIndex &&
+                    stream.IsExternal)?.Path,
+                payload.FilePath),
+            LaunchTicketScope.RemoteStream =>
+                RemoteMediaSourceMatches(item.Path, mediaSource, payload),
+            _ => false,
+        };
+        if (!matchesResource)
         {
             runtime.Tickets.Revoke(rawTicket);
             throw UnauthorizedTicket("The playback ticket no longer matches the selected media source.");
         }
 
         return payload;
+    }
+
+    private static bool RemoteMediaSourceMatches(
+        string? itemPath,
+        MediaBrowser.Model.Dto.MediaSourceInfo? mediaSource,
+        LaunchTicketPayload payload)
+    {
+        if (mediaSource is null || mediaSource.Protocol == MediaProtocol.File)
+        {
+            return false;
+        }
+
+        try
+        {
+            var current = RemoteMediaSourcePolicy.RequireDirectStrmSource(itemPath, mediaSource);
+            return PathsEqual(current.DescriptorFile.FullName, payload.FilePath) &&
+                current.DescriptorFile.Length == payload.ContentLength &&
+                current.DescriptorFile.LastWriteTimeUtc.Ticks == payload.LastWriteTimeUtcTicks &&
+                string.Equals(current.Url, payload.RemoteUrl, StringComparison.Ordinal);
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
     }
 
     private async Task<object> CreateFileResult(

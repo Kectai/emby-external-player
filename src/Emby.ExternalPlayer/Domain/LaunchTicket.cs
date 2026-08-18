@@ -6,6 +6,7 @@ public enum LaunchTicketScope
 {
     Media,
     Subtitle,
+    RemoteStream,
 }
 
 public sealed class LaunchTicketPayload
@@ -21,6 +22,8 @@ public sealed class LaunchTicketPayload
     public string MediaSourceId { get; set; } = string.Empty;
 
     public string FilePath { get; set; } = string.Empty;
+
+    public string RemoteUrl { get; set; } = string.Empty;
 
     public int? SubtitleStreamIndex { get; set; }
 

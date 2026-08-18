@@ -27,3 +27,19 @@ public sealed class GetExternalPlayerSubtitle
 
     public string FileName { get; set; } = string.Empty;
 }
+
+[Route("/ExternalPlayer/Remote/{FileName}", "GET,HEAD", Summary = "Resolves an authorized STRM source without exposing its long-lived signature")]
+[Unauthenticated]
+public sealed class GetExternalPlayerRemoteStream
+{
+    public string FileName { get; set; } = string.Empty;
+}
+
+[Route("/ExternalPlayer/Remote/{LaunchId}/{FileName}", "GET,HEAD", Summary = "Resolves an authorized STRM source bound to a playback-reporting launch")]
+[Unauthenticated]
+public sealed class GetExternalPlayerRemoteLaunchStream
+{
+    public string LaunchId { get; set; } = string.Empty;
+
+    public string FileName { get; set; } = string.Empty;
+}

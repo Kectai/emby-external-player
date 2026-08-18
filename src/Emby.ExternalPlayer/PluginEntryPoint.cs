@@ -102,10 +102,16 @@ public sealed class PluginEntryPoint : IServerEntryPoint, IDisposable
         }
         try
         {
-            var coordinator = Plugin.Runtime?.PlaybackReports;
-            if (coordinator is not null && coordinator.ActiveCount > 0)
+            var runtime = Plugin.Runtime;
+            if (runtime is null)
             {
-                await coordinator.ScanInactiveAsync().ConfigureAwait(false);
+                return;
+            }
+            runtime.Tickets.RemoveExpired();
+            runtime.RemoteStreams.RemoveExpired(runtime.Clock.UtcNow);
+            if (runtime.PlaybackReports.ActiveCount > 0)
+            {
+                await runtime.PlaybackReports.ScanInactiveAsync().ConfigureAwait(false);
             }
         }
         catch (Exception exception)

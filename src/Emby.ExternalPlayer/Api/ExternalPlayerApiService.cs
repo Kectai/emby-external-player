@@ -10,6 +10,7 @@ using MediaBrowser.Common.Extensions;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Net;
 using MediaBrowser.Model.MediaInfo;
+using MediaBrowser.Model.Logging;
 using MediaBrowser.Model.Services;
 using MediaBrowser.Model.Net;
 
@@ -18,15 +19,18 @@ namespace Emby.ExternalPlayer.Api;
 public sealed class ExternalPlayerApiService : IService, IRequiresRequest
 {
     private readonly IAuthorizationContext authorizationContext;
+    private readonly ILogger logger;
     private readonly MediaManifestService manifestService;
 
     public ExternalPlayerApiService(
         IAuthorizationContext authorizationContext,
         ILibraryManager libraryManager,
         IMediaSourceManager mediaSourceManager,
-        IUserDataManager userDataManager)
+        IUserDataManager userDataManager,
+        ILogManager logManager)
     {
         this.authorizationContext = authorizationContext;
+        logger = logManager.GetLogger(Plugin.Instance?.Name ?? "External Player");
         manifestService = new MediaManifestService(libraryManager, mediaSourceManager, userDataManager);
     }
 
@@ -170,13 +174,28 @@ public sealed class ExternalPlayerApiService : IService, IRequiresRequest
             request.SubtitleStreamIndex);
 
         var publicApiBase = ServerUrlBuilder.GetApiBase(Request.AbsoluteUri, "ExternalPlayer/Resolve");
-        if (selection.MediaSource.Protocol != MediaProtocol.File)
+        FileInfo? mediaFile = null;
+        RemoteStrmSource? remoteSource = null;
+        if (selection.MediaSource.Protocol == MediaProtocol.File)
         {
-            throw new ArgumentException(
-                "The secure relay supports local file media sources only.");
+            mediaFile = RequireAvailableFile(selection.MediaSource.Path);
         }
-
-        var mediaFile = RequireAvailableFile(selection.MediaSource.Path);
+        else
+        {
+            try
+            {
+                remoteSource = RemoteMediaSourcePolicy.RequireDirectStrmSource(
+                    context.Item.Path,
+                    selection.MediaSource);
+            }
+            catch (ArgumentException exception)
+            {
+                logger.Debug(
+                    "External Player rejected an unsupported remote media source for item " +
+                    context.Item.Id.ToString("N") + ": " + exception.Message);
+                throw;
+            }
+        }
         var supportsExternalSubtitle =
             (selection.Player.Capabilities & PlayerCapabilities.ExternalSubtitle) != 0;
         var attachSubtitle = selection.Subtitle is not null && supportsExternalSubtitle;
@@ -194,10 +213,17 @@ public sealed class ExternalPlayerApiService : IService, IRequiresRequest
 
         var lifetime = LaunchTicketStore.CreateLifetime(options.TicketLifetimeMinutes);
         var urlFileName = SafeFileNamePolicy.CreateUrlTitle(context.Item.Name);
-        var mediaFormat = ServerUrlBuilder.NormalizeExtension(selection.MediaSource.Container, "mkv");
-        var useHeaderTickets =
+        var mediaFormat = remoteSource is null
+            ? ServerUrlBuilder.NormalizeExtension(selection.MediaSource.Container, "mkv")
+            : RemoteStreamPolicy.ResolveMediaExtension(
+                selection.MediaSource.Container,
+                remoteSource.Url);
+        // Local relay headers stay on the Emby origin. Remote STRM sources use
+        // a query ticket because plugin headers must never follow the final CDN redirect.
+        var supportsHttpRequestHeaders =
             (selection.Player.Capabilities & PlayerCapabilities.HttpRequestHeaders) != 0;
-        var enablePlaybackReporting = useHeaderTickets &&
+        var useLocalHeaderTickets = mediaFile is not null && supportsHttpRequestHeaders;
+        var enablePlaybackReporting = supportsHttpRequestHeaders &&
             (selection.Player.Capabilities & PlayerCapabilities.PlaybackReporting) != 0;
         PlaybackReportTicket? progressTicket = null;
         if (enablePlaybackReporting && runtime.PlaybackReports.Enabled)
@@ -210,6 +236,7 @@ public sealed class ExternalPlayerApiService : IService, IRequiresRequest
                     ItemId = context.Item.Id,
                     CanonicalItemId = context.Item.Id,
                     MediaSourceId = selection.MediaSource.Id,
+                    IsRemoteStrm = remoteSource is not null,
                     RunTimeTicks = selection.MediaSource.RunTimeTicks ?? context.Item.RunTimeTicks ?? 0,
                     PlayerName = selection.Player.DisplayName,
                     ClientAddress = Request.RemoteIp?.ToString() ?? string.Empty,
@@ -227,9 +254,12 @@ public sealed class ExternalPlayerApiService : IService, IRequiresRequest
                 progressTicket = null;
             }
         }
-        var ticketPayloads = new List<LaunchTicketPayload>
+        var ticketPayloads = new List<LaunchTicketPayload>();
+        int? mediaTicketIndex = null;
+        if (mediaFile is not null)
         {
-            new LaunchTicketPayload
+            mediaTicketIndex = ticketPayloads.Count;
+            ticketPayloads.Add(new LaunchTicketPayload
             {
                 LaunchId = progressTicket?.LaunchId ?? string.Empty,
                 Scope = LaunchTicketScope.Media,
@@ -242,11 +272,31 @@ public sealed class ExternalPlayerApiService : IService, IRequiresRequest
                 ContentType = MimeTypes.GetMimeType("stream." + mediaFormat),
                 SafeFileName = SafeFileNamePolicy.CreateGeneric(mediaFormat),
                 UrlFileName = urlFileName,
-            },
-        };
+            });
+        }
+        else if (remoteSource is not null)
+        {
+            var remoteFileName = RemoteStreamPolicy.CreateFileName(context.Item.Name, mediaFormat);
+            mediaTicketIndex = ticketPayloads.Count;
+            ticketPayloads.Add(new LaunchTicketPayload
+            {
+                LaunchId = progressTicket?.LaunchId ?? string.Empty,
+                Scope = LaunchTicketScope.RemoteStream,
+                UserId = user.Id,
+                ItemId = context.Item.Id,
+                MediaSourceId = selection.MediaSource.Id,
+                FilePath = remoteSource.DescriptorFile.FullName,
+                RemoteUrl = remoteSource.Url,
+                ContentLength = remoteSource.DescriptorFile.Length,
+                LastWriteTimeUtcTicks = remoteSource.DescriptorFile.LastWriteTimeUtc.Ticks,
+                SafeFileName = remoteFileName,
+                UrlFileName = remoteFileName,
+            });
+        }
 
         var subtitleFormat = string.Empty;
         var subtitleFileName = string.Empty;
+        int? subtitleTicketIndex = null;
         if (attachSubtitle && selection.Subtitle is not null && subtitleFile is not null)
         {
             subtitleFormat = ServerUrlBuilder.NormalizeExtension(selection.Subtitle.Codec, "srt");
@@ -254,6 +304,7 @@ public sealed class ExternalPlayerApiService : IService, IRequiresRequest
                 subtitleFile.FullName,
                 subtitleFormat,
                 "subtitle");
+            subtitleTicketIndex = ticketPayloads.Count;
             ticketPayloads.Add(new LaunchTicketPayload
             {
                 Scope = LaunchTicketScope.Subtitle,
@@ -274,7 +325,9 @@ public sealed class ExternalPlayerApiService : IService, IRequiresRequest
         IReadOnlyList<LaunchTicket> issuedTickets;
         try
         {
-            issuedTickets = runtime.Tickets.IssueBatch(ticketPayloads, lifetime);
+            issuedTickets = ticketPayloads.Count == 0
+                ? Array.Empty<LaunchTicket>()
+                : runtime.Tickets.IssueBatch(ticketPayloads, lifetime);
         }
         catch
         {
@@ -284,11 +337,30 @@ public sealed class ExternalPlayerApiService : IService, IRequiresRequest
             }
             throw;
         }
-        var mediaTicket = issuedTickets[0];
+        var mediaTicket = mediaTicketIndex.HasValue
+            ? issuedTickets[mediaTicketIndex.Value]
+            : throw new InvalidOperationException("A media playback ticket was not issued.");
+        var subtitleTicket = subtitleTicketIndex.HasValue
+            ? issuedTickets[subtitleTicketIndex.Value]
+            : null;
         var streamRequestHeaders = new List<string>();
 
         string streamUrl;
-        if (useHeaderTickets)
+        if (remoteSource is not null)
+        {
+            var remoteFileName = ticketPayloads[mediaTicketIndex!.Value].UrlFileName;
+            streamUrl = progressTicket is null
+                ? ServerUrlBuilder.BuildTicketRemoteStreamUrl(
+                    publicApiBase,
+                    mediaTicket.Value,
+                    remoteFileName)
+                : ServerUrlBuilder.BuildTicketRemoteLaunchStreamUrl(
+                    publicApiBase,
+                    RemoteStreamPolicy.CreateLaunchToken(mediaTicket.Value, progressTicket),
+                    progressTicket.LaunchId,
+                    remoteFileName);
+        }
+        else if (useLocalHeaderTickets)
         {
             streamUrl = progressTicket is null
                 ? ServerUrlBuilder.BuildHeaderTicketStreamUrl(publicApiBase, urlFileName)
@@ -321,7 +393,7 @@ public sealed class ExternalPlayerApiService : IService, IRequiresRequest
         string? subtitleUrl = null;
         if (attachSubtitle && selection.Subtitle is not null && subtitleFile is not null)
         {
-            if (useHeaderTickets)
+            if (useLocalHeaderTickets)
             {
                 subtitleUrl = ServerUrlBuilder.BuildHeaderTicketSubtitleUrl(
                     publicApiBase,
@@ -329,13 +401,13 @@ public sealed class ExternalPlayerApiService : IService, IRequiresRequest
                     subtitleFormat,
                     subtitleFileName);
                 streamRequestHeaders.Add(
-                    ServerUrlBuilder.SubtitleTicketHeaderName + ": " + issuedTickets[1].Value);
+                    ServerUrlBuilder.SubtitleTicketHeaderName + ": " + subtitleTicket!.Value);
             }
             else
             {
                 subtitleUrl = ServerUrlBuilder.BuildTicketSubtitleUrl(
                     publicApiBase,
-                    issuedTickets[1].Value,
+                    subtitleTicket!.Value,
                     selection.Subtitle.Index,
                     subtitleFormat,
                     subtitleFileName);

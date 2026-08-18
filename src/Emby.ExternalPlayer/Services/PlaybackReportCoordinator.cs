@@ -255,6 +255,7 @@ public sealed class PlaybackReportCoordinator
                         retryAfterSeconds: 5);
                 }
                 var ownerRevision = ++state.Lease.NextOwnerRevision;
+                AdoptReportedRunTime(state, request);
                 PlaybackSessionHandle session;
                 try
                 {
@@ -369,6 +370,7 @@ public sealed class PlaybackReportCoordinator
                     : request.IsPaused
                         ? PlaybackProgressEventKind.Pause
                         : PlaybackProgressEventKind.Unpause;
+                AdoptReportedRunTime(state, request);
                 try
                 {
                     await currentBridge.ProgressAsync(
@@ -451,6 +453,32 @@ public sealed class PlaybackReportCoordinator
                     state.LastPositionTicks > 0
                         ? state.LastPositionTicks
                         : request.PositionTicks;
+                var adoptedRunTimeAtStop = AdoptReportedRunTime(state, request);
+                if (adoptedRunTimeAtStop)
+                {
+                    try
+                    {
+                        // PlaybackStopInfo in the supported Emby SDK has no
+                        // RunTimeTicks field. Send one final standard progress
+                        // check-in when duration first becomes known at Stop.
+                        await currentBridge.ProgressAsync(
+                            state.Grant,
+                            state.Session,
+                            CopyWithPosition(request, finalPositionTicks),
+                            PlaybackProgressEventKind.TimeUpdate).ConfigureAwait(false);
+                    }
+                    catch (PlaybackAuthorizationException)
+                    {
+                        await TryStopBridgeAsync(state, isAutomated: true).ConfigureAwait(false);
+                        MarkTerminalAndRelease(state, "unauthorized");
+                        return Error(410, request, "unauthorized", terminal: true);
+                    }
+                    catch
+                    {
+                        state.Grant.RunTimeTicks = 0;
+                        return Error(500, request, "temporaryFailure", terminal: false);
+                    }
+                }
                 try
                 {
                     await currentBridge.StopAsync(
@@ -539,6 +567,12 @@ public sealed class PlaybackReportCoordinator
         {
             return "invalidSequenceOrPosition";
         }
+        if (request.RunTimeTicks.HasValue &&
+            (request.RunTimeTicks.Value <= 0 ||
+             request.RunTimeTicks.Value > MaximumProtocolInteger))
+        {
+            return "invalidRunTime";
+        }
         if (requireOwnerRevision)
         {
             if (!request.OwnerRevision.HasValue || request.OwnerRevision <= 0 ||
@@ -556,9 +590,12 @@ public sealed class PlaybackReportCoordinator
         {
             return "invalidPlaybackRate";
         }
-        if (state.Grant.RunTimeTicks > 0 &&
-            request.PositionTicks > state.Grant.RunTimeTicks &&
-            request.PositionTicks - state.Grant.RunTimeTicks > TimeSpan.FromMinutes(5).Ticks)
+        var effectiveRunTimeTicks = state.Grant.RunTimeTicks > 0
+            ? state.Grant.RunTimeTicks
+            : request.RunTimeTicks.GetValueOrDefault();
+        if (effectiveRunTimeTicks > 0 &&
+            request.PositionTicks > effectiveRunTimeTicks &&
+            request.PositionTicks - effectiveRunTimeTicks > TimeSpan.FromMinutes(5).Ticks)
         {
             return "invalidPosition";
         }
@@ -582,6 +619,38 @@ public sealed class PlaybackReportCoordinator
         }
         return null;
     }
+
+    private static bool AdoptReportedRunTime(
+        PlaybackReportState state,
+        PlaybackReportRequest request)
+    {
+        // The media-library value remains authoritative. A client duration is
+        // only session metadata for sources (notably fresh STRM items) whose
+        // static Emby media source does not have a duration yet.
+        if (state.Grant.RunTimeTicks == 0 && request.RunTimeTicks is > 0)
+        {
+            state.Grant.RunTimeTicks = request.RunTimeTicks.Value;
+            return true;
+        }
+        return false;
+    }
+
+    private static PlaybackReportRequest CopyWithPosition(
+        PlaybackReportRequest request,
+        long positionTicks) => new()
+    {
+        ProtocolVersion = request.ProtocolVersion,
+        LaunchId = request.LaunchId,
+        OwnerRevision = request.OwnerRevision,
+        Epoch = request.Epoch,
+        Sequence = request.Sequence,
+        PositionTicks = positionTicks,
+        RunTimeTicks = request.RunTimeTicks,
+        IsPaused = request.IsPaused,
+        PlaybackRate = request.PlaybackRate,
+        ClientTimeUtc = request.ClientTimeUtc,
+        ClientEndReason = request.ClientEndReason,
+    };
 
     private PlaybackReportOperationResult? ValidateActiveOwner(
         PlaybackReportState state,
