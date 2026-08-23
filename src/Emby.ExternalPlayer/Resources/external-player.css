@@ -44,8 +44,8 @@
 .emby-ep-resume{align-items:center;cursor:pointer;display:flex;gap:.65rem;grid-column:1 / -1;line-height:1.35;min-height:2rem;}
 .emby-ep-resume-checkbox{accent-color:var(--ep-accent);flex:0 0 auto;height:1.25rem;margin:0;width:1.25rem;}
 .emby-ep-resume-checkbox:disabled + span{opacity:var(--theme-secondary-text-color-alpha,.56);}
-.emby-ep-error{color:#ffb4ab;font-size:.9rem;line-height:1.4;min-height:0;overflow-wrap:anywhere;}
-.emby-ep-error:not(:empty){margin-top:1rem;}
+.emby-ep-error{font-size:.9rem;line-height:1.4;min-height:0;overflow-wrap:anywhere;}
+.emby-ep-error:not(:empty){border-radius:.3rem;margin-top:1rem;padding:.55rem .7rem;}
 .emby-ep-subtitle-hint{line-height:1.35;margin-top:.4rem;overflow-wrap:anywhere;}
 .emby-ep-actions{align-items:center;border-top:var(--ep-line);display:flex;flex:0 0 auto;gap:.75rem;justify-content:flex-end;padding:1rem 1.5rem;position:static;}
 .emby-ep-actions .formDialogFooterItem{align-items:center !important;display:inline-flex !important;flex:0 1 auto !important;justify-content:center !important;line-height:1.25;margin:0 !important;max-width:10rem !important;min-width:7.25rem;padding:.65rem 1.1rem;text-align:center !important;width:auto !important;}
@@ -73,6 +73,7 @@
 .emby-ep-config-fields{display:grid;gap:.75rem 1rem;grid-template-columns:minmax(0,1fr);width:100%;}
 .emby-ep-toggle-row{box-sizing:border-box;display:block !important;margin:0 !important;max-width:none !important;min-width:0;width:100% !important;}
 .emby-ep-config-enabled-container,.emby-ep-config-playback-reporting-container{grid-column:1 / -1;}
+.emby-ep-config-toggle-description{line-height:1.4;margin-top:.35rem;max-width:60ch;}
 .emby-ep-config-builtin-row>.emby-ep-config-builtin-enabled{width:100% !important;}
 .emby-ep-toggle-label{align-items:center;box-sizing:border-box;cursor:default !important;display:grid !important;gap:.75rem;grid-template-columns:minmax(0,1fr) auto;margin:0 !important;max-width:none !important;min-height:2.25rem;outline:0 !important;padding:0;position:relative;width:100% !important;}
 .emby-ep-toggle-input{appearance:none;border:0;height:1px;margin:0;outline:0 !important;padding:0;position:absolute;width:1px;}

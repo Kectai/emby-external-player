@@ -30,6 +30,11 @@ public sealed class WebResourceService : IService, IRequiresRequest
         return GetResource("external-player.js", "application/javascript; charset=utf-8");
     }
 
+    public object Get(GetExternalPlayerBootstrap request)
+    {
+        return GetResource("external-player-bootstrap.js", "application/javascript; charset=utf-8");
+    }
+
     public object Get(GetExternalPlayerLanguageModule request)
     {
         return GetResource("external-player-language.js", "application/javascript; charset=utf-8");

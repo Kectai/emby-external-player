@@ -35,6 +35,10 @@ public static class PluginStrings
             [nameof(DefaultPlayerMacOS)] = "Default player on macOS",
             [nameof(DefaultPlayerIOS)] = "Default player on iOS",
             [nameof(DefaultPlayerAndroid)] = "Default player on Android",
+            [nameof(BuiltInPlayers)] = "Built-in players",
+            [nameof(BuiltInPlayersDescription)] = "Enable each built-in player and choose its platforms. Administrator defaults must stay enabled and include their platform.",
+            [nameof(PlayerPlatformsLoadError)] = "Unable to load platforms.",
+            [nameof(PlayerPlatformsSaveError)] = "Unable to save. Select a platform and keep administrator defaults available.",
             [nameof(CustomPlayers)] = "Custom players",
             [nameof(CustomPlayersDescription)] = "Custom players are managed independently below. Multiple drafts can be added at once, and each player has its own Save and Delete action. Application names are displayed exactly as entered. Templates support {url}, {title}, {subtitle}, {start}, and {headers}.",
             [nameof(CustomPlayerAdd)] = "Add player",
@@ -43,11 +47,21 @@ public static class PluginStrings
             [nameof(ApplicationName)] = "Official application name",
             [nameof(ApplicationNameDescription)] = "Displayed exactly as entered; capitalization is never changed.",
             [nameof(Platform)] = "Available platforms",
+            [nameof(PlatformDescription)] = "Choose this player's platforms.",
             [nameof(AnyPlatform)] = "Any platform",
             [nameof(UrlTemplate)] = "URL scheme template",
             [nameof(UrlTemplateDescription)] = "Example: myplayer://open?url={url}&title={title}. Placeholder values are percent-encoded.",
             [nameof(EnablePlaybackReporting)] = "Enable playback progress reporting",
             [nameof(EnablePlaybackReportingDescription)] = "Requires {headers} in the URL template and a compatible, trusted reporter plugin in the player.",
+            [nameof(SaveCustomPlayer)] = "Save player",
+            [nameof(Delete)] = "Delete",
+            [nameof(Saved)] = "Saved",
+            [nameof(UnsavedChanges)] = "Unsaved changes",
+            [nameof(Deleted)] = "Deleted",
+            [nameof(CustomPlayersLoadError)] = "Unable to load custom-player settings.",
+            [nameof(CustomPlayerSaveError)] = "Unable to save. Check the application name and URL template.",
+            [nameof(CustomPlayerDeleteError)] = "Unable to delete this custom player.",
+            [nameof(CustomPlayerDeleteConfirm)] = "Delete this custom player?",
             [nameof(PlaybackReportingRequiresHeaders)] = "Playback progress reporting requires {headers} in the URL template.",
             [nameof(PotPlayer)] = "PotPlayer",
             [nameof(IINA)] = "IINA",
@@ -60,7 +74,7 @@ public static class PluginStrings
             [nameof(IOS)] = "iOS",
             [nameof(Android)] = "Android",
             [nameof(Linux)] = "Linux",
-            [nameof(ExternalPlay)] = "External play",
+            [nameof(ExternalPlay)] = "External Play",
             [nameof(ChoosePlayer)] = "Choose a player",
             [nameof(Open)] = "Open",
             [nameof(BuiltInPlayer)] = "Built-in",
@@ -116,6 +130,10 @@ public static class PluginStrings
             [nameof(DefaultPlayerMacOS)] = "macOS 默认播放器",
             [nameof(DefaultPlayerIOS)] = "iOS 默认播放器",
             [nameof(DefaultPlayerAndroid)] = "Android 默认播放器",
+            [nameof(BuiltInPlayers)] = "内置播放器",
+            [nameof(BuiltInPlayersDescription)] = "设置每个内置播放器的启用状态和适用平台；管理员默认播放器必须保持启用并包含对应平台。",
+            [nameof(PlayerPlatformsLoadError)] = "无法加载适用平台。",
+            [nameof(PlayerPlatformsSaveError)] = "无法保存；请至少选择一个平台，并保留管理员默认播放器的对应平台。",
             [nameof(CustomPlayers)] = "自定义播放器",
             [nameof(CustomPlayersDescription)] = "自定义播放器在下方独立管理，可一次添加多个草稿，每个播放器都有自己的保存和删除操作。应用名称按输入原样显示；模板支持 {url}、{title}、{subtitle}、{start} 和 {headers}。",
             [nameof(CustomPlayerAdd)] = "添加播放器",
@@ -124,11 +142,21 @@ public static class PluginStrings
             [nameof(ApplicationName)] = "官方应用名称",
             [nameof(ApplicationNameDescription)] = "完全按输入显示，不会自动调整大小写。",
             [nameof(Platform)] = "适用平台",
+            [nameof(PlatformDescription)] = "选择此播放器的适用平台，可多选。",
             [nameof(AnyPlatform)] = "所有平台",
             [nameof(UrlTemplate)] = "URL Scheme 模板",
             [nameof(UrlTemplateDescription)] = "例如：myplayer://open?url={url}&title={title}。占位符值会进行 URL 编码。",
             [nameof(EnablePlaybackReporting)] = "启用播放进度回传",
             [nameof(EnablePlaybackReportingDescription)] = "URL 模板必须包含 {headers}，且播放器中需安装兼容、可信的回传插件。",
+            [nameof(SaveCustomPlayer)] = "保存此播放器",
+            [nameof(Delete)] = "删除",
+            [nameof(Saved)] = "已保存",
+            [nameof(UnsavedChanges)] = "有未保存的更改",
+            [nameof(Deleted)] = "已删除",
+            [nameof(CustomPlayersLoadError)] = "无法加载自定义播放器配置。",
+            [nameof(CustomPlayerSaveError)] = "无法保存，请检查应用名称和 URL 模板。",
+            [nameof(CustomPlayerDeleteError)] = "无法删除这个自定义播放器。",
+            [nameof(CustomPlayerDeleteConfirm)] = "确定删除这个自定义播放器吗？",
             [nameof(PlaybackReportingRequiresHeaders)] = "启用播放进度回传时，URL 模板必须包含 {headers}。",
             [nameof(Windows)] = "Windows",
             [nameof(MacOS)] = "macOS",
@@ -191,6 +219,10 @@ public static class PluginStrings
             [nameof(DefaultPlayerMacOS)] = "macOS 預設播放器",
             [nameof(DefaultPlayerIOS)] = "iOS 預設播放器",
             [nameof(DefaultPlayerAndroid)] = "Android 預設播放器",
+            [nameof(BuiltInPlayers)] = "內建播放器",
+            [nameof(BuiltInPlayersDescription)] = "設定每個內建播放器的啟用狀態和適用平台；管理員預設播放器必須保持啟用並包含對應平台。",
+            [nameof(PlayerPlatformsLoadError)] = "無法載入適用平台。",
+            [nameof(PlayerPlatformsSaveError)] = "無法儲存；請至少選擇一個平台，並保留管理員預設播放器的對應平台。",
             [nameof(CustomPlayers)] = "自訂播放器",
             [nameof(CustomPlayersDescription)] = "自訂播放器在下方獨立管理，可一次加入多個草稿，每個播放器都有自己的儲存和刪除操作。應用程式名稱按輸入原樣顯示；範本支援 {url}、{title}、{subtitle}、{start} 和 {headers}。",
             [nameof(CustomPlayerAdd)] = "新增播放器",
@@ -199,11 +231,21 @@ public static class PluginStrings
             [nameof(ApplicationName)] = "官方應用程式名稱",
             [nameof(ApplicationNameDescription)] = "完全按輸入顯示，不會自動調整大小寫。",
             [nameof(Platform)] = "適用平台",
+            [nameof(PlatformDescription)] = "選擇此播放器的適用平台，可複選。",
             [nameof(AnyPlatform)] = "所有平台",
             [nameof(UrlTemplate)] = "URL Scheme 範本",
             [nameof(UrlTemplateDescription)] = "例如：myplayer://open?url={url}&title={title}。預留位置值會進行 URL 編碼。",
             [nameof(EnablePlaybackReporting)] = "啟用播放進度回傳",
             [nameof(EnablePlaybackReportingDescription)] = "URL 範本必須包含 {headers}，且播放器中需安裝相容、可信的回傳外掛。",
+            [nameof(SaveCustomPlayer)] = "儲存此播放器",
+            [nameof(Delete)] = "刪除",
+            [nameof(Saved)] = "已儲存",
+            [nameof(UnsavedChanges)] = "有未儲存的變更",
+            [nameof(Deleted)] = "已刪除",
+            [nameof(CustomPlayersLoadError)] = "無法載入自訂播放器設定。",
+            [nameof(CustomPlayerSaveError)] = "無法儲存，請檢查應用程式名稱和 URL 範本。",
+            [nameof(CustomPlayerDeleteError)] = "無法刪除這個自訂播放器。",
+            [nameof(CustomPlayerDeleteConfirm)] = "確定刪除這個自訂播放器嗎？",
             [nameof(PlaybackReportingRequiresHeaders)] = "啟用播放進度回傳時，URL 範本必須包含 {headers}。",
             [nameof(ExternalPlay)] = "外部播放",
             [nameof(ChoosePlayer)] = "選擇播放器",
@@ -258,6 +300,10 @@ public static class PluginStrings
     public static string DefaultPlayerMacOS => Get(nameof(DefaultPlayerMacOS));
     public static string DefaultPlayerIOS => Get(nameof(DefaultPlayerIOS));
     public static string DefaultPlayerAndroid => Get(nameof(DefaultPlayerAndroid));
+    public static string BuiltInPlayers => Get(nameof(BuiltInPlayers));
+    public static string BuiltInPlayersDescription => Get(nameof(BuiltInPlayersDescription));
+    public static string PlayerPlatformsLoadError => Get(nameof(PlayerPlatformsLoadError));
+    public static string PlayerPlatformsSaveError => Get(nameof(PlayerPlatformsSaveError));
     public static string CustomPlayers => Get(nameof(CustomPlayers));
     public static string CustomPlayersDescription => Get(nameof(CustomPlayersDescription));
     public static string CustomPlayerAdd => Get(nameof(CustomPlayerAdd));
@@ -266,11 +312,21 @@ public static class PluginStrings
     public static string ApplicationName => Get(nameof(ApplicationName));
     public static string ApplicationNameDescription => Get(nameof(ApplicationNameDescription));
     public static string Platform => Get(nameof(Platform));
+    public static string PlatformDescription => Get(nameof(PlatformDescription));
     public static string AnyPlatform => Get(nameof(AnyPlatform));
     public static string UrlTemplate => Get(nameof(UrlTemplate));
     public static string UrlTemplateDescription => Get(nameof(UrlTemplateDescription));
     public static string EnablePlaybackReporting => Get(nameof(EnablePlaybackReporting));
     public static string EnablePlaybackReportingDescription => Get(nameof(EnablePlaybackReportingDescription));
+    public static string SaveCustomPlayer => Get(nameof(SaveCustomPlayer));
+    public static string Delete => Get(nameof(Delete));
+    public static string Saved => Get(nameof(Saved));
+    public static string UnsavedChanges => Get(nameof(UnsavedChanges));
+    public static string Deleted => Get(nameof(Deleted));
+    public static string CustomPlayersLoadError => Get(nameof(CustomPlayersLoadError));
+    public static string CustomPlayerSaveError => Get(nameof(CustomPlayerSaveError));
+    public static string CustomPlayerDeleteError => Get(nameof(CustomPlayerDeleteError));
+    public static string CustomPlayerDeleteConfirm => Get(nameof(CustomPlayerDeleteConfirm));
     public static string PotPlayer => Get(nameof(PotPlayer));
     public static string IINA => Get(nameof(IINA));
     public static string VLCMediaPlayer => Get(nameof(VLCMediaPlayer));
@@ -351,6 +407,15 @@ public static class PluginStrings
             nameof(TicketLifetimeMinutes), nameof(TicketLifetimeMinutesDescription),
             nameof(DefaultPlayerWindows), nameof(DefaultPlayerMacOS),
             nameof(DefaultPlayerIOS), nameof(DefaultPlayerAndroid),
+            nameof(BuiltInPlayers), nameof(BuiltInPlayersDescription),
+            nameof(PlayerPlatformsLoadError), nameof(PlayerPlatformsSaveError),
+            nameof(CustomPlayers), nameof(CustomPlayersDescription), nameof(CustomPlayerAdd),
+            nameof(CustomPlayerEnabled), nameof(ApplicationName), nameof(Platform),
+            nameof(PlatformDescription), nameof(UrlTemplate), nameof(EnablePlaybackReporting),
+            nameof(EnablePlaybackReportingDescription),
+            nameof(SaveCustomPlayer), nameof(Delete), nameof(Saved), nameof(UnsavedChanges),
+            nameof(Deleted), nameof(CustomPlayersLoadError), nameof(CustomPlayerSaveError),
+            nameof(CustomPlayerDeleteError), nameof(CustomPlayerDeleteConfirm),
         };
         var result = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var key in keys)

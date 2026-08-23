@@ -74,6 +74,7 @@
         .emby-select { background: rgba(255,255,255,.12); border: 1px solid transparent; }
         .raised { background: rgba(255,255,255,.14); border-radius: .3rem; color: #fff; }
         .button-submit { background: hsl(116, 41.7%, 50.2%); }
+        .errorBanner { background: #cc3232; color: rgba(255,255,255,.9); }
         .formDialogFooterItem { text-transform: uppercase; }
         #previewStatus { display: none; }
         html.light-preview {
@@ -179,7 +180,7 @@
             serverId() { return "visual-server"; },
             getUrl(path, query) {
                 return path === "ExternalPlayer/Web/style.css"
-                    ? `../../src/Emby.ExternalPlayer/Resources/external-player.css?v=${query?.v || "1.6.12"}`
+                    ? `../../src/Emby.ExternalPlayer/Resources/external-player.css?v=${query?.v || "1.7.4"}`
                     : path;
             },
             getJSON() {
@@ -191,18 +192,22 @@
                     const value = JSON.parse(options.data);
                     return Promise.resolve({ Platform: value.platform, PlayerId: value.playerId });
                 }
+                if (new URLSearchParams(window.location.search).get("resolveError") === "1") {
+                    return Promise.reject(new Error("Preview resolve failure"));
+                }
                 return Promise.resolve({ LaunchUrl: "iina://weblink?url=https%3A%2F%2Fexample.test" });
             }
         };
         const connectionManager = { currentApiClient() { return apiClient; } };
+        const languageModule = { translate(_key, fallback) { return fallback; } };
         window.define = function (_dependencies, factory) {
             document.documentElement.setAttribute("data-module-defined", "true");
-            window.externalPlayerInitializer = factory(events, connectionManager);
+            window.externalPlayerInitializer = factory(languageModule, events, connectionManager);
         };
         window.location.hash = "#!/item?id=preview-item&preview=1";
     </script>
     <output id="previewStatus"></output>
-    <script src="../../src/Emby.ExternalPlayer/Resources/external-player.js?v=1.6.12"></script>
+    <script src="../../src/Emby.ExternalPlayer/Resources/external-player.js?v=1.7.4"></script>
     <script>
         window.externalPlayerInitializer();
         document.documentElement.setAttribute("data-module-initialized", "true");

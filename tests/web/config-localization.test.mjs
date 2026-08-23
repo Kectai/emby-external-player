@@ -251,8 +251,8 @@ function define(dependencies, factory) {
     assert.deepEqual(Array.from(dependencies), [
         "events",
         "connectionManager",
-        "./../common/globalize.js",
-        "./../common/appsettings.js"
+        "globalize",
+        "appSettings"
     ]);
     languageModule = factory(events, connectionManager, globalize, appSettings);
 }
@@ -273,6 +273,13 @@ assert.equal(localizedText.input.checked, true, "localization must not change se
 assert.equal(localizedText.description.textContent, "Use the language selected by the current Emby Web client.");
 assert.equal(placement.value, "AfterPrimaryPlay", "localization must not change the selected option");
 assert.equal(requestedLanguages.length, 1);
+assert.equal(
+    languageModule.getCachedConfigurationStrings("en-US", apiClient),
+    catalogs["en-US"],
+    "the configuration editor must reuse the language module's resolved catalog");
+await languageModule.getConfigurationStrings("en-US", apiClient);
+assert.equal(requestedLanguages.length, 1,
+    "the public configuration catalog API must share the existing request cache");
 assert.equal(observers.at(-1).target, mainContent,
     "the steady-state observer must be limited to the active configuration container");
 
@@ -294,6 +301,9 @@ assert.equal(endOfRow.textContent, "操作栏末尾");
 assert.equal(localizedText.input.checked, true);
 assert.equal(placement.value, "AfterPrimaryPlay");
 assert.deepEqual(requestedLanguages, ["en-US", "zh-CN"]);
+assert.equal(
+    languageModule.getCachedConfigurationStrings("zh-CN", apiClient),
+    catalogs["zh-CN"]);
 
 document.dispatch("viewshow");
 await new Promise((resolve) => setTimeout(resolve, 0));

@@ -37,9 +37,9 @@
 `scripts/test-integration.sh` 只接受：
 
 - 回环地址且不是默认 8096 端口的 Emby 测试实例。
-- 位于当前项目 `.local/` 下的 program data 和 `dashboard-ui/app.js`。
+- 位于当前项目 `.local/` 下的 program data，以及隔离的 `dashboard-ui/app.js` 和 `dashboard-ui/index.html`。
 
-脚本会验证真实插件加载、认证、配置、两种媒体版本、SRT/ASS、续播、HEAD、Range 和日志泄漏。测试宿主未准备时，依赖官方 `app.js` 的兼容性用例会跳过，其余测试仍可运行。
+脚本会验证真实插件加载、认证、配置、两种媒体版本、SRT/ASS、续播、HEAD、Range、插件阶段加载、缓存修复引导和日志泄漏。测试宿主未准备时，依赖官方 Dashboard 文件的兼容性用例会跳过，其余测试仍可运行。
 
 ## 人工验证
 

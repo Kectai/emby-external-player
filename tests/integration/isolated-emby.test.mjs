@@ -11,6 +11,7 @@ const password = process.env.EMBY_INTEGRATION_PASSWORD || "local-test-only-4.9.5
 const mediaRoot = path.join(projectRoot, ".local/test-media/movies");
 const programData = process.env.EMBY_INTEGRATION_PROGRAMDATA;
 const dashboardAppPath = process.env.EMBY_INTEGRATION_DASHBOARD_APP;
+const dashboardIndexPath = process.env.EMBY_INTEGRATION_DASHBOARD_INDEX;
 
 assert.ok(baseUrl, "EMBY_INTEGRATION_BASE is required; the test never guesses an Emby server.");
 const parsedBase = new URL(baseUrl);
@@ -20,10 +21,15 @@ assert.ok(
     "Integration tests are restricted to a non-default loopback port.");
 assert.ok(fs.realpathSync(mediaRoot).startsWith(fs.realpathSync(path.join(projectRoot, ".local"))));
 
+if (dashboardIndexPath) {
+    assert.ok(
+        fs.realpathSync(dashboardIndexPath).startsWith(fs.realpathSync(path.join(projectRoot, ".local"))),
+        "The dashboard fixture must be inside the project-local directory.");
+}
 if (dashboardAppPath) {
     assert.ok(
         fs.realpathSync(dashboardAppPath).startsWith(fs.realpathSync(path.join(projectRoot, ".local"))),
-        "The dashboard fixture must be inside the project-local directory.");
+        "The dashboard app fixture must be inside the project-local directory.");
 }
 
 const clientIdentity = 'Emby Client="ExternalPlayerIntegration", Device="Node", DeviceId="external-player-integration", Version="1.0.0"';
@@ -50,14 +56,26 @@ assert.match(webModule, /detectLanguage/);
 const languageModule = await (await fetchChecked("dashboard-ui/modules/embyexternalplayer/language.js")).text();
 assert.match(languageModule, /getCurrentLocale/);
 assert.match(languageModule, /ExternalPlayer\/ConfigurationStrings/);
+const bootstrapModule = await (await fetchChecked("dashboard-ui/modules/embyexternalplayer/bootstrap.js")).text();
+assert.match(bootstrapModule, /cache:\s*"reload"/);
+assert.match(bootstrapModule, /document\.addEventListener\("appready"/);
 const webStylesheet = await (await fetchChecked("ExternalPlayer/Web/style.css")).text();
 assert.match(webStylesheet, /emby-ep-dialog/);
+if (dashboardIndexPath) {
+    const dashboardIndex = fs.readFileSync(dashboardIndexPath, "utf8");
+    assert.equal(
+        dashboardIndex.split("<!-- Emby.ExternalPlayer cache bootstrap: 759248d1 -->").length - 1,
+        1,
+        "The dashboard cache bootstrap must be injected exactly once.");
+    assert.match(dashboardIndex, /modules\/embyexternalplayer\/bootstrap\.js\?v=3/);
+}
 if (dashboardAppPath) {
     const dashboardApp = fs.readFileSync(dashboardAppPath, "utf8");
     assert.equal(
         dashboardApp.split("/* Emby.ExternalPlayer bootstrap: 6f784f38 */").length - 1,
         1,
-        "The dashboard bootstrap must be injected exactly once.");
+        "The feature module must be injected into Emby's plugin list exactly once.");
+    assert.match(dashboardApp, /list\.push\("\.\/modules\/embyexternalplayer\/plugin\.js"\)/);
 }
 
 const serverLogPath = programData ? path.join(programData, "logs/embyserver.txt") : null;
@@ -643,7 +661,7 @@ if (programData) {
 console.log(JSON.stringify({
     version: publicInfo.Version,
     webResources: "passed",
-    bootstrapCount: dashboardAppPath ? 1 : "not-checked",
+    bootstrapCount: dashboardAppPath && dashboardIndexPath ? 2 : "not-checked",
     pluginLoaded: true,
     configurationUi: "passed",
     itemType: item.Type,

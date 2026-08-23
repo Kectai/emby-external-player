@@ -25,7 +25,7 @@ public sealed class LocalizationTests
         Assert.IsFalse(PluginStrings.GetWebStrings("zh-CN").ContainsKey("RetryLaunch"));
         Assert.AreEqual("外部播放", PluginStrings.GetWebStrings("zh-Hant")["ExternalPlay"]);
         Assert.AreEqual("開啟", PluginStrings.GetWebStrings("zh-Hant")["Open"]);
-        Assert.AreEqual("External play", PluginStrings.GetWebStrings("fr-FR")["ExternalPlay"]);
+        Assert.AreEqual("External Play", PluginStrings.GetWebStrings("fr-FR")["ExternalPlay"]);
         Assert.AreEqual("Built-in", PluginStrings.GetWebStrings("fr-FR")["BuiltInPlayer"]);
         Assert.AreEqual("添加播放器", PluginStrings.Get(nameof(PluginStrings.CustomPlayerAdd), "zh-CN"));
     }
@@ -42,6 +42,14 @@ public sealed class LocalizationTests
         Assert.AreEqual("Use the language selected by the current Emby Web client.",
             english[nameof(PluginStrings.UseLocalizedButtonTextDescription)]);
         Assert.AreEqual("Button placement", english[nameof(PluginStrings.ButtonPlacement)]);
+        Assert.AreEqual("内置播放器", simplifiedChinese[nameof(PluginStrings.BuiltInPlayers)]);
+        Assert.AreEqual("保存此播放器", simplifiedChinese[nameof(PluginStrings.SaveCustomPlayer)]);
+        Assert.AreEqual(
+            "URL 模板必须包含 {headers}，且播放器中需安装兼容、可信的回传插件。",
+            simplifiedChinese[nameof(PluginStrings.EnablePlaybackReportingDescription)]);
+        Assert.AreEqual("Custom players", english[nameof(PluginStrings.CustomPlayers)]);
+        Assert.AreEqual("Delete this custom player?",
+            english[nameof(PluginStrings.CustomPlayerDeleteConfirm)]);
     }
 
     [TestMethod]

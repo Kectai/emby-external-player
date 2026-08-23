@@ -39,6 +39,7 @@
         .emby-select option { color:#000; }
         .inputLabel { display:block; font-size:.86rem; margin-bottom:.35rem; }
         .genericeditbutton-hide { display:none; }
+        #previewStatus { display:none; }
     </style>
 </head>
 <body>
@@ -58,7 +59,14 @@
             </div>
         </form>
     </div>
+    <output id="previewStatus"></output>
     <script>
+        window.addEventListener("error", function (event) {
+            document.getElementById("previewStatus").textContent = "ERROR: " + event.message;
+        });
+        window.addEventListener("unhandledrejection", function (event) {
+            document.getElementById("previewStatus").textContent = "REJECTION: " + String(event.reason);
+        });
         window.location.hash = "#!/genericui?PageId=f7e75c%3ASettings&preview=1";
         const players = [{
             Id: "preview-iina-nova",
@@ -76,13 +84,38 @@
             { PlayerId: "Mpv", DisplayName: "mpv", Enabled: false, Platforms: ["Windows", "MacOS", "Linux"] },
             { PlayerId: "NPlayer", DisplayName: "nPlayer", Enabled: false, Platforms: ["IOS", "Android"] }
         ];
+        const configurationStrings = {
+            BuiltInPlayers: "内置播放器",
+            BuiltInPlayersDescription: "设置每个内置播放器的启用状态和适用平台；管理员默认播放器必须保持启用并包含对应平台。",
+            PlayerPlatformsLoadError: "无法加载适用平台。",
+            PlayerPlatformsSaveError: "无法保存；请至少选择一个平台，并保留管理员默认播放器的对应平台。",
+            CustomPlayers: "自定义播放器",
+            CustomPlayersDescription: "自定义播放器在下方独立管理，可一次添加多个草稿，每个播放器都有自己的保存和删除操作。应用名称按输入原样显示；模板支持 {url}、{title}、{subtitle}、{start} 和 {headers}。",
+            CustomPlayerAdd: "添加播放器",
+            CustomPlayerEnabled: "启用",
+            ApplicationName: "官方应用名称",
+            Platform: "适用平台",
+            PlatformDescription: "选择此播放器的适用平台，可多选。",
+            UrlTemplate: "URL Scheme 模板",
+            EnablePlaybackReporting: "启用播放进度回传",
+            EnablePlaybackReportingDescription: "URL 模板必须包含 {headers}，且播放器中需安装兼容、可信的回传插件。",
+            SaveCustomPlayer: "保存此播放器",
+            Delete: "删除",
+            Saved: "已保存",
+            UnsavedChanges: "有未保存的更改",
+            Deleted: "已删除",
+            CustomPlayersLoadError: "无法加载自定义播放器配置。",
+            CustomPlayerSaveError: "无法保存，请检查应用名称和 URL 模板。",
+            CustomPlayerDeleteError: "无法删除这个自定义播放器。",
+            CustomPlayerDeleteConfirm: "确定删除这个自定义播放器吗？"
+        };
         const events = { on() {}, off() {} };
         const apiClient = {
             getCurrentUserId() { return "visual-user"; },
             serverId() { return "visual-server"; },
             getUrl(path, query) {
                 return path === "ExternalPlayer/Web/style.css"
-                    ? `../../src/Emby.ExternalPlayer/Resources/external-player.css?v=${query?.v || "1.6.12"}`
+                    ? `../../src/Emby.ExternalPlayer/Resources/external-player.css?v=${query?.v || "1.7.4"}`
                     : path;
             },
             getJSON(url) {
@@ -97,10 +130,21 @@
             }
         };
         const connectionManager = { currentApiClient() { return apiClient; } };
+        const languageModule = {
+            translate(_key, fallback) { return fallback; },
+            getCachedConfigurationStrings() { return configurationStrings; }
+        };
         window.define = function (_dependencies, factory) {
-            factory(events, connectionManager)();
+            factory(languageModule, events, connectionManager)();
         };
     </script>
-    <script src="../../src/Emby.ExternalPlayer/Resources/external-player.js?v=1.6.12"></script>
+    <script src="../../src/Emby.ExternalPlayer/Resources/external-player.js?v=1.7.4"></script>
+    <script>
+        window.setTimeout(function () {
+            if (!document.getElementById("embyExternalPlayerCustomPlayers")) {
+                document.getElementById("previewStatus").textContent = "Configuration editor was not injected";
+            }
+        }, 750);
+    </script>
 </body>
 </html>

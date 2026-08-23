@@ -5,6 +5,7 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 project_root="$(cd "${script_dir}/.." && pwd)"
 dll_path="${project_root}/.local/build/bin/Release/netstandard2.1/Emby.ExternalPlayer.dll"
 web_js="${project_root}/src/Emby.ExternalPlayer/Resources/external-player.js"
+web_bootstrap_js="${project_root}/src/Emby.ExternalPlayer/Resources/external-player-bootstrap.js"
 web_language_js="${project_root}/src/Emby.ExternalPlayer/Resources/external-player-language.js"
 web_css="${project_root}/src/Emby.ExternalPlayer/Resources/external-player.css"
 
@@ -12,7 +13,7 @@ web_css="${project_root}/src/Emby.ExternalPlayer/Resources/external-player.css"
 "${script_dir}/test.sh"
 
 dll_bytes="$(wc -c < "${dll_path}" | tr -d ' ')"
-web_bytes="$(( $(wc -c < "${web_js}") + $(wc -c < "${web_language_js}") + $(wc -c < "${web_css}") ))"
+web_bytes="$(( $(wc -c < "${web_js}") + $(wc -c < "${web_bootstrap_js}") + $(wc -c < "${web_language_js}") + $(wc -c < "${web_css}") ))"
 
 if (( dll_bytes > 1048576 )); then
     echo "DLL exceeds the 1 MiB release limit: ${dll_bytes} bytes" >&2

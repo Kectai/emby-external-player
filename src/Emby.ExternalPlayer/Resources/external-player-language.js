@@ -1,8 +1,8 @@
 define([
     "events",
     "connectionManager",
-    "./../common/globalize.js",
-    "./../common/appsettings.js"
+    "globalize",
+    "appSettings"
 ], function (events, connectionManager, globalizeModule, appSettingsModule) {
     "use strict";
 
@@ -34,6 +34,8 @@ define([
         refreshTimer: null,
         requestGeneration: 0,
         strings: Object.create(null),
+        resolvedStrings: Object.create(null),
+        failedStrings: Object.create(null),
         disposed: false
     };
 
@@ -216,8 +218,8 @@ define([
             : window.ApiClient;
     }
 
-    function getApiContext() {
-        var apiClient = getApiClient();
+    function getApiContext(apiClient) {
+        apiClient = apiClient || getApiClient();
         if (!(apiClient && apiClient.getJSON && apiClient.getUrl)) {
             return null;
         }
@@ -239,17 +241,45 @@ define([
         return { apiClient: apiClient, key: String(serverId) };
     }
 
+    function getStringsCacheKey(language, context) {
+        return context.key + "|" + String(language).toLowerCase();
+    }
+
     function loadStrings(language, context) {
-        var cacheKey = context.key + "|" + String(language).toLowerCase();
+        var cacheKey = getStringsCacheKey(language, context);
         if (!state.strings[cacheKey]) {
             state.strings[cacheKey] = context.apiClient.getJSON(context.apiClient.getUrl(
                 "ExternalPlayer/ConfigurationStrings",
-                { language: language })).catch(function (error) {
+                { language: language })).then(function (strings) {
+                    state.resolvedStrings[cacheKey] = strings;
+                    delete state.failedStrings[cacheKey];
+                    return strings;
+                }).catch(function (error) {
                     delete state.strings[cacheKey];
+                    state.failedStrings[cacheKey] = true;
                     throw error;
                 });
         }
         return state.strings[cacheKey];
+    }
+
+    function getConfigurationStrings(language, apiClient) {
+        var context = getApiContext(apiClient);
+        return context
+            ? loadStrings(language || getLanguage(), context)
+            : Promise.reject(new Error("The Emby server connection is unavailable."));
+    }
+
+    function getCachedConfigurationStrings(language, apiClient) {
+        var context = getApiContext(apiClient);
+        return context
+            ? state.resolvedStrings[getStringsCacheKey(language || getLanguage(), context)] || null
+            : null;
+    }
+
+    function configurationStringsFailed(language, apiClient) {
+        var context = getApiContext(apiClient);
+        return !!(context && state.failedStrings[getStringsCacheKey(language || getLanguage(), context)]);
     }
 
     function observe(root) {
@@ -371,6 +401,9 @@ define([
     }
     state.dispose = dispose;
     state.translate = translate;
+    state.getConfigurationStrings = getConfigurationStrings;
+    state.getCachedConfigurationStrings = getCachedConfigurationStrings;
+    state.configurationStringsFailed = configurationStringsFailed;
     window.__embyExternalPlayerLanguageModule = state;
     refresh();
     return state;

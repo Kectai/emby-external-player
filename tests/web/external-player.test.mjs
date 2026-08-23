@@ -319,12 +319,18 @@ const stylesheet = fs.readFileSync(
     "utf8");
 assert.doesNotMatch(source, /toggleContainer/,
     "independent switches must not inherit Emby's Generic UI toggle-container width rules");
-assert.match(source, /N\(n\),o\(n,"Enabled"\)&&\(i\.observer=new MutationObserver/,
+assert.doesNotMatch(source, /内置播放器|自定义播放器|內建播放器|自訂播放器/,
+    "configuration translations must come from the shared server catalog");
+assert.match(source, /errorBanner emby-ep-error/,
+    "dialog errors must reuse Emby's theme-aware error banner");
+assert.match(source, /,\w+\(\w+,"Enabled"\)&&\(\w+\.observer=new MutationObserver/,
     "observer registration must depend on manifest Enabled, not on the first button insertion attempt");
 assert.match(stylesheet, /\.dialog\.formDialog\.emby-ep-dialog\s*\{[\s\S]*?max-width:\s*44rem\s*!important;/);
 assert.match(stylesheet, /\.dialog\.formDialog\.emby-ep-dialog\s*\{[\s\S]*?min-width:\s*0\s*!important;/);
 assert.match(stylesheet, /width:\s*min\(clamp\(36rem,\s*52vw,\s*44rem\),\s*calc\(100vw\s*-\s*3rem\)\)\s*!important;/);
 assert.match(stylesheet, /\.emby-ep-actions \.formDialogFooterItem\s*\{[\s\S]*?justify-content:\s*center\s*!important;/);
+assert.doesNotMatch(stylesheet, /\.emby-ep-error\s*\{[^}]*color\s*:/,
+    "dialog errors must not hard-code a color that fails on another Emby theme");
 assert.match(stylesheet, /\.emby-ep-fields \.selectContainer\.emby-ep-field\s*\{[\s\S]*?margin:\s*0\s*!important;/);
 assert.match(stylesheet, /\.emby-ep-select-button\s*\{[\s\S]*?height:\s*3em\s*!important;/);
 assert.match(stylesheet, /\.emby-ep-select-list\s*\{[\s\S]*?left:\s*0;[\s\S]*?right:\s*0;[\s\S]*?width:\s*100%;/);
@@ -344,6 +350,7 @@ assert.match(stylesheet, /\.emby-ep-config-builtin-row \.emby-ep-config-platform
 assert.match(stylesheet, /\.emby-ep-config-builtin-row \.emby-ep-config-card-status\s*\{[\s\S]*?grid-column:\s*1;[\s\S]*?overflow-wrap:\s*anywhere;/);
 assert.match(stylesheet, /\.emby-ep-config-builtin-row \.emby-ep-config-platform-option\s*\{[\s\S]*?font-size:\s*\.9rem;/);
 assert.match(stylesheet, /\.emby-ep-config-card-actions \.emby-button\s*\{[\s\S]*?justify-content:\s*center\s*!important;/);
+assert.match(stylesheet, /\.emby-ep-config-toggle-description\s*\{[\s\S]*?margin-top:\s*\.35rem;/);
 assert.match(stylesheet, /\.emby-ep-config-card-status\[data-state="dirty"\]\s*\{/);
 assert.match(stylesheet, /\.emby-ep-config-input,[\s\S]*?\.emby-ep-config-select\s*\{[\s\S]*?height:\s*3em\s*!important;/);
 assert.match(stylesheet, /\.emby-ep-toggle-switch\s*\{[\s\S]*?height:\s*2\.16em;[\s\S]*?width:\s*3\.7em;/,
@@ -502,6 +509,31 @@ class FakeMutationObserver {
 }
 let initializer;
 const navigator = { platform: "MacIntel", userAgent: "test", language: "zh-CN", maxTouchPoints: 0 };
+const configurationStrings = {
+    BuiltInPlayers: "内置播放器",
+    BuiltInPlayersDescription: "设置每个内置播放器的启用状态和适用平台；管理员默认播放器必须保持启用并包含对应平台。",
+    PlayerPlatformsLoadError: "无法加载适用平台。",
+    PlayerPlatformsSaveError: "无法保存；请至少选择一个平台，并保留管理员默认播放器的对应平台。",
+    CustomPlayers: "自定义播放器",
+    CustomPlayersDescription: "自定义播放器在下方独立管理，可一次添加多个草稿，每个播放器都有自己的保存和删除操作。应用名称按输入原样显示；模板支持 {url}、{title}、{subtitle}、{start} 和 {headers}。",
+    CustomPlayerAdd: "添加播放器",
+    CustomPlayerEnabled: "启用",
+    ApplicationName: "官方应用名称",
+    Platform: "适用平台",
+    PlatformDescription: "选择此播放器的适用平台，可多选。",
+    UrlTemplate: "URL Scheme 模板",
+    EnablePlaybackReporting: "启用播放进度回传",
+    EnablePlaybackReportingDescription: "URL 模板必须包含 {headers}，且播放器中需安装兼容、可信的回传插件。",
+    SaveCustomPlayer: "保存此播放器",
+    Delete: "删除",
+    Saved: "已保存",
+    UnsavedChanges: "有未保存的更改",
+    Deleted: "已删除",
+    CustomPlayersLoadError: "无法加载自定义播放器配置。",
+    CustomPlayerSaveError: "无法保存，请检查应用名称和 URL 模板。",
+    CustomPlayerDeleteError: "无法删除这个自定义播放器。",
+    CustomPlayerDeleteConfirm: "确定删除这个自定义播放器吗？"
+};
 const sandbox = {
     window,
     document,
@@ -509,7 +541,10 @@ const sandbox = {
     MutationObserver: FakeMutationObserver,
     define(dependencies, factory) {
         assert.deepEqual(Array.from(dependencies), ["./language.js", "events", "connectionManager"]);
-        initializer = factory({ translate(_key, fallback) { return fallback; } }, events, connectionManager);
+        initializer = factory({
+            translate(_key, fallback) { return fallback; },
+            getCachedConfigurationStrings() { return configurationStrings; }
+        }, events, connectionManager);
     },
     setTimeout,
     clearTimeout,
@@ -1240,7 +1275,8 @@ assert.equal(
     3,
     "multiple custom-player drafts must be addable without the page Save command");
 assert.match(
-    invalidOverlay.walk().find((item) => item.className === "emby-ep-error").textContent,
+    invalidOverlay.walk().find((item) =>
+        item.className.split(/\s+/).includes("emby-ep-error")).textContent,
     /无法生成播放地址/);
 document.dispatch("keydown", { key: "Escape", preventDefault() {} });
 

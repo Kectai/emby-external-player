@@ -23,9 +23,9 @@ Emby.ExternalPlayer.dll
   └─ Dashboard UI 加载器安装与撤销
 ```
 
-Web 资源嵌入 DLL，由匿名只读资源接口提供。插件启动时只向 `dashboard-ui/app.js` 的已知锚点加入带唯一标记的加载语句；停止、禁用或卸载时精确移除该语句。锚点未知或文件不可写时安全失败，不替换整个 Emby Web 文件。
+Web 资源嵌入 DLL，由匿名只读资源接口提供。媒体页模块继续沿用已发布版本验证过的加载路径：插件启动时只向 `dashboard-ui/app.js` 的插件列表加入带唯一标记的模块地址，使其与 Emby 的其他插件一起在 `appready` 之前完成加载。另在 `dashboard-ui/index.html` 的官方 `apploader.js` 标签前加入独立的缓存修复脚本；它不加载功能模块，只在 `appready` 后发现模块缺失时，以 `cache: reload` 重新获取同版本 `app.js` 并刷新页面一次。停止、禁用或卸载时会精确移除两处自有标记。锚点未知或文件不可写时安全失败，不替换整个 Emby Web 文件。
 
-配置页语言模块沿用 Emby Web 的 `globalize.getCurrentLocale()` 和 `appsettings` 语言变更事件，并调用 Emby 控件自身的 `label()` / `setLabel()` 更新现有字段。语义完全一致的通用词优先使用 Emby 共享词库；插件专有文案由 `PluginStrings` 唯一维护，再按明确的客户端语言从配置文案 API 获取。响应缓存按服务器和语言隔离，异步响应只允许更新发起请求时的服务器、语言和页面实例。
+配置页基础字段使用 Emby GenericUI 的 `DisplayNameL` / `DescriptionL`，由服务器按 `ClientLocale` 生成。语言模块通过 Emby 的官方模块别名使用 `globalize.getCurrentLocale()` 和 `appSettings` 语言变更事件，只在本插件 GenericUI 页面仍被复用、没有重新请求服务器字段时，调用 Emby 控件自身的 `label()` / `setLabel()` 更新现有内容。语义完全一致的通用词优先使用 Emby 共享词库；基础字段的插件专有文案由 `PluginStrings` 维护，再按明确的客户端语言从配置文案 API 获取。响应缓存按服务器和语言隔离，异步响应只允许更新发起请求时的服务器、语言和页面实例。该局部兼容层不修改 Emby 的全局语言文件。
 
 ## 播放流程
 
