@@ -53,9 +53,45 @@ public sealed class MediaManifestService
 
         var internalId = libraryManager.GetInternalId(itemId);
         var item = libraryManager.GetItemById(internalId);
-        if (!(item is Video) || !item.IsVisible(user) || !user.Policy.EnableMediaPlayback)
+        if (!TryCreateContext(item, user, out var context))
         {
             throw new ResourceNotFoundException("The requested playable video was not found.");
+        }
+
+        return context;
+    }
+
+    public bool TryGetContext(string itemId, User user, out MediaManifestContext context)
+    {
+        context = null!;
+        if (string.IsNullOrWhiteSpace(itemId) || user is null)
+        {
+            return false;
+        }
+
+        long internalId;
+        try
+        {
+            internalId = libraryManager.GetInternalId(itemId);
+        }
+        catch (Exception exception) when (
+            exception is ArgumentException ||
+            exception is FormatException ||
+            exception is OverflowException)
+        {
+            return false;
+        }
+
+        var item = libraryManager.GetItemById(internalId);
+        return TryCreateContext(item, user, out context);
+    }
+
+    private bool TryCreateContext(BaseItem? item, User user, out MediaManifestContext context)
+    {
+        context = null!;
+        if (!(item is Video) || !item.IsVisible(user) || !user.Policy.EnableMediaPlayback)
+        {
+            return false;
         }
 
         var sources = mediaSourceManager.GetStaticMediaSources(
@@ -66,7 +102,7 @@ public sealed class MediaManifestService
             user: user);
 
         var userData = userDataManager.GetUserData(user, item);
-        return new MediaManifestContext
+        context = new MediaManifestContext
         {
             Item = item,
             User = user,
@@ -74,6 +110,7 @@ public sealed class MediaManifestService
             ResumePositionTicks = ResumePositionPolicy.FromEmbyUserData(
                 userData?.PlaybackPositionTicks ?? 0),
         };
+        return true;
     }
 
     public static IReadOnlyCollection<MediaVersionDescriptor> MapMediaSources(MediaManifestContext context)

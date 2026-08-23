@@ -41,11 +41,15 @@ const publicInfo = await (await fetchChecked("System/Info/Public")).json();
 assert.equal(publicInfo.Version, expectedVersion);
 
 const webModule = await (await fetchChecked("dashboard-ui/modules/embyexternalplayer/plugin.js")).text();
+assert.match(webModule, /\.\/language\.js/);
 assert.match(webModule, /__embyExternalPlayerModule/);
 assert.match(webModule, /dataType:\s*"json"/);
 assert.match(webModule, /isAllowedLaunchUrl/);
 assert.match(webModule, /LaunchSchemes/);
 assert.match(webModule, /detectLanguage/);
+const languageModule = await (await fetchChecked("dashboard-ui/modules/embyexternalplayer/language.js")).text();
+assert.match(languageModule, /getCurrentLocale/);
+assert.match(languageModule, /ExternalPlayer\/ConfigurationStrings/);
 const webStylesheet = await (await fetchChecked("ExternalPlayer/Web/style.css")).text();
 assert.match(webStylesheet, /emby-ep-dialog/);
 if (dashboardAppPath) {
@@ -124,6 +128,11 @@ assert.match(localizedConfigurationJson, /外部播放器/);
 assert.match(localizedConfigurationJson, /IINA/);
 assert.match(localizedConfigurationJson, /VLC media player/);
 assert.match(webModule, /添加播放器/);
+const localizedConfigurationStrings = await (await api(
+    "ExternalPlayer/ConfigurationStrings?language=zh-CN")).json();
+assert.equal(localizedConfigurationStrings.UseLocalizedButtonTextDescription,
+    "使用当前 Emby Web 客户端设置的语言。");
+assert.equal(localizedConfigurationStrings.ButtonPlacement, "按钮位置");
 
 const builtInPlatformConfigurations = await (await api(
     "ExternalPlayer/BuiltInPlayerPlatforms")).json();

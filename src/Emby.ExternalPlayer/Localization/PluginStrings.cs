@@ -336,6 +336,30 @@ public static class PluginStrings
         return result;
     }
 
+    public static Dictionary<string, string> GetConfigurationStrings(string? language)
+    {
+        var catalog = GetCatalog(language);
+        var keys = new[]
+        {
+            nameof(EditorTitle), nameof(EditorDescription),
+            nameof(Enabled), nameof(EnabledDescription),
+            nameof(EnableWebButton), nameof(EnableWebButtonDescription),
+            nameof(UseLocalizedButtonText), nameof(UseLocalizedButtonTextDescription),
+            nameof(ButtonText), nameof(ButtonTextDescription),
+            nameof(ButtonPlacement), nameof(AfterPrimaryPlay), nameof(EndOfActionRow),
+            nameof(ShowOnlyPlatformPlayers), nameof(ResumeByDefault),
+            nameof(TicketLifetimeMinutes), nameof(TicketLifetimeMinutesDescription),
+            nameof(DefaultPlayerWindows), nameof(DefaultPlayerMacOS),
+            nameof(DefaultPlayerIOS), nameof(DefaultPlayerAndroid),
+        };
+        var result = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var key in keys)
+        {
+            result[key] = catalog.TryGetValue(key, out var value) ? value : English[key];
+        }
+        return result;
+    }
+
     public static string Get(string key, string? language = null)
     {
         var catalog = GetCatalog(language ?? CultureInfo.CurrentUICulture.Name);

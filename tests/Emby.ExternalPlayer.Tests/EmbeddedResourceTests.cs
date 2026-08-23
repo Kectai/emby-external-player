@@ -10,6 +10,7 @@ public sealed class EmbeddedResourceTests
     {
         var resources = typeof(WebResourceService).Assembly.GetManifestResourceNames();
 
+        Assert.IsTrue(resources.Any(name => name.EndsWith("external-player-language.js", StringComparison.Ordinal)));
         Assert.IsTrue(resources.Any(name => name.EndsWith("external-player.js", StringComparison.Ordinal)));
         Assert.IsTrue(resources.Any(name => name.EndsWith("external-player.css", StringComparison.Ordinal)));
     }

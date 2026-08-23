@@ -15,6 +15,14 @@ public sealed class GetExternalPlayerManifest : IReturn<Domain.ExternalPlayerMan
     public string Language { get; set; } = string.Empty;
 }
 
+[Route("/ExternalPlayer/ConfigurationStrings", "GET", Summary = "Gets localized External Player configuration strings")]
+[Authenticated]
+public sealed class GetExternalPlayerConfigurationStrings :
+    IReturn<System.Collections.Generic.Dictionary<string, string>>
+{
+    public string Language { get; set; } = string.Empty;
+}
+
 [Route("/ExternalPlayer/Resolve", "POST", Summary = "Creates a short-lived external-player launch URL")]
 [Authenticated]
 public sealed class ResolveExternalPlayer : IReturn<Domain.LaunchResolution>

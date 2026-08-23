@@ -8,7 +8,8 @@
 
 ```text
 Emby Web
-  └─ external-player.js / external-player.css
+  └─ Web module / language module / stylesheet
+       ├─ 复用 Emby globalize 与 appsettings 获取当前界面语言
        ├─ 获取媒体与播放器清单
        ├─ 选择播放器、版本、字幕和续播方式
        └─ 打开 Resolve 返回的 URL Scheme
@@ -24,10 +25,12 @@ Emby.ExternalPlayer.dll
 
 Web 资源嵌入 DLL，由匿名只读资源接口提供。插件启动时只向 `dashboard-ui/app.js` 的已知锚点加入带唯一标记的加载语句；停止、禁用或卸载时精确移除该语句。锚点未知或文件不可写时安全失败，不替换整个 Emby Web 文件。
 
+配置页语言模块沿用 Emby Web 的 `globalize.getCurrentLocale()` 和 `appsettings` 语言变更事件，并调用 Emby 控件自身的 `label()` / `setLabel()` 更新现有字段。语义完全一致的通用词优先使用 Emby 共享词库；插件专有文案由 `PluginStrings` 唯一维护，再按明确的客户端语言从配置文案 API 获取。响应缓存按服务器和语言隔离，异步响应只允许更新发起请求时的服务器、语言和页面实例。
+
 ## 播放流程
 
 1. Web 模块识别当前可见的视频详情页，在“从头开始”按钮右侧加入外部播放入口。
-2. `GET /ExternalPlayer/Manifest` 根据当前认证用户、媒体条目、平台和语言返回可用播放器、媒体版本、外挂字幕、续播位置及个人默认播放器。
+2. `GET /ExternalPlayer/Manifest` 根据当前认证用户、媒体条目、平台和语言返回可用播放器、媒体版本、外挂字幕、续播位置及个人默认播放器。Emby 单页路由也可能短暂提交系列、文件夹或过期 ID；这些普通页面探测返回 `Enabled=false` 的空清单，不建立播放上下文，也不以异常 404 污染服务端日志。
 3. 用户确认后，Web 模块向 `POST /ExternalPlayer/Resolve` 提交所选媒体源、字幕、播放器和续播方式。
 4. 服务端重新检查用户权限、媒体源、字幕、播放器状态和平台范围。
 5. 本地媒体和字幕分别签发短期票据；静态 HTTP(S) `.strm` 签发独立的远程票据。所选播放器启用回传能力时还会签发进度票据和 `launchId`，再生成播放器 URL Scheme。
@@ -40,6 +43,7 @@ Manifest 只用于展示。Resolve 不信任浏览器先前取得的数据，因
 
 | 路由 | 权限 | 用途 |
 |---|---|---|
+| `GET /ExternalPlayer/ConfigurationStrings` | 管理员 | 按当前 Emby Web 语言获取插件配置页文案 |
 | `GET /ExternalPlayer/Manifest` | 已认证用户 | 获取当前条目的播放器和媒体清单 |
 | `POST /ExternalPlayer/Resolve` | 已认证用户 | 校验选择并生成启动地址 |
 | `POST /ExternalPlayer/UserDefaultPlayer` | 已认证用户 | 保存当前用户的平台默认播放器 |

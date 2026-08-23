@@ -36,6 +36,12 @@ public sealed class ExternalPlayerApiService : IService, IRequiresRequest
 
     public IRequest Request { get; set; } = null!;
 
+    public object Get(GetExternalPlayerConfigurationStrings request)
+    {
+        RequireAdministrator();
+        return PluginStrings.GetConfigurationStrings(request.Language);
+    }
+
     public object Get(GetCustomPlayerConfigurations request)
     {
         RequireAdministrator();
@@ -91,7 +97,13 @@ public sealed class ExternalPlayerApiService : IService, IRequiresRequest
         var options = GetOptions();
         EnsureEnabled(options);
         var user = GetAuthenticatedUser();
-        var context = manifestService.GetContext(request.ItemId, user);
+        if (!manifestService.TryGetContext(request.ItemId, user, out var context))
+        {
+            // Emby detail routes also expose ids for folders, series and other
+            // non-video items. Treat those routine page probes as an empty
+            // manifest instead of throwing a server-side 404 for each view event.
+            return new ExternalPlayerManifest();
+        }
         var platform = ParsePlatform(request.Platform);
         var defaultPlayer = options.GetDefaultPlayer(platform);
         var texts = PluginStrings.GetWebStrings(request.Language);

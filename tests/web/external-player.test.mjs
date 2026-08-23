@@ -319,6 +319,8 @@ const stylesheet = fs.readFileSync(
     "utf8");
 assert.doesNotMatch(source, /toggleContainer/,
     "independent switches must not inherit Emby's Generic UI toggle-container width rules");
+assert.match(source, /N\(n\),o\(n,"Enabled"\)&&\(i\.observer=new MutationObserver/,
+    "observer registration must depend on manifest Enabled, not on the first button insertion attempt");
 assert.match(stylesheet, /\.dialog\.formDialog\.emby-ep-dialog\s*\{[\s\S]*?max-width:\s*44rem\s*!important;/);
 assert.match(stylesheet, /\.dialog\.formDialog\.emby-ep-dialog\s*\{[\s\S]*?min-width:\s*0\s*!important;/);
 assert.match(stylesheet, /width:\s*min\(clamp\(36rem,\s*52vw,\s*44rem\),\s*calc\(100vw\s*-\s*3rem\)\)\s*!important;/);
@@ -366,6 +368,7 @@ document.actionRow.insertBefore(resumeButton, document.playButton);
 const eventSubscriptions = new Set();
 let ajaxResponse = { LaunchUrl: "iina://weblink?url=https%3A%2F%2Fexample.test" };
 let manifestQuery;
+let detailManifestResponse = manifest;
 let lastResolveBody;
 let lastCustomPlayerPostBody;
 let lastBuiltInPlatformsPostBody;
@@ -414,7 +417,7 @@ const apiClient = {
                 EnablePlaybackReporting: true
             }]);
         }
-        return Promise.resolve(manifest);
+        return Promise.resolve(detailManifestResponse);
     },
     ajax(options) {
         if (String(options.url).includes("UI/Command")) {
@@ -504,7 +507,10 @@ const sandbox = {
     document,
     navigator,
     MutationObserver: FakeMutationObserver,
-    define(_dependencies, factory) { initializer = factory(events, connectionManager); },
+    define(dependencies, factory) {
+        assert.deepEqual(Array.from(dependencies), ["./language.js", "events", "connectionManager"]);
+        initializer = factory({ translate(_key, fallback) { return fallback; } }, events, connectionManager);
+    },
     setTimeout,
     clearTimeout,
     console
@@ -1357,5 +1363,17 @@ assert.equal(
     document.querySelector(".emby-ep-overlay"),
     null,
     "SPA navigation must close the chooser bound to the previous media item");
+
+const observersBeforeEmptyManifest = mutationObservers.length;
+detailManifestResponse = { Enabled: false };
+window.location.hash = "#!/item?id=series-item";
+document.dispatch("viewshow", {});
+await new Promise((resolve) => setTimeout(resolve, 0));
+assert.equal(document.getElementById("embyExternalPlayerButton"), null,
+    "an empty manifest must keep non-video detail pages free of the external-play action");
+assert.equal(mutationObservers.length, observersBeforeEmptyManifest,
+    "an empty manifest must not install a full-page observer on a non-video detail page");
+assert.equal(window.__embyExternalPlayerModule.observer, null,
+    "the previous item observer must remain disconnected after an empty manifest");
 
 console.log("Web module tests passed.");

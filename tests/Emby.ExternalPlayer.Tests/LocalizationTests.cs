@@ -31,6 +31,20 @@ public sealed class LocalizationTests
     }
 
     [TestMethod]
+    public void ConfigurationStrings_UseTheExplicitClientLanguage()
+    {
+        var simplifiedChinese = PluginStrings.GetConfigurationStrings("zh-CN");
+        var english = PluginStrings.GetConfigurationStrings("en-US");
+
+        Assert.AreEqual("使用当前 Emby Web 客户端设置的语言。",
+            simplifiedChinese[nameof(PluginStrings.UseLocalizedButtonTextDescription)]);
+        Assert.AreEqual("按钮位置", simplifiedChinese[nameof(PluginStrings.ButtonPlacement)]);
+        Assert.AreEqual("Use the language selected by the current Emby Web client.",
+            english[nameof(PluginStrings.UseLocalizedButtonTextDescription)]);
+        Assert.AreEqual("Button placement", english[nameof(PluginStrings.ButtonPlacement)]);
+    }
+
+    [TestMethod]
     public void CustomTemplate_RejectsWebAndScriptSchemes()
     {
         Assert.IsFalse(CustomPlayerTemplate.IsValid("javascript:{url}"));
