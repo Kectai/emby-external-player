@@ -331,6 +331,8 @@ assert.match(stylesheet, /width:\s*min\(clamp\(36rem,\s*52vw,\s*44rem\),\s*calc\
 assert.match(stylesheet, /\.emby-ep-actions \.formDialogFooterItem\s*\{[\s\S]*?justify-content:\s*center\s*!important;/);
 assert.doesNotMatch(stylesheet, /\.emby-ep-error\s*\{[^}]*color\s*:/,
     "dialog errors must not hard-code a color that fails on another Emby theme");
+assert.match(stylesheet, /\.emby-ep-error:empty\s*\{[^}]*display:\s*none\s*!important;/,
+    "Emby's errorBanner spacing must not leave an empty red block in the dialog");
 assert.match(stylesheet, /\.emby-ep-fields \.selectContainer\.emby-ep-field\s*\{[\s\S]*?margin:\s*0\s*!important;/);
 assert.match(stylesheet, /\.emby-ep-select-button\s*\{[\s\S]*?height:\s*3em\s*!important;/);
 assert.match(stylesheet, /\.emby-ep-select-list\s*\{[\s\S]*?left:\s*0;[\s\S]*?right:\s*0;[\s\S]*?width:\s*100%;/);
